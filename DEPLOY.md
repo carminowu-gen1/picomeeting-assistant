@@ -23,7 +23,9 @@
    ```
    GitHub 大約 2 分鐘就會打包好並建立 Release，說明頁上的「下載」按鈕就能用了。
 
-**不要**在 GitHub Secrets 設定 `PROXY_URL`／`ACCESS_CODE`：repo 公開後，任何人都下載得到安裝檔，裡面的存取碼也會外流。少數人用的話，請每個人在歡迎頁申請自己的免費 Groq 金鑰（約 2 分鐘，頁面上有教學）。
+**不要**在 GitHub Secrets 設定 `PROXY_URL`／`ACCESS_CODE`：repo 公開後，任何人都下載得到安裝檔，裡面的存取碼也會外流（發布流程會直接擋下來）。少數人用的話，請每個人在歡迎頁申請自己的免費 Groq 金鑰（約 2 分鐘，頁面上有教學）。
+
+**務必幫 GitHub 帳號開啟兩步驟驗證**（GitHub →「Settings」→「Password and authentication」）。說明頁的下載檔和「有新版本」提醒都來自你的 GitHub，帳號被盜的話，別人就能發布假的新版本，這是目前最大的風險。
 
 ### 傳給同事的訊息（直接複製貼上）
 
@@ -63,7 +65,7 @@ https://carminowu-gen1.github.io/picomeeting-assistant/
 
 | 方案 | 同事要做的 | 你要做的 |
 |---|---|---|
-| **A. 組織代理（推薦）** | 允許麥克風就好 | 架一個代理伺服器（見第五節），在 GitHub 設定 `PROXY_URL`、`ACCESS_CODE` |
+| **A. 組織代理**（只適用私人 repo，或另外私下發送安裝檔；公開 repo 不能用） | 允許麥克風就好 | 架一個代理伺服器（見第五節），在 GitHub 設定 `PROXY_URL`、`ACCESS_CODE` |
 | B. 各自金鑰 | 照歡迎頁到 Groq 免費申請金鑰（約 2 分鐘） | 不用多做什麼 |
 
 之後要從 B 換成 A 也可以，在 GitHub 補上兩個 Secrets，再發一個新版本就好。
@@ -184,7 +186,11 @@ https://carminowu-gen1.github.io/picomeeting-assistant/
 **選用：之後改了 `deploy/worker.js` 時，讓 GitHub 自動更新代理**
 在 GitHub Secrets 加上 `CLOUDFLARE_API_TOKEN`（Cloudflare →「我的設定檔」→「API 權杖」→ 用「編輯 Cloudflare Workers」範本建立）和 `CLOUDFLARE_ACCOUNT_ID`（Workers 頁面右側可以看到）。
 
-**安全提醒**：存取碼會被打包進擴充功能，有心人拆開安裝檔看得到。萬一外流，在 Cloudflare 把 `ACCESS_CODES` 換成新的一組，同時更新 GitHub 的 `ACCESS_CODE`，再發一個新版本。審查通過後，還可以在 Cloudflare 加上 `EXTENSION_IDS` = 你的項目 ID，限制只有你的擴充功能能呼叫代理。
+**安全提醒**：存取碼會被打包進擴充功能，有心人拆開安裝檔看得到，所以：
+- **repo 公開時不能用這個方案**（發布流程會自動擋下）。
+- 盡量一人一組存取碼，誰外流就只停用他那組：在 Cloudflare 的 `ACCESS_CODES` 刪掉，更新 GitHub 的 `ACCESS_CODE`，再發一個新版本。
+- 代理只允許這個工具用到的模型，也限制了輸出長度和上傳大小；想再加每組存取碼的流量上限，可以在 Cloudflare 幫 Worker 加一個 Rate Limiting 綁定，名稱取 `RATE_LIMITER`。
+- `EXTENSION_IDS` 只能擋掉「其他網站」的呼叫，**擋不住**拿到存取碼的人用程式直接呼叫，不能取代存取碼保密。
 
 ---
 

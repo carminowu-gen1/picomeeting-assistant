@@ -362,7 +362,9 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       return;
     }
 
-    // ── 來自 popup / options 的指令 ──
+    // ── 來自 popup / options 等擴充功能自己頁面的指令 ──
+    // 會議網頁上的 content script 不能下這些指令（就算會議網頁被攻破也一樣）
+    if (sender.id !== chrome.runtime.id || !sender.url?.startsWith(chrome.runtime.getURL(""))) return;
     switch (msg.type) {
       case "getState": {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -371,7 +373,9 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         const { lastStartError } = await chrome.storage.session.get("lastStartError");
         checkForUpdate(); // 不等結果；下次打開 popup 就會看到
         const { update } = await chrome.storage.local.get("update");
-        return reply({ tabId: tab?.id, info, current, meetings: await listMeetings(), settings: await getSettings(), lastStartError, update });
+        const s = await getSettings();
+        const settings = { ready: s.ready, sttMode: s.sttMode, autoSummarize: s.autoSummarize }; // 不把金鑰傳出去
+        return reply({ tabId: tab?.id, info, current, meetings: await listMeetings(), settings, lastStartError, update });
       }
       case "start": {
         try { const meeting = await startRecording(msg.tabId); await chrome.storage.session.set({ lastStartError: null }); return reply({ meeting }); }
@@ -396,6 +400,17 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       case "googleConnect": return reply(await googleConnect());
       case "googleDisconnect": return reply(await googleDisconnect());
       case "deleteMeeting": {
+        // 還在錄的話先停掉、且不存檔，否則下一句字幕又會把它存回來
+        for (const [tabId, m] of active) {
+          if (m.id !== msg.meetingId) continue;
+          active.delete(tabId);
+          speakerLogs.delete(tabId);
+          await persistActive();
+          await chrome.tabs.sendMessage(tabId, { type: "stop" }).catch(() => {});
+          if (m.sttMode && m.sttMode !== "captions") await stopStt(tabId);
+          await setBadge(tabId, false);
+        }
+        clearTimeout(saveTimer);
         const all = (await listMeetings()).filter((x) => x.id !== msg.meetingId);
         await chrome.storage.local.set({ meetings: all });
         return reply({ ok: true });

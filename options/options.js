@@ -60,7 +60,7 @@ async function loadMics() {
   try {
     const devs = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "audioinput" && d.deviceId);
     const sel = $("sttMicDeviceId"), cur = sel.value;
-    sel.innerHTML = '<option value="">系統預設</option>' + devs.map((d) => `<option value="${d.deviceId}">${d.label || "麥克風"}</option>`).join("");
+    sel.replaceChildren(new Option("系統預設", ""), ...devs.map((d) => new Option(d.label || "麥克風", d.deviceId)));
     sel.value = cur;
   } catch {}
 }
@@ -77,7 +77,7 @@ $("gTest").onclick = () => {
 $("diag").onclick = async () => {
   const tabs = await chrome.tabs.query({ url: ["https://meet.google.com/*", "https://*.teams.microsoft.com/*", "https://teams.live.com/*", "https://*.zoom.us/*", "https://meet.jit.si/*", "https://*.jitsi.net/*"] });
   const { settings } = await chrome.storage.local.get("settings");
-  const safe = { ...(settings || {}), apiKey: settings?.apiKey ? "(已設定)" : "(未設定)" }; // 不外洩金鑰
+  const safe = { ...(settings || {}), apiKey: settings?.apiKey ? "(已設定)" : "(未設定)", myName: settings?.myName ? "(已設定)" : "" }; // 不外洩金鑰和名字
   const d = tabs[0] ? await chrome.runtime.sendMessage({ type: "diagnose", tabId: tabs[0].id }).catch((e) => ({ error: e.message })) : { error: "沒有開著的會議分頁" };
   const report = { version: chrome.runtime.getManifest().version, ua: navigator.userAgent, settings: safe, diagnose: d };
   await navigator.clipboard.writeText(JSON.stringify(report, null, 2));

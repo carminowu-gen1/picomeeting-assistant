@@ -3,7 +3,7 @@
 #   手動：GitHub → Actions → 發布新版本 → Run workflow（第一次上架前用這個產生 zip）
 #
 # 需要的 Secrets（Settings → Secrets and variables → Actions）：
-#   PROXY_URL / ACCESS_CODE        選填：走組織代理時才填
+#   PROXY_URL / ACCESS_CODE        選填：走組織代理時才填（repo 公開時禁止，存取碼會跟著安裝檔外流）
 #   GOOGLE_CLIENT_ID               選填：要開放「存到 Google 文件」時才填
 #   CWS_SERVICE_ACCOUNT_JSON       選填：三個 CWS_ 都有填才會自動上傳商店
 #   CWS_PUBLISHER_ID
@@ -21,24 +21,38 @@ on:
         default: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   release:
     runs-on: windows-latest
+    permissions:
+      contents: write # 建立 Release 需要
     env:
       HAS_CWS: ${{ secrets.CWS_SERVICE_ACCOUNT_JSON != '' && secrets.CWS_PUBLISHER_ID != '' && secrets.CWS_EXTENSION_ID != '' }}
+      HAS_ACCESS_CODE: ${{ secrets.ACCESS_CODE != '' }}
+      REPO_PUBLIC: ${{ github.event.repository.private == false }}
+      REF_TYPE: ${{ github.ref_type }}
+      REF_NAME: ${{ github.ref_name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: 安全檢查：公開的 repo 不能打包存取碼
+        if: env.REPO_PUBLIC == 'true' && env.HAS_ACCESS_CODE == 'true'
+        shell: pwsh
+        run: throw "repo 是公開的，Release 裡的安裝檔任何人都下載得到，ACCESS_CODE 會跟著外流。請刪除 PROXY_URL / ACCESS_CODE 這兩個 Secrets，或把 repo 改回私人。"
 
       - name: 讀取版本
         id: ver
         shell: pwsh
         run: |
           $v = (Get-Content manifest.json -Raw | ConvertFrom-Json).version
+          if ($v -notmatch '^\d+(\.\d+){0,3}$') { throw "manifest.json 的版本格式不對：$v" }
           "version=$v" >> $env:GITHUB_OUTPUT
-          if ("${{ github.ref_type }}" -eq "tag" -and "${{ github.ref_name }}" -ne "v$v") {
-            throw "標籤 ${{ github.ref_name }} 和 manifest.json 的版本 $v 不一樣，請先改 manifest.json"
+          if ($env:REF_TYPE -eq "tag" -and $env:REF_NAME -ne "v$v") {
+            throw "標籤 $($env:REF_NAME) 和 manifest.json 的版本 $v 不一樣，請先改 manifest.json"
           }
 
       - name: 打包
@@ -50,20 +64,25 @@ jobs:
         run: .\build.ps1 -ProxyUrl "$env:PROXY_URL" -AccessCode "$env:ACCESS_CODE" -GoogleClientId "$env:GOOGLE_CLIENT_ID"
 
       - name: 保存 zip（Actions 頁面可下載）
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: meeting-assistant-${{ steps.ver.outputs.version }}
           path: dist/meeting-assistant-${{ steps.ver.outputs.version }}.zip
+          retention-days: 14
 
       - name: 建立 GitHub Release
         if: github.ref_type == 'tag'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        # 另附一份固定檔名的 meeting-assistant.zip，說明頁的下載按鈕永遠指向最新版
+          VERSION: ${{ steps.ver.outputs.version }}
+        # 另附一份固定檔名的 meeting-assistant.zip（說明頁的下載按鈕永遠指向最新版）和 SHA-256 校驗碼
         run: |
-          Copy-Item "dist/meeting-assistant-${{ steps.ver.outputs.version }}.zip" "dist/meeting-assistant.zip"
-          gh release create "${{ github.ref_name }}" "dist/meeting-assistant.zip" "dist/meeting-assistant-${{ steps.ver.outputs.version }}.zip" --title "${{ github.ref_name }}" --generate-notes
+          $zip = "dist/meeting-assistant-$($env:VERSION).zip"
+          Copy-Item $zip "dist/meeting-assistant.zip"
+          $lines = foreach ($f in @("dist/meeting-assistant.zip", $zip)) { "{0}  {1}" -f (Get-FileHash $f -Algorithm SHA256).Hash.ToLower(), (Split-Path $f -Leaf) }
+          [IO.File]::WriteAllLines("dist/SHA256SUMS.txt", $lines)
+          gh release create $env:REF_NAME "dist/meeting-assistant.zip" $zip "dist/SHA256SUMS.txt" --title $env:REF_NAME --generate-notes
 
       - name: 上傳到 Chrome 線上應用程式商店並送審
         if: env.HAS_CWS == 'true' && (github.ref_type == 'tag' || inputs.upload_to_store)
@@ -72,9 +91,10 @@ jobs:
           CWS_SERVICE_ACCOUNT_JSON: ${{ secrets.CWS_SERVICE_ACCOUNT_JSON }}
           CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
           CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
-        run: node scripts/publish-cws.mjs "dist/meeting-assistant-${{ steps.ver.outputs.version }}.zip"
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: node scripts/publish-cws.mjs "dist/meeting-assistant-$($env:VERSION).zip"
 
       - name: 提醒
         if: env.HAS_CWS != 'true'
         shell: pwsh
-        run: Write-Host "沒有設定 CWS_ 開頭的 Secrets，所以沒有自動上傳商店。請從這次執行的 Artifacts 下載 zip，手動上傳到開發人員資訊主頁。"
+        run: Write-Host "沒有設定 CWS_ 開頭的 Secrets，所以沒有自動上傳商店（少數人用、不上架時這是正常的）。"

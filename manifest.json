@@ -17,7 +17,7 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "permissions": ["storage", "tabs", "activeTab", "downloads", "identity", "sidePanel", "tabCapture", "offscreen"],
+  "permissions": ["storage", "activeTab", "downloads", "identity", "sidePanel", "tabCapture", "offscreen"],
   "side_panel": { "default_path": "live/live.html" },
   "host_permissions": [
     "https://meet.google.com/*",
@@ -48,10 +48,6 @@
   ],
   "oauth2": {
     "client_id": "YOUR_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com",
-    "scopes": [
-      "https://www.googleapis.com/auth/documents",
-      "https://www.googleapis.com/auth/drive.file",
-      "https://www.googleapis.com/auth/userinfo.email"
-    ]
+    "scopes": ["https://www.googleapis.com/auth/drive.file"]
   }
 }

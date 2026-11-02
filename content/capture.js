@@ -114,7 +114,7 @@
   function tileDump() {
     const tiles = [...document.querySelectorAll(S.tile[0])].slice(0, 8);
     return tiles.map((t) => ({
-      name: tileName(t),
+      name: maskName(tileName(t)),
       rootClass: (t.className || "").toString().trim(),
       qg: [...t.querySelectorAll('[jsname="QgSmzd"]')].map((q) => (q.className || "").toString().trim()),
       audioAttrs: [...t.querySelectorAll("[data-audio-level], [aria-label*='麥克風'], [aria-label*='icrophone']")].map((e) => e.getAttribute("data-audio-level") ?? e.getAttribute("aria-label")),
@@ -258,6 +258,9 @@
   }
 
   // 診斷：popup 按「診斷」時回報目前抓到什麼，方便調 selector
+  // 診斷資料會被貼給別人看：參加者名字一律遮掉，只看得出有沒有抓到
+  const maskName = (n) => (!n ? null : n === "我" || n === myName ? "(我)" : `(參加者・${[...n].length} 字)`);
+
   function diagnose() {
     const region = findRegion();
     const items = region ? region.querySelectorAll(P.item).length : 0;
@@ -265,11 +268,11 @@
     const tiles = S.tile.map((t) => document.querySelectorAll(t).length);
     const tileEl = q(document, S.tile);
     return {
-      platform: P.name, url: location.href,
+      platform: P.name, url: location.origin, // 只留網域：完整網址可能含會議密碼
       captions: { regionFound: !!region, regionLabel: region?.getAttribute("aria-label") || region?.className?.slice(0, 40) || null, itemsByClass: items, itemsStructural: structural, allRegions: regionLabels() },
       sent: sentCount, // 這個分頁已送出的字幕訊息數
       ccButton: !!q(document, P.ccButton),
-      speakers: { tilesBySelector: tiles, sampleTileName: tileEl ? tileName(tileEl) : null, speakingNow: speakingNow(), speakingSelectorHit: speakingHit || null, tiles: tileDump() },
+      speakers: { tilesBySelector: tiles, sampleTileName: tileEl ? maskName(tileName(tileEl)) : null, speakingNow: speakingNow().map(maskName), speakingSelectorHit: speakingHit || null, tiles: tileDump() },
       recording,
     };
   }
