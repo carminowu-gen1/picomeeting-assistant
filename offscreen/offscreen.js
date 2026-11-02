@@ -39,11 +39,12 @@ async function start({ tabId, streamId, settings }) {
     });
   } catch (e) { throw new Error(`[offscreen 開啟分頁音訊] ${e.name}: ${e.message}`); }
   let s;
-  const ctx = new AudioContext();
-  // offscreen 沒有使用者手勢，AudioContext 會停在 suspended：分析器讀到 0、聲音也不會接回喇叭
+  // 這個 AudioContext 只負責把分頁聲音接回喇叭（抓了分頁音訊後原分頁會靜音）；
+  // latencyHint "playback" 用比較大的緩衝，音訊執行緒喚醒次數少很多，對低階電腦差很多
+  const ctx = new AudioContext({ latencyHint: "playback" });
+  // offscreen 沒有使用者手勢，AudioContext 會停在 suspended，聲音不會接回喇叭
   try { await ctx.resume(); } catch {}
   ctx.onstatechange = () => { s.stats.ctxState = ctx.state; report(s); };
-  // 抓了分頁音訊後，原分頁會靜音，要接回喇叭
   ctx.createMediaStreamSource(tabStream).connect(ctx.destination);
 
   s = { tabId, settings, ctx, stopped: false, channels: {}, prevText: "",
@@ -56,9 +57,9 @@ async function start({ tabId, streamId, settings }) {
   // 即時音量（給 popup 的音量表）
   s.levelTimer = setInterval(() => {
     const levels = {};
-    for (const [k, ch] of Object.entries(s.channels)) levels[k] = +(ch.level || 0).toFixed(4); // 用每 0.1 秒量好的值，不重算
+    for (const [k, ch] of Object.entries(s.channels)) levels[k] = +(ch.level || 0).toFixed(4); // 用收音時順便算好的值
     chrome.runtime.sendMessage({ type: "stt:levels", tabId: s.tabId, levels, ctxState: ctx.state });
-  }, 400);
+  }, 500);
   report(s);
   notify(tabId, "ok", s.stats.mic ? "語音辨識已啟動：麥克風＝你，分頁聲音＝其他人" : "語音辨識已啟動（只有分頁聲音，收不到你自己）");
 }
@@ -87,70 +88,132 @@ async function addMic(s) {
   }
 }
 
+// ── 收音：直接讀原始音訊，降到 16 kHz，存成 WAV ──
+// 以前用 MediaRecorder 即時壓成 Opus，再加一組分析器量音量：兩條聲音各一套，在低階電腦上很吃 CPU。
+// Whisper 收到檔案本來就會解壓、再降到 16 kHz，所以壓縮是白做的；現在不壓縮，音量也直接從同一份資料算。
+const TARGET_SR = 16000;
+
 function makeChannel(s, name, stream) {
-  const analyser = s.ctx.createAnalyser();
-  analyser.fftSize = 2048;
-  s.ctx.createMediaStreamSource(stream).connect(analyser);
-  const ch = { name, stream, analyser, peak: 0, recorder: null, timer: null };
-  cycle(s, ch);
+  const track = stream.getAudioTracks()[0];
+  const ch = { name, stream, track, level: 0, peak: 0, chunks: [], samples: 0, startedAt: 0, hadVoice: false, lastVoiceAt: 0, voicedMs: 0, carry: 0, f32: null };
+  const processor = new MediaStreamTrackProcessor({ track });
+  ch.reader = processor.readable.getReader();
+  (async () => {
+    try {
+      while (!s.stopped) {
+        const { value: frame, done } = await ch.reader.read();
+        if (done) break;
+        try { ingest(s, ch, frame); } finally { frame.close(); }
+      }
+    } catch (e) { if (!s.stopped) { s.stats.lastError = "收音中斷：" + e.message; report(s); } }
+  })();
   return ch;
 }
 
-function rms(analyser) {
-  const buf = (analyser._buf ??= new Float32Array(analyser.fftSize)); // 重複使用，不要每 0.1 秒配置一次
-  analyser.getFloatTimeDomainData(buf);
-  let sum = 0;
-  for (const v of buf) sum += v * v;
-  return Math.sqrt(sum / buf.length);
+// 把一個音訊 frame（通常 10 ms）轉成單聲道浮點樣本
+function monoFloat(frame, ch) {
+  const n = frame.numberOfFrames, c = frame.numberOfChannels || 1;
+  if (!ch.f32 || ch.f32.length < n) ch.f32 = new Float32Array(n);
+  const out = ch.f32.subarray(0, n);
+  try {
+    frame.copyTo(out, { planeIndex: 0, format: "f32-planar" }); // 新版 Chrome 會幫忙轉格式
+    return out;
+  } catch {}
+  // 舊版：依原始格式自己轉
+  const fmt = frame.format || "f32";
+  const planar = fmt.endsWith("-planar");
+  const count = planar ? n : n * c;
+  let buf;
+  if (fmt.startsWith("f32")) buf = new Float32Array(count);
+  else if (fmt.startsWith("s16")) buf = new Int16Array(count);
+  else if (fmt.startsWith("s32")) buf = new Int32Array(count);
+  else buf = new Uint8Array(count);
+  frame.copyTo(buf, { planeIndex: 0 });
+  const scale = fmt.startsWith("f32") ? 1 : fmt.startsWith("s16") ? 1 / 32768 : fmt.startsWith("s32") ? 1 / 2147483648 : 1 / 128;
+  const off = fmt.startsWith("u8") ? 128 : 0;
+  for (let i = 0; i < n; i++) out[i] = (buf[planar ? i : i * c] - off) * scale;
+  return out;
 }
 
-// 每段重新 start/stop 一個 MediaRecorder，確保每個 blob 都是完整可解碼的檔案
-function cycle(s, ch) {
-  if (s.stopped) return;
-  const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm";
-  const rec = new MediaRecorder(ch.stream, { mimeType: mime, audioBitsPerSecond: 32000 });
-  const parts = [];
-  const startedAt = Date.now();
-  ch.peak = 0;
-  rec.ondataavailable = (e) => e.data.size && parts.push(e.data);
-  let voicedMs = 0; // 這一段裡「有人在說話」的累積時間
-  rec.onstop = () => {
-    const peak = ch.peak;
-    const blob = new Blob(parts, { type: mime });
-    if (!s.stopped) cycle(s, ch); // 先接著錄，不要漏音
-    s.stats.chunks++; s.stats.lastPeak = +peak.toFixed(4);
-    const bc = s.stats.byChannel[ch.name] || (s.stats.byChannel[ch.name] = { chunks: 0, sent: 0, silent: 0, peak: 0, bytes: 0 });
-    bc.chunks++; bc.peak = +peak.toFixed(4); bc.bytes = blob.size; bc.voicedMs = voicedMs;
-    // 靜音判斷只在 AudioContext 真的在跑時才可信；否則一律送（寧可多花一點額度也不要漏）
-    const canGate = s.ctx.state === "running";
-    if (blob.size < 2000 || (canGate && voicedMs < MIN_VOICE_MS)) { s.stats.silent++; bc.silent++; report(s); return; } // 只有雜音：跳過
-    s.stats.sent++; bc.sent++;
-    transcribe(s, ch, blob, startedAt, voicedMs)
-      .then(() => { s.stats.ok++; report(s); })
-      .catch((e) => { s.stats.lastError = e.message; report(s); notify(s.tabId, "error", "語音辨識失敗：" + e.message); });
-  };
-  rec.start();
-  ch.recorder = rec;
-  let hadVoice = false, lastVoiceAt = startedAt;
-  ch.timer = setInterval(() => {
-    if (rec.state !== "recording") { clearInterval(ch.timer); return; }
-    const now = Date.now();
-    const r = rms(ch.analyser);
-    ch.level = r;
-    if (r > ch.peak) ch.peak = r;
-    if (isVoiced(ch, r)) { hadVoice = true; lastVoiceAt = now; voicedMs += 100; }
-    const elapsed = now - startedAt;
-    // AudioContext 沒在跑時 rms 永遠是 0 → 只會走 MAX_MS，等同固定切段
-    if (elapsed >= MAX_MS || (hadVoice && elapsed >= MIN_MS && now - lastVoiceAt >= PAUSE_MS)) {
-      clearInterval(ch.timer);
-      rec.stop();
-    }
-  }, 100);
+function ingest(s, ch, frame) {
+  const sr = frame.sampleRate || 48000;
+  const x = monoFloat(frame, ch);
+  const n = x.length;
+  if (!n) return;
+  const now = Date.now();
+  if (!ch.startedAt) { ch.startedAt = now; ch.peak = 0; ch.hadVoice = false; ch.lastVoiceAt = now; ch.voicedMs = 0; }
+
+  // 音量（RMS）
+  let sum = 0;
+  for (let i = 0; i < n; i++) sum += x[i] * x[i];
+  const r = Math.sqrt(sum / n);
+  ch.level = r;
+  if (r > ch.peak) ch.peak = r;
+  const frameMs = (n / sr) * 1000;
+  if (isVoiced(ch, r)) { ch.hadVoice = true; ch.lastVoiceAt = now; ch.voicedMs += frameMs; }
+
+  // 降到 16 kHz：每 step 個原始樣本平均成一個（48k → 3:1；其他取樣率用小數步進）
+  const step = sr / TARGET_SR;
+  const outN = Math.floor((n + ch.carry) / step);
+  const pcm = new Int16Array(outN);
+  let pos = -ch.carry;
+  for (let i = 0; i < outN; i++) {
+    const a = Math.max(0, Math.round(pos)), b = Math.min(n, Math.round(pos + step));
+    let acc = 0, cnt = 0;
+    for (let j = a; j < b; j++) { acc += x[j]; cnt++; }
+    const v = cnt ? acc / cnt : 0;
+    pcm[i] = v <= -1 ? -32768 : v >= 1 ? 32767 : (v * 32767) | 0;
+    pos += step;
+  }
+  ch.carry = n - pos;
+  ch.chunks.push(pcm);
+  ch.samples += outN;
+
+  // 還沒有人說話：只保留最後 0.5 秒當前置音，前面的靜音丟掉（檔案小、也少給 Whisper 編故事的空間）
+  if (!ch.hadVoice) {
+    const keep = TARGET_SR * 0.5;
+    while (ch.chunks.length > 1 && ch.samples - ch.chunks[0].length >= keep) ch.samples -= ch.chunks.shift().length;
+    ch.startedAt = now - (ch.samples / TARGET_SR) * 1000;
+  }
+
+  // 切段：講完一句（靜音 PAUSE_MS）就切，最長 MAX_MS
+  const elapsed = now - ch.startedAt;
+  if (elapsed >= MAX_MS || (ch.hadVoice && elapsed >= MIN_MS && now - ch.lastVoiceAt >= PAUSE_MS)) flush(s, ch);
+}
+
+function flush(s, ch) {
+  const { chunks, samples, startedAt, voicedMs, peak } = ch;
+  ch.chunks = []; ch.samples = 0; ch.startedAt = 0;
+  if (!samples) return;
+  const blob = toWav(chunks, samples);
+  s.stats.chunks++; s.stats.lastPeak = +peak.toFixed(4);
+  const bc = s.stats.byChannel[ch.name] || (s.stats.byChannel[ch.name] = { chunks: 0, sent: 0, silent: 0, peak: 0, bytes: 0 });
+  bc.chunks++; bc.peak = +peak.toFixed(4); bc.bytes = blob.size; bc.voicedMs = Math.round(voicedMs);
+  if (voicedMs < MIN_VOICE_MS) { s.stats.silent++; bc.silent++; report(s); return; } // 只有雜音：跳過
+  s.stats.sent++; bc.sent++;
+  transcribe(s, ch, blob, startedAt, Math.round(voicedMs))
+    .then(() => { s.stats.ok++; report(s); })
+    .catch((e) => { s.stats.lastError = e.message; report(s); notify(s.tabId, "error", "語音辨識失敗：" + e.message); });
+}
+
+// 16 kHz、單聲道、16-bit 的 WAV
+function toWav(chunks, samples) {
+  const buf = new ArrayBuffer(44 + samples * 2);
+  const v = new DataView(buf);
+  const str = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+  str(0, "RIFF"); v.setUint32(4, 36 + samples * 2, true); str(8, "WAVE");
+  str(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, TARGET_SR, true); v.setUint32(28, TARGET_SR * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  str(36, "data"); v.setUint32(40, samples * 2, true);
+  const out = new Int16Array(buf, 44);
+  let o = 0;
+  for (const c of chunks) { out.set(c, o); o += c.length; }
+  return new Blob([buf], { type: "audio/wav" });
 }
 
 async function transcribe(s, ch, blob, startedAt, voicedMs = 0) {
   const fd = new FormData();
-  fd.append("file", blob, "chunk.webm");
+  fd.append("file", blob, "chunk.wav");
   fd.append("model", "whisper-large-v3"); // Turbo 錯字太多，固定用 Large v3
   fd.append("response_format", "verbose_json"); // 要句子時間戳，才能對回發言者
   fd.append("temperature", "0");
@@ -244,8 +307,7 @@ function stop(tabId) {
   s.stopped = true;
   clearInterval(s.levelTimer);
   for (const ch of Object.values(s.channels)) {
-    clearTimeout(ch.timer);
-    try { ch.recorder?.state === "recording" && ch.recorder.stop(); } catch {}
+    try { ch.reader?.cancel(); } catch {}
     ch.stream.getTracks().forEach((t) => t.stop());
   }
   s.ctx.close().catch(() => {});
