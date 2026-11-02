@@ -235,7 +235,7 @@
           <div class="txt">
             <h3 data-t="s1_t">把安裝檔抱回家</h3>
             <p data-t="s1_p">按下面的按鈕，下載 <code>meeting-assistant.zip</code>。</p>
-            <p><a class="btn ghost" id="dl" href="#" data-t="dl">⬇ 下載 meeting-assistant.zip</a></p>
+            <p><a class="btn ghost dl" id="dl" href="#" data-t="dl">⬇ 下載 meeting-assistant.zip</a></p>
           </div>
           <div class="fig" aria-hidden="true">
             <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><div class="omni">github.com/…/meeting-assistant.zip</div><div class="tb"><span class="ic hl">⬇</span></div></div>
@@ -351,7 +351,7 @@
           </div>
         </li>
         <li class="step">
-          <div class="txt"><h3 data-t="u2_t">下載新版，蓋掉舊的</h3><p data-t="u2_p">用上面同一個下載按鈕。解壓縮到<b>原本的資料夾</b>，問要不要取代時選「<b>取代目的地中的檔案</b>」。</p></div>
+          <div class="txt"><h3 data-t="u2_t">下載新版，蓋掉舊的</h3><p data-t="u2_p">按下面的按鈕下載最新版。解壓縮到<b>原本的資料夾</b>，問要不要取代時選「<b>取代目的地中的檔案</b>」。</p><p><a class="btn ghost dl" href="#" data-t="dl2">⬇ 下載最新版 meeting-assistant.zip</a></p></div>
           <div class="fig" aria-hidden="true">
             <div class="fig-body">
               <div style="border:1px solid var(--border);border-radius:10px;padding:12px">
@@ -464,7 +464,8 @@
       u1_p: "Click it and it brings you back to this page.",
       u_banner: "🎁 Version 1.0.1 is here — click to see how",
       u2_t: "Download it and overwrite the old one",
-      u2_p: "Use the same download button above. Extract into the <b>same folder</b>, and when asked, choose “<b>Replace the files in the destination</b>”.",
+      u2_p: "Click the button below to download the latest version. Extract into the <b>same folder</b>, and when asked, choose “<b>Replace the files in the destination</b>”.",
+      dl2: "⬇ Download the latest meeting-assistant.zip",
       r_t: "Replace or Skip Files", r_d: "The destination already has 34 files with the same names", r_rep: "✓ Replace the files in the destination", r_skip: "↷ Skip these files",
       u3_t: "Hit ↻ to reload",
       u3_p: "Go to <code>chrome://extensions</code> and click <b>↻</b> on the “會議摘要助理” card. Upgrade complete 🎉",
@@ -509,7 +510,7 @@
       try { localStorage.setItem("lang", l); } catch {}
     }
 
-    $("dl").href = ZIP_URL;
+    document.querySelectorAll("a.dl").forEach((a) => (a.href = ZIP_URL));
     if (STORE_URL) {
       $("store-only").hidden = false;
       $("manual-only").hidden = true;
