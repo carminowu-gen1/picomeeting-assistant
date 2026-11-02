@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8" />
+  <title>會議摘要助理 – 設定</title>
+  <link rel="stylesheet" href="../ui/theme.css" />
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <main>
+    <header>
+      <h1>設定</h1>
+      <span id="saved" class="small muted">修改會自動儲存</span>
+    </header>
+
+    <!-- 基本：大部分人只需要這裡 -->
+    <section class="card">
+      <div class="field" id="keyField">
+        <label for="apiKey">AI 服務金鑰（Groq）</label>
+        <div class="row">
+          <input type="password" id="apiKey" placeholder="貼上 gsk_ 開頭的金鑰" autocomplete="off" />
+          <button class="btn" id="checkKey" type="button">檢查</button>
+        </div>
+        <p class="help"><span id="keyMsg"></span> 沒有金鑰？<a href="../welcome/welcome.html#key">看 3 步驟免費取得</a></p>
+      </div>
+      <div class="field" id="proxyField" hidden>
+        <label>AI 服務</label>
+        <p class="ok-line">✓ 由你的組織提供，不需要設定</p>
+      </div>
+
+      <div class="field">
+        <label for="myName">你的名字</label>
+        <input type="text" id="myName" placeholder="逐字稿裡你說的話會標上這個名字" />
+      </div>
+
+      <div class="field">
+        <label>麥克風</label>
+        <div class="row">
+          <button class="btn" id="micTest" type="button">🎤 測試麥克風</button>
+          <div class="meter-bar"><div id="micMeter" class="meter-fill"></div></div>
+        </div>
+        <p class="help" id="micMsg">按下測試後說幾句話，綠色條會跟著跳動就代表正常。</p>
+      </div>
+
+      <div class="field">
+        <label>外觀</label>
+        <div class="seg" id="themeSeg">
+          <button data-theme="light">☀ 淺色</button>
+          <button data-theme="auto">跟隨系統</button>
+          <button data-theme="dark">☾ 深色</button>
+        </div>
+      </div>
+    </section>
+
+    <details class="card adv">
+      <summary>進階設定</summary>
+
+      <h2>摘要</h2>
+      <div class="grid2">
+        <div class="field">
+          <label for="language">摘要語言</label>
+          <select id="language"><option>繁體中文</option><option>简体中文</option><option>English</option><option>日本語</option></select>
+        </div>
+        <div class="field">
+          <label for="model">AI 模型</label>
+          <select id="model">
+            <option value="llama-3.3-70b-versatile">Llama 3.3 70B（建議）</option>
+            <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
+            <option value="llama-3.1-8b-instant">Llama 3.1 8B（最快）</option>
+          </select>
+        </div>
+      </div>
+      <label class="toggle"><div><b>會議結束自動產生摘要</b></div><span class="switch"><input type="checkbox" id="autoSummarize" /><span></span></span></label>
+      <label class="toggle"><div><b>模型忙碌時自動換一個</b><span class="help">遇到額度上限或錯誤時改用其他模型</span></div><span class="switch"><input type="checkbox" id="autoFallback" /><span></span></span></label>
+      <label class="toggle"><div><b>省用量模式</b><span class="help">送出前精簡逐字稿，約省一半用量</span></div><span class="switch"><input type="checkbox" id="tokenSaver" /><span></span></span></label>
+
+      <h2>逐字稿</h2>
+      <div class="grid2">
+        <div class="field">
+          <label for="sttMode">來源</label>
+          <select id="sttMode">
+            <option value="stt">聽聲音辨識（建議）</option>
+            <option value="captions">讀會議字幕 CC</option>
+            <option value="both">兩者都用</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="sttLanguage">語言</label>
+          <select id="sttLanguage">
+            <option value="auto">多語（原文照錄，不翻譯）</option>
+            <option value="zh">固定中文（英文會被翻成中文）</option>
+            <option value="en">固定英文（中文會被翻成英文）</option>
+            <option value="ja">固定日文</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="sttMicDeviceId">麥克風裝置</label>
+          <select id="sttMicDeviceId"><option value="">系統預設</option></select>
+        </div>
+        <div class="field">
+          <label for="sttSpeaker">認不出對方是誰時顯示</label>
+          <input type="text" id="sttSpeaker" placeholder="遠端" />
+        </div>
+      </div>
+      <label class="toggle"><div><b>簡體自動轉繁體</b></div><span class="switch"><input type="checkbox" id="toTraditional" /><span></span></span></label>
+      <label class="toggle"><div><b>收我的麥克風</b><span class="help">關閉後只記錄對方的聲音</span></div><span class="switch"><input type="checkbox" id="sttMic" /><span></span></span></label>
+
+      <h2>其他</h2>
+      <label class="toggle"><div><b>進入會議自動開始記錄</b><span class="help">只能讀字幕；聽聲音辨識需要手動按開始</span></div><span class="switch"><input type="checkbox" id="autoStart" /><span></span></span></label>
+      <label class="toggle"><div><b>讀字幕時自動打開 CC</b></div><span class="switch"><input type="checkbox" id="autoCaptions" /><span></span></span></label>
+      <label class="toggle"><div><b>匯出時附上完整逐字稿</b></div><span class="switch"><input type="checkbox" id="includeTranscript" /><span></span></span></label>
+      <div class="field" id="gField" hidden>
+        <label>Google 文件</label>
+        <div class="row"><button class="btn sm" id="gTest" type="button">連結 Google 帳號</button><span id="gStatus" class="small muted"></span></div>
+      </div>
+
+      <h2>疑難排解</h2>
+      <div class="row">
+        <button class="btn sm" id="diag" type="button">複製診斷資料</button>
+        <span class="small muted">開著會議時按，再貼給技術人員</span>
+      </div>
+      <p class="help">支援 Google Meet、Microsoft Teams（網頁版）、Zoom（網頁版）、Jitsi Meet。</p>
+    </details>
+  </main>
+  <div id="toast" class="toast"></div>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

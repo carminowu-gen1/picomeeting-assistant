@@ -1,0 +1,70 @@
+body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+/* ── 頂部 ── */
+.bar { display: flex; flex-direction: column; gap: 8px; padding: 10px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.row1 { display: flex; align-items: center; gap: 8px; }
+.row1 .badge { flex: none; white-space: nowrap; }
+#history { flex: 1; min-width: 0; padding: 6px 8px; font-size: 13px; }
+#stopBtn { flex: none; }
+.btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.title-input { border: 1px solid transparent; background: transparent; font-weight: 650; font-size: 16px; padding: 4px 6px; margin: 0 -6px; }
+.title-input:hover { border-color: var(--border); }
+.title-input:focus { background: var(--surface); }
+.row2 { display: flex; gap: 6px; align-items: stretch; }
+.row2 > .btn { flex: 1; }
+
+/* ⋯ 選單 */
+.menu { position: relative; }
+.menu > summary { list-style: none; height: 100%; padding: 9px 14px; }
+.menu > summary::-webkit-details-marker { display: none; }
+.menu-list {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 10; min-width: 200px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  padding: 6px; display: flex; flex-direction: column;
+}
+.menu-list button { text-align: left; border: 0; background: none; color: var(--text); font: inherit; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+.menu-list button:hover { background: var(--surface-2); }
+.menu-list hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; width: 100%; }
+.danger-text { color: var(--danger) !important; }
+
+/* ── 內容：窄（側邊欄）上下排；寬（分頁）左右排 ── */
+.content { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+.summary-card { padding: 12px 14px; border-bottom: 1px solid var(--border); background: var(--bg); }
+.summary-card:empty { display: none; }
+.tr-wrap { display: flex; flex-direction: column; padding: 10px 14px 16px; gap: 8px; }
+#search { padding: 7px 10px; }
+@media (min-width: 900px) {
+  .content { flex-direction: row-reverse; overflow: hidden; }
+  .summary-card { width: 380px; flex: none; overflow: auto; border-bottom: 0; border-left: 1px solid var(--border); }
+  .tr-wrap { flex: 1; overflow: auto; }
+}
+
+/* 摘要 */
+.summary-card h3 { font-size: 12px; color: var(--text-2); letter-spacing: .04em; margin: 12px 0 4px; }
+.summary-card h3:first-child { margin-top: 0; }
+.summary-card p { margin: 0 0 6px; white-space: pre-wrap; }
+.summary-card ul { margin: 0; padding-left: 18px; }
+.summary-card li { margin: 2px 0; }
+.summary-card .wait { color: var(--text-2); display: flex; align-items: center; gap: 8px; }
+
+/* 逐字稿 */
+.transcript { display: flex; flex-direction: column; gap: 2px; }
+.line { padding: 6px 8px; border-radius: 8px; }
+.line:hover { background: var(--surface); }
+.lh { display: flex; align-items: center; gap: 8px; }
+.sp { font-weight: 650; color: var(--accent); cursor: pointer; border-radius: 6px; padding: 0 2px; }
+.sp:hover { background: var(--accent-soft); }
+.sp.me { color: var(--success); }
+.t { color: var(--text-3); font-size: 11px; font-variant-numeric: tabular-nums; }
+.del { margin-left: auto; opacity: 0; border: 0; background: none; color: var(--text-3); cursor: pointer; font-size: 13px; }
+.line:hover .del { opacity: 1; }
+.del:hover { color: var(--danger); }
+.tx { outline: none; white-space: pre-wrap; word-break: break-word; border-radius: 6px; padding: 1px 2px; margin-top: 2px; }
+.tx:focus { background: var(--surface-2); box-shadow: 0 0 0 2px var(--accent-soft); }
+.line.new { animation: fade .6s; }
+@keyframes fade { from { background: var(--accent-soft); } }
+.empty { text-align: center; color: var(--text-2); padding: 40px 0; }
+.hint { margin: 4px 0 0; }
+
+.spin { display: inline-block; width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg) } }

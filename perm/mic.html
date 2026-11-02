@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8" />
+  <title>麥克風授權</title>
+  <link rel="stylesheet" href="../ui/theme.css" />
+  <style>
+    body { padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+    h1 { font-size: 17px; }
+    .ok { color: var(--success); font-weight: 650; }
+    .err { color: var(--danger); }
+    ol { margin: 0; padding-left: 20px; color: var(--text-2); font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>🎤 允許使用麥克風</h1>
+  <p class="muted">要辨識<b>你自己</b>說的話，需要麥克風；分頁聲音只有其他人。Chrome 會在上方跳出詢問，請按「允許」。</p>
+  <div id="status">請稍候…</div>
+  <button class="btn primary" id="retry" hidden>再試一次</button>
+  <ol id="help" hidden>
+    <li>若沒有跳出詢問：點網址列左邊的「🔒 / 設定」圖示 → 麥克風 → 允許。</li>
+    <li>或到 <code>chrome://settings/content/microphone</code> 把這個擴充功能從「封鎖」移除。</li>
+  </ol>
+  <script type="module" src="mic.js"></script>
+</body>
+</html>

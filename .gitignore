@@ -1,0 +1,13 @@
+# 打包產物（build.ps1 產生，可能含代理存取碼，不要上傳）
+dist/
+*.zip
+
+# Cloudflare Worker 本機檔案（可能含秘密）
+deploy/.wrangler/
+deploy/.dev.vars
+node_modules/
+
+# 本機測試檔
+_check.html
+_stub.js
+_preview.html

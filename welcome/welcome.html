@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8" />
+  <title>歡迎使用會議摘要助理</title>
+  <link rel="stylesheet" href="../ui/theme.css" />
+  <link rel="stylesheet" href="welcome.css" />
+</head>
+<body>
+  <main>
+    <div class="hero">
+      <span class="logo">✦</span>
+      <h1>歡迎使用會議摘要助理</h1>
+      <p class="muted">開會時自動記下每個人說的話，會後幫你整理成摘要和 Word 檔。<br>只要完成下面 3 個步驟，大約 1 分鐘。</p>
+    </div>
+
+    <!-- 1 麥克風 -->
+    <section class="step" id="s1">
+      <div class="num">1</div>
+      <div class="body">
+        <h2>允許使用麥克風</h2>
+        <p>這樣才記得到<b>你自己</b>說的話。按下按鈕後，Chrome 上方會問你，請按「<b>允許</b>」，然後說幾句話。</p>
+        <div class="row">
+          <button class="btn primary" id="micBtn">🎤 允許並測試</button>
+          <div class="meter-bar"><div id="micMeter" class="meter-fill"></div></div>
+        </div>
+        <p class="msg" id="micMsg"></p>
+      </div>
+    </section>
+
+    <!-- 2 AI 服務 -->
+    <section class="step" id="s2">
+      <div class="num">2</div>
+      <div class="body" id="keyBody">
+        <h2>連接 AI 服務（免費）</h2>
+        <p>摘要和語音辨識使用 Groq 的免費 AI 服務，需要一組「金鑰」：</p>
+        <ol class="howto" id="key">
+          <li><a class="btn sm" href="https://console.groq.com/keys" target="_blank">打開 Groq 網站</a> 用 Google 帳號登入</li>
+          <li>按「<b>Create API Key</b>」，名稱隨便填（例如：會議），按「<b>Submit</b>」</li>
+          <li>按「<b>Copy</b>」複製金鑰，回到這裡貼上：</li>
+        </ol>
+        <div class="row">
+          <input type="password" id="keyInput" placeholder="在這裡貼上（gsk_ 開頭）" autocomplete="off" />
+          <button class="btn primary" id="keyBtn">確認</button>
+        </div>
+        <p class="msg" id="keyMsg"></p>
+      </div>
+      <div class="body" id="proxyBody" hidden>
+        <h2>連接 AI 服務</h2>
+        <p class="msg ok">✓ 你的組織已經幫你設定好了，不需要做任何事。</p>
+      </div>
+    </section>
+
+    <!-- 3 釘選 -->
+    <section class="step" id="s3">
+      <div class="num">3</div>
+      <div class="body">
+        <h2>把圖示釘在工具列</h2>
+        <p>點 Chrome 右上角的 <span class="kbd">🧩 拼圖</span> → 找到「會議摘要助理」→ 按旁邊的 <span class="kbd">📌 圖釘</span>。<br>之後右上角就會一直看到 <span class="logo sm">✦</span> 圖示。</p>
+        <p class="msg" id="pinMsg">完成後這裡會自動打勾。</p>
+      </div>
+    </section>
+
+    <!-- 完成 -->
+    <section class="done" id="done">
+      <h2>🎉 設定完成！以後只要這樣用：</h2>
+      <ol class="use">
+        <li>進入 Google Meet / Teams / Zoom 會議</li>
+        <li>點右上角的 <span class="logo sm">✦</span> 圖示，按「<b>開始記錄</b>」</li>
+        <li>開完會直接離開，<b>摘要會自動產生</b>，按「Word」就能下載</li>
+      </ol>
+      <div class="field">
+        <label for="myName">你的名字（選填，逐字稿裡你說的話會標上這個名字）</label>
+        <input type="text" id="myName" placeholder="例如：王小明" />
+      </div>
+      <button class="btn primary big" id="closeBtn">知道了，開始使用</button>
+    </section>
+  </main>
+  <script type="module" src="welcome.js"></script>
+</body>
+</html>

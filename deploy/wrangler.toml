@@ -1,0 +1,7 @@
+# 用指令部署時使用（用 Cloudflare 網頁後台貼程式碼的話不需要這個檔）
+#   npx wrangler deploy
+#   npx wrangler secret put GROQ_API_KEY
+#   npx wrangler secret put ACCESS_CODES
+name = "meeting-assistant-proxy"
+main = "worker.js"
+compatibility_date = "2026-10-01"

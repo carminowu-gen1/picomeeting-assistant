@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8" />
+  <title>會議全文</title>
+  <link rel="stylesheet" href="../ui/theme.css" />
+  <link rel="stylesheet" href="live.css" />
+</head>
+<body>
+  <header class="bar">
+    <div class="row1">
+      <span id="statusBadge" class="badge"><span class="dot"></span><span id="statusText">載入中</span></span>
+      <select id="history" title="切換到其他會議"></select>
+      <button class="btn sm danger" id="stopBtn" hidden>■ 停止記錄</button>
+    </div>
+    <input id="title" class="title-input" type="text" placeholder="會議標題" title="點一下可以改標題" />
+    <div class="row2">
+      <button class="btn primary" id="copyAll" title="複製摘要和完整逐字稿">📋 複製全文</button>
+      <button class="btn" id="exportDocx" title="下載 Word 檔">⬇ Word</button>
+      <details class="menu" id="menu">
+        <summary class="btn" title="更多">⋯</summary>
+        <div class="menu-list">
+          <button data-act="copyText">複製逐字稿（不含時間）</button>
+          <button data-act="copySummary">只複製摘要</button>
+          <button data-act="resummarize">重新產生摘要</button>
+          <hr />
+          <button data-act="md">下載 Markdown</button>
+          <button data-act="txt">下載純文字</button>
+          <button data-act="gdoc" id="gdocItem" hidden>存到 Google 文件</button>
+          <hr />
+          <button data-act="delete" class="danger-text">刪除這場會議</button>
+        </div>
+      </details>
+    </div>
+  </header>
+
+  <div class="content">
+    <section id="summaryCard" class="summary-card"></section>
+    <section class="tr-wrap">
+      <input id="search" type="search" placeholder="搜尋逐字稿…" />
+      <main id="transcript" class="transcript"></main>
+      <p class="hint small muted">點名字可改名（整場）；點文字可直接修改，按 Enter 儲存。</p>
+    </section>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script type="module" src="live.js"></script>
+</body>
+</html>

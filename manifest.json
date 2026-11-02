@@ -1,0 +1,57 @@
+{
+  "manifest_version": 3,
+  "name": "會議摘要助理",
+  "description": "自動記錄 Google Meet / Teams / Zoom / Jitsi 的會議逐字稿，用 Groq AI 產生摘要與重點，匯出到 Google Docs 或 Word。",
+  "version": "1.0.0",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "會議摘要助理"
+  },
+  "options_page": "options/options.html",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": ["storage", "tabs", "activeTab", "downloads", "identity", "sidePanel", "tabCapture", "offscreen"],
+  "side_panel": { "default_path": "live/live.html" },
+  "host_permissions": [
+    "https://meet.google.com/*",
+    "https://*.teams.microsoft.com/*",
+    "https://teams.live.com/*",
+    "https://*.zoom.us/*",
+    "https://meet.jit.si/*",
+    "https://*.jitsi.net/*",
+    "https://api.groq.com/*",
+    "https://docs.googleapis.com/*",
+    "https://www.googleapis.com/*",
+    "https://accounts.google.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://meet.google.com/*",
+        "https://*.teams.microsoft.com/*",
+        "https://teams.live.com/*",
+        "https://*.zoom.us/*",
+        "https://meet.jit.si/*",
+        "https://*.jitsi.net/*"
+      ],
+      "js": ["content/capture.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "oauth2": {
+    "client_id": "YOUR_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/documents",
+      "https://www.googleapis.com/auth/drive.file",
+      "https://www.googleapis.com/auth/userinfo.email"
+    ]
+  }
+}
