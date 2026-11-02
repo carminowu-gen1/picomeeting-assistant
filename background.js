@@ -3,7 +3,7 @@ import { summarizeTranscript } from "./lib/groq.js";
 import { buildDocx } from "./lib/docx.js";
 import { exportToGoogleDoc, googleStatus, googleConnect, googleDisconnect } from "./lib/gdocs.js";
 import { DEFAULT_SETTINGS, meetingToMarkdown, meetingToPlainText } from "./lib/format.js";
-import { pushSpeakerEvent, attributeSegments, dropUnspokenShort } from "./lib/speakers.js";
+import { pushSpeakerEvent, attributeSegments, dropUnspokenShort, mainLanguage } from "./lib/speakers.js";
 import { toTraditional } from "./lib/s2t.js";
 import { withApi } from "./lib/config.js";
 
@@ -46,7 +46,8 @@ function updateIndex(fn) {
   }).catch((e) => console.warn("index update failed", e));
   return indexQueue;
 }
-async function saveMeeting(m) {
+async function saveMeeting(m, { bump = true } = {}) {
+  if (bump) m.rev = (m.rev || 0) + 1;
   await chrome.storage.local.set({ [mkey(m.id)]: m });
   const meta = metaOf(m);
   await updateIndex((idx) => {
@@ -248,10 +249,19 @@ async function stopRecording(tabId) {
   return m;
 }
 
+// 錄音中的存檔：最多每 3 秒存一次。以前每來一則就把計時重設，字幕一直來就一直不存（背景程式被關掉會掉資料）
 let saveTimer = null;
+const pendingSave = new Set();
 function scheduleSave(m) {
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => saveMeeting(m), 1500);
+  m.rev = (m.rev || 0) + 1; // 全文頁靠 rev 判斷有沒有變
+  pendingSave.add(m);
+  if (saveTimer) return;
+  saveTimer = setTimeout(async () => {
+    saveTimer = null;
+    const list = [...pendingSave];
+    pendingSave.clear();
+    for (const x of list) await saveMeeting(x, { bump: false });
+  }, 3000);
 }
 
 async function summarize(meetingId) {
@@ -361,8 +371,14 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       } else {
         // 分頁通道是其他人：時間軸裡把「我」排除，剩下的才是候選
         const log = (speakerLogs.get(tabId) || []).map((e) => ({ t: e.t, names: e.names.filter((n) => n !== me && n !== "我") }));
-        // 畫面上沒有對方在說話時冒出的短句，多半是雜音被編成句子
-        lines = attributeSegments(log, dropUnspokenShort(log, msg.segments, msg.chunkStart), msg.chunkStart, settings.sttSpeaker || "語音");
+        // 畫面上沒有對方在說話時冒出的短句、或和會議主要語言不同的句子，多半是雜音被編成句子
+        const kept = dropUnspokenShort(log, msg.segments, msg.chunkStart, { lang: msg.language, mainLang: mainLanguage(m.langCounts) });
+        lines = attributeSegments(log, kept, msg.chunkStart, settings.sttSpeaker || "語音");
+      }
+      // 累計每種語言的字數，用來判斷這場會議的主要語言
+      if (msg.language) {
+        m.langCounts ??= {};
+        m.langCounts[msg.language] = (m.langCounts[msg.language] || 0) + lines.reduce((n, l) => n + l.text.length, 0);
       }
       if (settings.toTraditional !== false) lines.forEach((l) => { l.text = toTraditional(l.text); });
       lines.forEach((l, i) => m.lines.push({ id: `stt-${msg.channel || "tab"}-${msg.chunkStart}-${i}`, ...l, src: "stt" }));
@@ -429,7 +445,9 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         const s = await getSettings();
         const settings = { ready: s.ready, sttMode: s.sttMode, autoSummarize: s.autoSummarize }; // 不把金鑰傳出去
         // 只回最近一場（popup 只顯示這一場），不再把所有會議的逐字稿都傳過去
-        return reply({ tabId: tab?.id, info, current, latest: current || (await latestMeeting()), settings, lastStartError, update });
+        // popup 只顯示狀態、句數和摘要：不傳整份逐字稿（錄音中它每 0.5 秒問一次）
+        const lite = (m) => (m ? { ...m, lines: undefined, lineCount: m.lines.length } : null);
+        return reply({ tabId: tab?.id, info, current: lite(current), latest: lite(current || (await latestMeeting())), settings, lastStartError, update });
       }
       case "start": {
         try { const meeting = await startRecording(msg.tabId); await chrome.storage.session.set({ lastStartError: null }); return reply({ meeting }); }
@@ -463,7 +481,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
           if (m.sttMode && m.sttMode !== "captions") await stopStt(tabId);
           await setBadge(tabId, false);
         }
-        clearTimeout(saveTimer);
+        for (const x of pendingSave) if (x.id === msg.meetingId) pendingSave.delete(x);
         await removeMeeting(msg.meetingId);
         return reply({ ok: true });
       }
@@ -480,6 +498,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         let m = null;
         if (msg.meetingId && msg.meetingId !== "current") m = await findMeeting(msg.meetingId);
         else m = await latestMeeting();
+        if (m && msg.rev != null && m.rev === msg.rev) return reply({ unchanged: true });
         return reply({ meeting: m, activeCount: active.size });
       }
       case "editLine": {

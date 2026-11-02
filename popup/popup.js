@@ -64,7 +64,7 @@ async function refresh() {
     btn.disabled = false;
     btn.classList.add("stop");
     $("mainLabel").textContent = "停止記錄";
-    st.textContent = `記錄中 ${elapsed(current.startedAt)} · ${current.lines.length} 句 · 離開會議會自動停止`;
+    st.textContent = `記錄中 ${elapsed(current.startedAt)} · ${current.lineCount} 句 · 離開會議會自動停止`;
     if (current.sttMode !== "captions" && current.stt === "on") {
       const fresh = current.levelsAt && Date.now() - current.levelsAt < 3000;
       $("meters").hidden = false;
@@ -87,10 +87,10 @@ async function refresh() {
 
 function renderResult(m) {
   $("mTitle").textContent = m.title;
-  $("mMeta").textContent = `${fmtDate(m.startedAt)} · ${m.lines.length} 句`;
+  $("mMeta").textContent = `${fmtDate(m.startedAt)} · ${m.lineCount} 句`;
   const box = $("summary");
   const s = m.summary;
-  const has = m.lines.length > 0;
+  const has = m.lineCount > 0;
   ["copyAll", "saveWord", "openLive"].forEach((id) => ($(id).disabled = !has && !m.recording));
 
   if (m.recording) { box.innerHTML = `<div class="wait">● 記錄中…會議結束後會自動產生摘要</div>`; return; }
@@ -140,8 +140,11 @@ $("openLive").onclick = async () => {
 $("copyAll").onclick = async () => {
   const m = latest();
   if (!m) return;
+  // popup 平常只拿輕量資料，複製時才向背景要完整逐字稿
+  const r = await send({ type: "getMeeting", meetingId: m.id });
+  if (!r?.meeting) return toast("找不到這場會議", true);
   try {
-    await navigator.clipboard.writeText(meetingToPlainText(m, { includeTranscript: true }));
+    await navigator.clipboard.writeText(meetingToPlainText(r.meeting, { includeTranscript: true }));
     toast("已複製，可以貼到任何地方");
   } catch { toast("複製失敗", true); }
 };

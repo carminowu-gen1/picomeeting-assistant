@@ -186,8 +186,10 @@ $("history").onchange = () => { meetingId = $("history").value; meeting = null; 
 
 // ── 載入 / 輪詢 ──
 async function load() {
-  const r = await send({ type: "getMeeting", meetingId });
+  // 帶上手上這份的版本號：沒變的話背景只回「沒變」，不用整份逐字稿再傳一次
+  const r = await send({ type: "getMeeting", meetingId, rev: meeting && meeting.id === meetingId ? meeting.rev : undefined });
   if (!r || r.error) return r?.error && toast(r.error, true);
+  if (r.unchanged) return;
   if (!r.meeting) {
     $("statusText").textContent = "尚無會議";
     $("transcript").innerHTML = `<div class="empty">還沒有會議記錄。<br>進入會議後，點工具列的圖示按「開始記錄」。</div>`;

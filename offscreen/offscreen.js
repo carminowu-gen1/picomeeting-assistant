@@ -125,7 +125,7 @@ function cycle(s, ch) {
     const canGate = s.ctx.state === "running";
     if (blob.size < 2000 || (canGate && voicedMs < MIN_VOICE_MS)) { s.stats.silent++; bc.silent++; report(s); return; } // 只有雜音：跳過
     s.stats.sent++; bc.sent++;
-    transcribe(s, ch, blob, startedAt)
+    transcribe(s, ch, blob, startedAt, voicedMs)
       .then(() => { s.stats.ok++; report(s); })
       .catch((e) => { s.stats.lastError = e.message; report(s); notify(s.tabId, "error", "語音辨識失敗：" + e.message); });
   };
@@ -148,7 +148,7 @@ function cycle(s, ch) {
   }, 100);
 }
 
-async function transcribe(s, ch, blob, startedAt) {
+async function transcribe(s, ch, blob, startedAt, voicedMs = 0) {
   const fd = new FormData();
   fd.append("file", blob, "chunk.webm");
   fd.append("model", "whisper-large-v3"); // Turbo 錯字太多，固定用 Large v3
@@ -180,25 +180,31 @@ async function transcribe(s, ch, blob, startedAt) {
   const data = await res.json();
   s.stats.lastLang = data.language || (lang && lang !== "auto" ? lang + "(固定)" : "?"); // Whisper 偵測到的語言（診斷用）
   const text = (data.text || "").trim();
-  if (!text || isHallucination(text)) return;
+  // 最近 10 段的辨識結果和分數放進診斷資料（有漏網之魚時，可以拿真實數據調門檻）
+  const note = (t, why, g = {}) => {
+    s.stats.recent = [{ ch: ch.name, text: t.slice(0, 50), why, lang: data.language, voicedMs, nsp: g.no_speech_prob != null ? +g.no_speech_prob.toFixed(2) : null, lp: g.avg_logprob != null ? +g.avg_logprob.toFixed(2) : null }, ...(s.stats.recent || [])].slice(0, 10);
+  };
+  if (!text) return;
+  if (isHallucination(text)) return note(text, "幻覺句");
   // 同一通道整段和上一段一模一樣 → 幻覺（每個通道各自比，避免你和對方剛好說同一句被誤刪）
-  if (text === ch.lastText) return;
+  if (text === ch.lastText) return note(text, "和上一段相同");
   ch.lastText = text;
   const segments = (data.segments || [{ start: 0, end: (Date.now() - startedAt) / 1000, text }])
     .filter((g) => {
       const t = (g.text || "").trim();
-      if (!t || isHallucination(t) || isFiller(t)) return false;
-      // Whisper 自己的信心指標：幾乎沒語音、平均 logprob 很低、或重複字串 → 丟
-      if (g.no_speech_prob != null && g.no_speech_prob > 0.6) return false;
-      if (g.no_speech_prob != null && g.no_speech_prob > 0.4 && g.avg_logprob != null && g.avg_logprob < -0.8) return false; // 兩個都偏差也算
-      if (g.avg_logprob != null && g.avg_logprob < -1.2) return false;
-      if (g.compression_ratio != null && g.compression_ratio > 2.4) return false;
-      return true;
+      const why = !t ? "空白" : isHallucination(t) ? "幻覺句" : isFiller(t) ? "附和聲"
+        // Whisper 自己的信心指標：幾乎沒語音、平均 logprob 很低、或重複字串 → 丟
+        : g.no_speech_prob > 0.6 ? "沒有語音"
+        : g.no_speech_prob > 0.4 && g.avg_logprob < -0.8 ? "信心偏低"
+        : g.avg_logprob < -1.2 ? "信心太低"
+        : g.compression_ratio > 2.4 ? "重複字串" : "";
+      if (t) note(t, why || "保留", g);
+      return !why;
     })
     .map((g) => ({ start: g.start, end: g.end, text: g.text }));
   if (!segments.length) return;
   s.prevText = segments.map((g) => g.text.trim()).join(" ");
-  chrome.runtime.sendMessage({ type: "stt:segments", tabId: s.tabId, channel: ch.name, chunkStart: startedAt, segments });
+  chrome.runtime.sendMessage({ type: "stt:segments", tabId: s.tabId, channel: ch.name, chunkStart: startedAt, language: data.language || "", segments });
 }
 
 // Whisper 在靜音/雜訊時常吐出固定幻覺句（訓練資料裡大量 YouTube 影片的開場白、片尾、字幕署名）
