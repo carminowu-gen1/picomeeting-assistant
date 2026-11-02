@@ -42,6 +42,7 @@
     .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 28px; border-radius: 12px; background: var(--accent); color: #fff; font-size: 17px; font-weight: 700; text-decoration: none; border: 0; cursor: pointer; }
     .btn:hover { filter: brightness(1.08); }
     .btn.ghost { background: var(--surface-2); color: var(--text); font-size: 14px; padding: 8px 14px; font-weight: 600; border: 1px solid var(--border); }
+    .btn .ver { margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 12px; }
 
     /* ── 使用方式 ── */
     .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
@@ -235,7 +236,7 @@
           <div class="txt">
             <h3 data-t="s1_t">把安裝檔抱回家</h3>
             <p data-t="s1_p">按下面的按鈕，下載 <code>meeting-assistant.zip</code>。</p>
-            <p><a class="btn ghost dl" id="dl" href="#" data-t="dl">⬇ 下載 meeting-assistant.zip</a></p>
+            <p><a class="btn ghost dl" id="dl" href="#"><span data-t="dl">⬇ 下載 meeting-assistant.zip</span><span class="ver" hidden></span></a></p>
           </div>
           <div class="fig" aria-hidden="true">
             <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><div class="omni">github.com/…/meeting-assistant.zip</div><div class="tb"><span class="ic hl">⬇</span></div></div>
@@ -351,7 +352,7 @@
           </div>
         </li>
         <li class="step">
-          <div class="txt"><h3 data-t="u2_t">下載新版，蓋掉舊的</h3><p data-t="u2_p">按下面的按鈕下載最新版。解壓縮到<b>原本的資料夾</b>，問要不要取代時選「<b>取代目的地中的檔案</b>」。</p><p><a class="btn ghost dl" href="#" data-t="dl2">⬇ 下載最新版 meeting-assistant.zip</a></p></div>
+          <div class="txt"><h3 data-t="u2_t">下載新版，蓋掉舊的</h3><p data-t="u2_p">按下面的按鈕下載最新版。解壓縮到<b>原本的資料夾</b>，問要不要取代時選「<b>取代目的地中的檔案</b>」。</p><p><a class="btn ghost dl" href="#"><span data-t="dl2">⬇ 下載最新版 meeting-assistant.zip</span><span class="ver" hidden></span></a></p></div>
           <div class="fig" aria-hidden="true">
             <div class="fig-body">
               <div style="border:1px solid var(--border);border-radius:10px;padding:12px">
@@ -511,6 +512,15 @@
     }
 
     document.querySelectorAll("a.dl").forEach((a) => (a.href = ZIP_URL));
+    // 問 GitHub 最新版本號，顯示在下載按鈕上（失敗就不顯示，按鈕照樣能用）
+    fetch("https://api.github.com/repos/carminowu-gen1/picomeeting-assistant/releases/latest", { headers: { accept: "application/vnd.github+json" } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((rel) => {
+        const v = String(rel?.tag_name || "").replace(/^v/, "");
+        if (!/^\d/.test(v)) return;
+        document.querySelectorAll("a.dl .ver").forEach((el) => { el.textContent = "v" + v; el.hidden = false; });
+      })
+      .catch(() => {});
     if (STORE_URL) {
       $("store-only").hidden = false;
       $("manual-only").hidden = true;
