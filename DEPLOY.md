@@ -13,7 +13,7 @@
 
 1. **把 repo 改成公開**：GitHub repo →「Settings」→ 最下面「Danger Zone」→「Change visibility」→「Public」。
    免費的 GitHub Pages 只能用在公開的 repo；同事下載安裝檔、擴充功能檢查新版本，也都需要 repo 是公開的。repo 裡沒有任何金鑰（已檢查過）。
-   - 注意：提交紀錄裡的作者 Email公開後會被看到。介意的話，請先在 GitHub「Settings」→「Emails」勾選「Keep my email addresses private」，之後的提交改用 GitHub 提供的 noreply 地址。
+   - 提交紀錄都已改用 GitHub 的 noreply 地址，公開後不會看到你的 Email。
 2. **開啟說明頁**：repo →「Settings」→「Pages」→ Source 選「Deploy from a branch」→ Branch 選 `main`、資料夾選 `/docs` →「Save」。
    約 1 分鐘後就能打開 <https://carminowu-gen1.github.io/picomeeting-assistant/>。
 3. **發布第一版**：在 `D:\MA` 執行
