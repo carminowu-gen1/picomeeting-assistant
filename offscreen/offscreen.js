@@ -9,7 +9,14 @@ const sessions = new Map(); // tabId -> session
 const MIN_MS = 2500;        // 太短的段落辨識不準
 const MAX_MS = 15000;       // 一直有聲音時的上限
 const PAUSE_MS = 700;       // 靜音多久算一句講完
-const SILENCE_RMS = 0.004;  // 低於此音量視為靜音，不送 API
+const MIN_VOICE_MS = 500;   // 一段裡「有人在說話」累積不到這麼久，就當成雜音不送（Whisper 聽到雜音會編出 YouTube 開場白）
+
+// 「有人在說話」= 音量明顯高於這個通道的背景雜音（自動估計），而且至少 0.008
+function isVoiced(ch, r) {
+  ch.floor ??= 0.01;
+  ch.floor = r < ch.floor ? ch.floor * 0.5 + r * 0.5 : ch.floor * 0.998 + r * 0.002; // 往下快、往上慢
+  return r >= Math.max(0.008, ch.floor * 3);
+}
 
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   if (msg.target !== "offscreen") return;
@@ -107,16 +114,17 @@ function cycle(s, ch) {
   const startedAt = Date.now();
   ch.peak = 0;
   rec.ondataavailable = (e) => e.data.size && parts.push(e.data);
+  let voicedMs = 0; // 這一段裡「有人在說話」的累積時間
   rec.onstop = () => {
     const peak = ch.peak;
     const blob = new Blob(parts, { type: mime });
     if (!s.stopped) cycle(s, ch); // 先接著錄，不要漏音
     s.stats.chunks++; s.stats.lastPeak = +peak.toFixed(4);
     const bc = s.stats.byChannel[ch.name] || (s.stats.byChannel[ch.name] = { chunks: 0, sent: 0, silent: 0, peak: 0, bytes: 0 });
-    bc.chunks++; bc.peak = +peak.toFixed(4); bc.bytes = blob.size;
+    bc.chunks++; bc.peak = +peak.toFixed(4); bc.bytes = blob.size; bc.voicedMs = voicedMs;
     // 靜音判斷只在 AudioContext 真的在跑時才可信；否則一律送（寧可多花一點額度也不要漏）
     const canGate = s.ctx.state === "running";
-    if (blob.size < 2000 || (canGate && peak < SILENCE_RMS)) { s.stats.silent++; bc.silent++; report(s); return; } // 靜音段跳過
+    if (blob.size < 2000 || (canGate && voicedMs < MIN_VOICE_MS)) { s.stats.silent++; bc.silent++; report(s); return; } // 只有雜音：跳過
     s.stats.sent++; bc.sent++;
     transcribe(s, ch, blob, startedAt)
       .then(() => { s.stats.ok++; report(s); })
@@ -128,7 +136,7 @@ function cycle(s, ch) {
   ch.timer = setInterval(() => {
     if (rec.state !== "recording") { clearInterval(ch.timer); return; }
     const now = Date.now();
-    if (rms(ch.analyser) >= SILENCE_RMS) { hadVoice = true; lastVoiceAt = now; }
+    if (isVoiced(ch, rms(ch.analyser))) { hadVoice = true; lastVoiceAt = now; voicedMs += 100; }
     const elapsed = now - startedAt;
     // AudioContext 沒在跑時 rms 永遠是 0 → 只會走 MAX_MS，等同固定切段
     if (elapsed >= MAX_MS || (hadVoice && elapsed >= MIN_MS && now - lastVoiceAt >= PAUSE_MS)) {
@@ -177,9 +185,10 @@ async function transcribe(s, ch, blob, startedAt) {
   const segments = (data.segments || [{ start: 0, end: (Date.now() - startedAt) / 1000, text }])
     .filter((g) => {
       const t = (g.text || "").trim();
-      if (!t || isHallucination(t)) return false;
+      if (!t || isHallucination(t) || isFiller(t)) return false;
       // Whisper 自己的信心指標：幾乎沒語音、平均 logprob 很低、或重複字串 → 丟
       if (g.no_speech_prob != null && g.no_speech_prob > 0.6) return false;
+      if (g.no_speech_prob != null && g.no_speech_prob > 0.4 && g.avg_logprob != null && g.avg_logprob < -0.8) return false; // 兩個都偏差也算
       if (g.avg_logprob != null && g.avg_logprob < -1.2) return false;
       if (g.compression_ratio != null && g.compression_ratio > 2.4) return false;
       return true;
@@ -190,11 +199,27 @@ async function transcribe(s, ch, blob, startedAt) {
   chrome.runtime.sendMessage({ type: "stt:segments", tabId: s.tabId, channel: ch.name, chunkStart: startedAt, segments });
 }
 
-// Whisper 在靜音/雜訊時常吐出固定幻覺句
+// Whisper 在靜音/雜訊時常吐出固定幻覺句（訓練資料裡大量 YouTube 影片的開場白、片尾、字幕署名）
+const HALLUCINATION = new RegExp([
+  // 英文 YouTube 套話
+  "welcome (back )?to (my|our|the) channel", "subscribe to (my|our|the) channel", "like and subscribe", "hit the (bell|subscribe|like)",
+  "bell icon", "notification bell", "thanks? (you )?for watching", "see you (in the )?next (video|time|episode)", "don'?t forget to subscribe",
+  "amara\\.org", "subtitles? by", "captions? by", "transcribed by",
+  // 中文影片套話（只抓組合，避免誤刪會議裡正常的「訂閱制」「字幕」）
+  "(訂閱|订阅).{0,6}(頻道|频道|按讚|点赞|點贊|小鈴鐺|小铃铛|鈴鐺|铃铛)", "(按讚|點贊|点赞).{0,4}(訂閱|订阅|分享)", "請不吝|请不吝",
+  "(謝謝|谢谢|感謝|感谢)(大家)?(的)?(觀看|收看|收聽|观看|收听)", "下(次|期)(見|见|再見|再见)", "字幕(由|提供|組|组|志願|志愿)",
+  "請勿模仿|请勿模仿", "明鏡與點點|明镜与点点",
+].join("|"), "i");
+
 function isHallucination(t) {
-  if (/^※/.test(t) || /請勿模仿|请勿模仿|字幕組|字幕组|訂閱|订阅|點贊|点赞|明鏡與點點|明镜与点点/.test(t)) return true; // 影片警語、字幕組署名類幻覺
+  if (/^※/.test(t) || HALLUCINATION.test(t)) return true;
   return /^(請不吝點贊|請看|请看|謝謝(大家)?(觀看|收看)|谢谢(大家)?(观看|收看)|字幕由|subtitles? by|thank you for watching|thanks for watching|thank you\.?$|you\.?$|bye\.?$)/i.test(t)
     || /^(.)\1{5,}$/.test(t) || /^(.{1,4})\1{2,}$/.test(t);
+}
+
+// 整句只有附和聲（Mm-hmm、嗯…）就不記錄；「好」「Yes」「OK」這類有意義的回答保留
+function isFiller(t) {
+  return /^((m+-?h+m+|m+h+m+|uh+-?huh|u+h+|u+m+|h+m+|e+r+m*|嗯+|呃+|啊+|喔+|哦+|欸+|唔+|額+)[\s,.!?，。！？…~～〜、-]*)+$/i.test(t.trim());
 }
 
 function stop(tabId) {

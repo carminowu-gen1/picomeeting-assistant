@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "會議摘要助理",
   "description": "自動記錄 Google Meet / Teams / Zoom / Jitsi 的會議逐字稿，用 Groq AI 產生摘要與重點，匯出到 Google Docs 或 Word。",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
