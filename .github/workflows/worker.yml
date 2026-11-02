@@ -1,0 +1,28 @@
+# deploy/ 有變動時，自動更新 Cloudflare 上的代理伺服器（選用）
+# 需要的 Secrets：CLOUDFLARE_API_TOKEN、CLOUDFLARE_ACCOUNT_ID
+# GROQ_API_KEY、ACCESS_CODES 仍然設定在 Cloudflare 後台，不放在 GitHub
+name: 更新代理伺服器
+
+on:
+  push:
+    branches: [main]
+    paths: ["deploy/**"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      HAS_CF: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: 部署到 Cloudflare
+        if: env.HAS_CF == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: deploy
+      - name: 略過
+        if: env.HAS_CF != 'true'
+        run: echo "沒有設定 CLOUDFLARE_API_TOKEN，略過部署"

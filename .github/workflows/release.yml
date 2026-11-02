@@ -1,0 +1,77 @@
+# 發布新版本
+#   自動：推一個 v 開頭的標籤（例如 v1.0.1，要和 manifest.json 的 version 一樣）
+#   手動：GitHub → Actions → 發布新版本 → Run workflow（第一次上架前用這個產生 zip）
+#
+# 需要的 Secrets（Settings → Secrets and variables → Actions）：
+#   PROXY_URL / ACCESS_CODE        選填：走組織代理時才填
+#   GOOGLE_CLIENT_ID               選填：要開放「存到 Google 文件」時才填
+#   CWS_SERVICE_ACCOUNT_JSON       選填：三個 CWS_ 都有填才會自動上傳商店
+#   CWS_PUBLISHER_ID
+#   CWS_EXTENSION_ID
+name: 發布新版本
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      upload_to_store:
+        description: "上傳到商店並送審（第一次上架前請選 false）"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      HAS_CWS: ${{ secrets.CWS_SERVICE_ACCOUNT_JSON != '' && secrets.CWS_PUBLISHER_ID != '' && secrets.CWS_EXTENSION_ID != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 讀取版本
+        id: ver
+        shell: pwsh
+        run: |
+          $v = (Get-Content manifest.json -Raw | ConvertFrom-Json).version
+          "version=$v" >> $env:GITHUB_OUTPUT
+          if ("${{ github.ref_type }}" -eq "tag" -and "${{ github.ref_name }}" -ne "v$v") {
+            throw "標籤 ${{ github.ref_name }} 和 manifest.json 的版本 $v 不一樣，請先改 manifest.json"
+          }
+
+      - name: 打包
+        shell: powershell
+        env:
+          PROXY_URL: ${{ secrets.PROXY_URL }}
+          ACCESS_CODE: ${{ secrets.ACCESS_CODE }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+        run: .\build.ps1 -ProxyUrl "$env:PROXY_URL" -AccessCode "$env:ACCESS_CODE" -GoogleClientId "$env:GOOGLE_CLIENT_ID"
+
+      - name: 保存 zip（Actions 頁面可下載）
+        uses: actions/upload-artifact@v4
+        with:
+          name: meeting-assistant-${{ steps.ver.outputs.version }}
+          path: dist/meeting-assistant-${{ steps.ver.outputs.version }}.zip
+
+      - name: 建立 GitHub Release
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" "dist/meeting-assistant-${{ steps.ver.outputs.version }}.zip" --title "${{ github.ref_name }}" --generate-notes
+
+      - name: 上傳到 Chrome 線上應用程式商店並送審
+        if: env.HAS_CWS == 'true' && (github.ref_type == 'tag' || inputs.upload_to_store)
+        shell: pwsh
+        env:
+          CWS_SERVICE_ACCOUNT_JSON: ${{ secrets.CWS_SERVICE_ACCOUNT_JSON }}
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+        run: node scripts/publish-cws.mjs "dist/meeting-assistant-${{ steps.ver.outputs.version }}.zip"
+
+      - name: 提醒
+        if: env.HAS_CWS != 'true'
+        shell: pwsh
+        run: Write-Host "沒有設定 CWS_ 開頭的 Secrets，所以沒有自動上傳商店。請從這次執行的 Artifacts 下載 zip，手動上傳到開發人員資訊主頁。"
