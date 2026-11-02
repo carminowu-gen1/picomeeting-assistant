@@ -8,7 +8,7 @@
     :root { --bg: #f6f7fb; --surface: #fff; --border: #e3e6ee; --text: #16181d; --text-2: #5f6673; --accent: #2f6df6; color-scheme: light; }
     @media (prefers-color-scheme: dark) { :root { --bg: #121418; --surface: #1b1e24; --border: #2d323b; --text: #eef0f4; --text-2: #a6adba; --accent: #5b8cff; color-scheme: dark; } }
     body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.8 -apple-system, "Segoe UI", "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", system-ui, sans-serif; }
-    main { max-width: 720px; margin: 0 auto; padding: 40px 16px 80px; }
+    main { max-width: 720px; margin: 0 auto; padding: 56px 16px 80px; }
     a { color: var(--accent); }
     h1 { font-size: 26px; } h2 { font-size: 19px; margin-top: 32px; }
     .muted { color: var(--text-2); font-size: 14px; }
@@ -16,15 +16,20 @@
     th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
     th { color: var(--text-2); font-weight: 600; }
     .wrap { overflow-x: auto; }
+    .langbar { position: absolute; top: 12px; right: 12px; display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 3px; box-shadow: 0 4px 14px rgba(0,0,0,.1); }
+    .langbar button { border: 0; background: none; color: var(--text-2); font: inherit; font-size: 13px; font-weight: 700; padding: 5px 12px; border-radius: 999px; cursor: pointer; }
+    .langbar button.on { background: var(--accent); color: #fff; }
+    [hidden] { display: none !important; }
   </style>
 </head>
 <body>
-  <main>
+  <div class="langbar" role="group" aria-label="Language"><button data-lang="zh" class="on">中文</button><button data-lang="en">EN</button></div>
+
+  <main lang="zh-TW" data-block="zh">
     <p><a href="./">← 回到會議摘要助理</a></p>
     <h1>隱私權政策</h1>
     <p class="muted">最後更新：2026 年 11 月 2 日</p>
     <p>「會議摘要助理」（以下簡稱「本擴充功能」）是一個 Chrome 擴充功能，用途是記錄線上會議的逐字稿並產生摘要。本政策說明我們處理哪些資料，以及如何處理。</p>
-
     <h2>我們處理的資料</h2>
     <div class="wrap"><table>
       <tr><th>資料</th><th>何時處理</th><th>用途</th></tr>
@@ -33,14 +38,12 @@
       <tr><td>逐字稿與摘要</td><td>記錄期間及之後</td><td>顯示、編輯、匯出</td></tr>
       <tr><td>你填入的設定（名字、金鑰等）</td><td>你填寫時</td><td>讓本擴充功能運作</td></tr>
     </table></div>
-
     <h2>資料存放在哪裡</h2>
     <ul>
       <li>逐字稿、摘要和設定都<b>只存在你電腦的 Chrome 裡</b>。你可以隨時在「全文」頁刪除會議記錄；移除本擴充功能時，這些資料會一併刪除。</li>
       <li>音訊片段和逐字稿文字會透過加密連線（HTTPS）傳送到 <b>Groq</b>（groq.com），用來做語音辨識和產生摘要。如果你的組織有設定代理伺服器，資料會先經過組織的代理，再轉送到 Groq。Groq 如何處理資料，請參考 <a href="https://groq.com/privacy-policy/">Groq 隱私權政策</a>。</li>
       <li>只有在你主動按下「存到 Google 文件」時，內容才會建立到你自己的 Google 雲端硬碟。</li>
     </ul>
-
     <h2>我們不會做的事</h2>
     <ul>
       <li>不會在你按「開始記錄」之前錄音</li>
@@ -49,13 +52,60 @@
       <li>不會出售或分享你的資料給第三方（處理所需的 Groq 除外）</li>
       <li>不會把資料用於與會議記錄無關的用途</li>
     </ul>
-    <p class="muted">本擴充功能唯一會主動連線的其他網站，是每天向 GitHub 查詢一次是否有新版本（只傳送查詢，不包含任何會議資料）。</p>
-
+    <p class="muted">本擴充功能唯一會主動連線的其他網站，是每 12 小時向 GitHub 查詢一次是否有新版本（只傳送查詢，不包含任何會議資料）。</p>
     <h2>你的責任</h2>
     <p>記錄會議前，請依照當地法規和公司規定，先告知所有與會者並取得同意。</p>
-
     <h2>聯絡我們</h2>
     <p>對本政策有任何疑問，請到 <a href="https://github.com/carminowu-gen1/picomeeting-assistant/issues">GitHub</a> 留言。</p>
   </main>
+
+  <main lang="en" data-block="en" hidden>
+    <p><a href="./?lang=en">← Back to PicoMeeting Assistant</a></p>
+    <h1>Privacy Policy</h1>
+    <p class="muted">Last updated: November 2, 2026</p>
+    <p>PicoMeeting Assistant (“the extension”) is a Chrome extension that transcribes online meetings and generates summaries. This policy explains what data we handle and how.</p>
+    <h2>Data we handle</h2>
+    <div class="wrap"><table>
+      <tr><th>Data</th><th>When</th><th>Why</th></tr>
+      <tr><td>Audio from the meeting tab and your microphone</td><td>Only after you press “Start recording”, until you stop or leave the meeting</td><td>To create the transcript</td></tr>
+      <tr><td>Participant names and caption text shown in the meeting</td><td>While recording</td><td>To label who is speaking</td></tr>
+      <tr><td>Transcripts and summaries</td><td>While recording and afterwards</td><td>To display, edit and export them</td></tr>
+      <tr><td>Settings you enter (name, API key, etc.)</td><td>When you enter them</td><td>To make the extension work</td></tr>
+    </table></div>
+    <h2>Where your data is stored</h2>
+    <ul>
+      <li>Transcripts, summaries and settings are stored <b>only in Chrome on your own computer</b>. You can delete any meeting from the full-text page at any time, and removing the extension deletes all of it.</li>
+      <li>Audio clips and transcript text are sent over an encrypted connection (HTTPS) to <b>Groq</b> (groq.com) for speech recognition and summarization. If your organization set up a proxy server, data passes through that proxy on its way to Groq. See the <a href="https://groq.com/privacy-policy/">Groq privacy policy</a> for how Groq handles data.</li>
+      <li>Content is saved to your own Google Drive only when you explicitly click “Save to Google Docs”.</li>
+    </ul>
+    <h2>What we never do</h2>
+    <ul>
+      <li>Record anything before you press “Start recording”</li>
+      <li>Collect your browsing history or read pages other than the meeting</li>
+      <li>Use analytics or tracking tools</li>
+      <li>Sell or share your data with third parties (other than Groq, which is needed for processing)</li>
+      <li>Use your data for anything unrelated to meeting notes</li>
+    </ul>
+    <p class="muted">The only other site the extension contacts on its own is GitHub, once every 12 hours, to check for a new version (the request contains no meeting data).</p>
+    <h2>Your responsibility</h2>
+    <p>Before recording, tell everyone in the meeting and get their consent, as required by local law and your company's policies.</p>
+    <h2>Contact</h2>
+    <p>Questions about this policy? Leave a message on <a href="https://github.com/carminowu-gen1/picomeeting-assistant/issues">GitHub</a>.</p>
+  </main>
+
+  <script>
+    function setLang(l) {
+      document.querySelectorAll("[data-block]").forEach((m) => (m.hidden = m.dataset.block !== l));
+      document.documentElement.lang = l === "en" ? "en" : "zh-TW";
+      document.title = l === "en" ? "Privacy Policy · PicoMeeting Assistant" : "隱私權政策｜會議摘要助理";
+      document.querySelectorAll(".langbar button").forEach((b) => b.classList.toggle("on", b.dataset.lang === l));
+      try { localStorage.setItem("lang", l); } catch {}
+    }
+    document.querySelectorAll(".langbar button").forEach((b) => b.addEventListener("click", () => setLang(b.dataset.lang)));
+    let saved = null;
+    try { saved = localStorage.getItem("lang"); } catch {}
+    const q = new URLSearchParams(location.search).get("lang");
+    setLang(q === "en" || q === "zh" ? q : saved || (/^zh/i.test(navigator.language) ? "zh" : "en"));
+  </script>
 </body>
 </html>

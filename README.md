@@ -1,5 +1,7 @@
 # 會議摘要助理（Chrome 擴充功能）
 
+> 這個小工具，是為了我老婆做的。她在公司常常要開線上會議，一邊聽一邊抄筆記，總是抄不完，也聽不完整。所以我做了它：開會時按一下，它就把大家說的話記下來；散會後，自動整理成摘要和待辦事項。支援 Google Meet、Teams、Zoom 這些網頁會議。沒有複雜的設定，也沒有用不到的功能，就算完全不懂電腦，也能輕鬆上手。
+
 開會時自動記錄逐字稿，會後用 AI 整理摘要、重點與待辦，一鍵匯出 Word。支援 Google Meet、Microsoft Teams（網頁版）、Zoom（網頁版）、Jitsi Meet。
 
 - **安裝說明（給同事）** → https://carminowu-gen1.github.io/picomeeting-assistant/

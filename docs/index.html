@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>會議摘要助理｜安裝與使用</title>
+  <title>會議摘要助理｜你專心開會，筆記交給我</title>
   <meta name="description" content="開會時自動記錄逐字稿，會後用 AI 整理摘要、重點與待辦，一鍵匯出 Word。" />
   <style>
     :root {
@@ -142,142 +142,164 @@
       .step { grid-template-columns: 1fr; }
       .hero h1 { font-size: 27px; }
     }
+  
+    /* ── 語言切換 ── */
+    .langbar { position: absolute; top: 12px; right: 12px; z-index: 50; display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 3px; box-shadow: 0 4px 14px rgba(0,0,0,.1); }
+    .langbar button { border: 0; background: none; color: var(--text-2); font: inherit; font-size: 13px; font-weight: 700; padding: 5px 12px; border-radius: 999px; cursor: pointer; }
+    .langbar button.on { background: var(--accent); color: #fff; }
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; color: var(--text-2); font-size: 17px; }
+    .hero h1 { font-size: 40px; margin: 18px 0 12px; }
+    @media (max-width: 760px) { .brand { justify-content: center; } .hero h1 { font-size: 30px; } main { padding-top: 64px; } }
+    .story { margin-top: 56px; background: var(--accent-soft); border-radius: 18px; padding: 24px 28px; }
+    .story h2 { margin: 0 0 8px; font-size: 20px; }
+    .story p { margin: 0; font-size: 17px; line-height: 1.9; }
+    @media (max-width: 760px) { .story { padding: 20px; } .story p { font-size: 16px; } }
   </style>
 </head>
 <body>
+  <div class="langbar" role="group" aria-label="Language">
+    <button data-lang="zh" class="on">中文</button><button data-lang="en">EN</button>
+  </div>
   <main>
     <!-- ── Hero ── -->
     <section class="hero">
       <div>
-        <span class="logo">✦</span>
-        <h1>會議摘要助理</h1>
-        <p>開會時自動記下每個人說的話，會後用 AI 整理成<b>摘要、重點、待辦事項</b>，一鍵下載 Word。支援 Google Meet、Teams、Zoom、Jitsi。</p>
+        <div class="brand"><span class="logo">✦</span><span data-t="brand">會議摘要助理</span></div>
+        <h1 data-t="h1">你專心開會，<br>筆記交給我。</h1>
+        <p data-t="hero_p">它會在 Google Meet、Teams、Zoom 裡安靜地聽，把每個人說的話記下來。散會後，摘要、重點、待辦事項自動排好隊，一鍵變成 Word 帶走。</p>
         <div class="cta">
-          <a class="btn" id="mainBtn" href="#install">⬇ 下載並安裝</a>
-          <span class="small" id="mainHint">免費・照著圖片做，約 3 分鐘裝好</span>
+          <a class="btn" id="mainBtn" href="#install" data-t="cta">⬇ 免費下載</a>
+          <span class="small" id="mainHint" data-t="cta_hint">照著圖做，泡杯咖啡的時間就裝好了 ☕</span>
         </div>
       </div>
       <div class="pop" aria-hidden="true">
-        <div class="hd"><span class="logo sm">✦</span>會議摘要助理</div>
-        <div class="big">● 開始記錄</div>
-        <div class="sum"><b>產品週會・11/2</b>確認 Q4 時程下週五前定案，Amy 負責更新預算……</div>
-        <div class="acts"><span>📄 查看全文</span><span>📋 複製</span><span class="p">⬇ Word</span></div>
+        <div class="hd"><span class="logo sm">✦</span><span data-t="pop_name">會議摘要助理</span></div>
+        <div class="big" data-t="pop_start">● 開始記錄</div>
+        <div class="sum"><b data-t="pop_sum_t">產品週會・11/2</b><span data-t="pop_sum">確認 Q4 時程下週五前定案，Amy 負責更新預算……</span></div>
+        <div class="acts"><span data-t="pop_full">📄 查看全文</span><span data-t="pop_copy">📋 複製</span><span class="p">⬇ Word</span></div>
       </div>
     </section>
 
+
+    <!-- ── 為什麼做這個 ── -->
+    <section class="story">
+      <h2 data-t="why_h">為什麼做這個？💛</h2>
+      <p data-t="why_p">這個小工具，是為了我老婆做的。她在公司常常要開線上會議，一邊聽一邊抄筆記，總是抄不完，也聽不完整。所以我做了它：開會時按一下，它就把大家說的話記下來；散會後，自動整理成摘要和待辦事項。支援 Google Meet、Teams、Zoom 這些網頁會議。沒有複雜的設定，也沒有用不到的功能，就算完全不懂電腦，也能輕鬆上手。</p>
+    </section>
+
     <!-- ── 使用方式 ── -->
-    <h2>怎麼用？只要 3 步</h2>
-    <p class="lead">裝好之後，每次開會都只要這樣：</p>
+    <h2 data-t="use_h">怎麼用？簡單到有點不好意思 😆</h2>
+    <p class="lead" data-t="use_lead">裝好之後，每次開會只要做這三件事：</p>
     <div class="cards">
       <div class="card">
         <div class="art"><div class="meet" aria-hidden="true">
-          <div class="talk"><span style="background:#e8710a">王</span><small>王大明</small></div>
+          <div class="talk"><span style="background:#e8710a">D</span><small data-t="m1">王大明</small></div>
           <div><span style="background:#1e8e3e">A</span><small>Amy Chen</small></div>
-          <div><span style="background:#a142f4">伐</span><small>我</small></div>
-          <div><span style="background:#1a73e8">李</span><small>李小美</small></div>
+          <div><span style="background:#a142f4">✦</span><small data-t="m3">我</small></div>
+          <div><span style="background:#1a73e8">L</span><small data-t="m4">李小美</small></div>
         </div></div>
-        <div><span class="n">1</span><b>進入會議</b></div>
-        <p>用 Chrome 打開 Google Meet、Teams 或 Zoom 的會議。</p>
+        <div><span class="n">1</span><b data-t="c1_t">走進會議室</b></div>
+        <p data-t="c1_p">用 Chrome 打開 Google Meet、Teams 或 Zoom 會議，跟平常一樣。</p>
       </div>
       <div class="card">
         <div class="art" aria-hidden="true">
           <div style="position:absolute;top:12px;right:14px" class="tb"><span class="ic">🧩</span><span class="ic ext hl">✦</span></div>
-          <div class="pop" style="width:170px;margin-top:34px;padding:8px"><div class="big" style="padding:8px">● 開始記錄</div><div class="meter"><span>我</span><div class="bar"><i style="width:70%"></i></div></div><div class="meter"><span>對方</span><div class="bar"><i style="width:45%"></i></div></div></div>
+          <div class="pop" style="width:170px;margin-top:34px;padding:8px"><div class="big" style="padding:8px" data-t="pop_start">● 開始記錄</div><div class="meter"><span data-t="me">我</span><div class="bar"><i style="width:70%"></i></div></div><div class="meter"><span data-t="others">對方</span><div class="bar"><i style="width:45%"></i></div></div></div>
         </div>
-        <div><span class="n">2</span><b>按「開始記錄」</b></div>
-        <p>點右上角的 <span class="logo sm">✦</span>，按藍色大按鈕。綠色音量條會跟著說話跳動。</p>
+        <div><span class="n">2</span><b data-t="c2_t">按下藍色大按鈕</b></div>
+        <p data-t="c2_p">點右上角的 ✦ 按「開始記錄」。綠色音量條跟著說話跳舞，就代表它在認真聽 💃</p>
       </div>
       <div class="card">
-        <div class="art" aria-hidden="true"><div class="doc"><b>產品週會</b><h5>會議摘要</h5><i></i><i style="width:80%"></i><h5>待辦事項</h5><i style="width:90%"></i><i style="width:60%"></i><span class="w">W</span></div></div>
-        <div><span class="n">3</span><b>開完會直接離開</b></div>
-        <p>會自動停止並產生摘要，按「⬇ Word」就能下載。</p>
+        <div class="art" aria-hidden="true"><div class="doc"><b data-t="doc_t">產品週會</b><h5 data-t="doc_s">會議摘要</h5><i></i><i style="width:80%"></i><h5 data-t="doc_a">待辦事項</h5><i style="width:90%"></i><i style="width:60%"></i><span class="w">W</span></div></div>
+        <div><span class="n">3</span><b data-t="c3_t">散會！摘要已經在等你</b></div>
+        <p data-t="c3_p">直接離開會議就好，它會自己收工、寫好摘要。按「⬇ Word」帶走。</p>
       </div>
     </div>
 
     <!-- ── 商店安裝（填了 STORE_URL 才顯示）── -->
     <section id="store-only" hidden>
-      <h2 id="install-store">安裝</h2>
+      <h2 id="install-store" data-t="store_h">安裝</h2>
       <ol class="steps">
-        <li class="step"><div class="txt"><h3>按「加到 Chrome」</h3><p>在商店頁面按右上角的「加到 Chrome」，再按「新增擴充功能」。</p></div><div></div></li>
-        <li class="step"><div class="txt"><h3>照著跳出的設定頁做</h3><p>允許麥克風、把圖示釘在工具列，大約 1 分鐘。</p></div><div></div></li>
+        <li class="step"><div class="txt"><h3 data-t="st1_t">按「加到 Chrome」</h3><p data-t="st1_p">在商店頁面按右上角的「加到 Chrome」，再按「新增擴充功能」。</p></div><div></div></li>
+        <li class="step"><div class="txt"><h3 data-t="st2_t">跟著歡迎頁走</h3><p data-t="st2_p">允許麥克風、把圖示釘在工具列，大約 1 分鐘。</p></div><div></div></li>
       </ol>
     </section>
 
     <!-- ── 手動安裝 ── -->
     <section id="manual-only">
-      <h2 id="install">安裝（只要做一次）</h2>
-      <p class="lead">照著圖片做，<b style="color:var(--red)">紅框</b>就是要按的地方。</p>
+      <h2 id="install" data-t="ins_h">安裝只要 7 步（真的很快）</h2>
+      <p class="lead" data-t="ins_lead">照著圖做就對了，<b style="color:var(--red)">紅框</b>就是要按的地方 👇</p>
       <ol class="steps">
 
         <li class="step">
           <div class="txt">
-            <h3>下載安裝檔</h3>
-            <p>按下面的按鈕，會下載一個 <code>meeting-assistant.zip</code>。</p>
-            <p><a class="btn ghost" id="dl" href="#">⬇ 下載 meeting-assistant.zip</a></p>
+            <h3 data-t="s1_t">把安裝檔抱回家</h3>
+            <p data-t="s1_p">按下面的按鈕，下載 <code>meeting-assistant.zip</code>。</p>
+            <p><a class="btn ghost" id="dl" href="#" data-t="dl">⬇ 下載 meeting-assistant.zip</a></p>
           </div>
           <div class="fig" aria-hidden="true">
             <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><div class="omni">github.com/…/meeting-assistant.zip</div><div class="tb"><span class="ic hl">⬇</span></div></div>
             <div class="fig-body"><div class="between" style="border:1px solid var(--border);border-radius:10px;padding:10px">
-              <div class="row"><span class="zipico">ZIP</span><div><b>meeting-assistant.zip</b><div class="muted">已下載完成</div></div></div><span class="mbtn">開啟資料夾</span>
+              <div class="row"><span class="zipico">ZIP</span><div><b>meeting-assistant.zip</b><div class="muted" data-t="f_done">已下載完成</div></div></div><span class="mbtn" data-t="f_openf">開啟資料夾</span>
             </div></div>
           </div>
         </li>
 
         <li class="step">
           <div class="txt">
-            <h3>解壓縮到「文件」資料夾</h3>
-            <p>在下載的檔案上<b>按右鍵</b> →「<b>全部解壓縮…</b>」，位置選「<b>文件</b>」，按「解壓縮」。</p>
-            <p>⚠️ 之後<b>不要刪掉或搬動</b>解壓縮出來的資料夾，不然擴充功能會失效。</p>
+            <h3 data-t="s2_t">打開壓縮包</h3>
+            <p data-t="s2_p">在檔案上<b>按右鍵</b> →「<b>全部解壓縮…</b>」，位置選「<b>文件</b>」資料夾。</p>
+            <p data-t="s2_w">⚠️ 解壓縮出來的資料夾就是它的家，之後<b>別刪掉也別搬家</b>，不然它會迷路。</p>
           </div>
           <div class="fig" aria-hidden="true">
-            <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><div class="omni">📁 下載</div></div>
+            <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><div class="omni" data-t="f_dl">📁 下載</div></div>
             <div class="files">
               <div class="file zip"><div class="ico">ZIP</div>meeting-assistant.zip</div>
-              <div class="ctx"><div>開啟</div><div class="hl">全部解壓縮…</div><div>複製</div><div>刪除</div></div>
+              <div class="ctx"><div data-t="cx_open">開啟</div><div class="hl" data-t="cx_ext">全部解壓縮…</div><div data-t="cx_copy">複製</div><div data-t="cx_del">刪除</div></div>
             </div>
           </div>
         </li>
 
         <li class="step">
           <div class="txt">
-            <h3>打開 Chrome 的擴充功能頁</h3>
-            <p>按「複製」，貼到 Chrome 最上面的網址列，按 <b>Enter</b>。</p>
-            <div class="copy"><code>chrome://extensions</code> <button class="btn ghost" data-copy="chrome://extensions">複製</button></div>
+            <h3 data-t="s3_t">走進 Chrome 的擴充功能頁</h3>
+            <p data-t="s3_p">按「複製」，貼到 Chrome 最上面的網址列，按 <b>Enter</b>。</p>
+            <div class="copy"><code>chrome://extensions</code> <button class="btn ghost" data-copy="chrome://extensions" data-t="copy">複製</button></div>
           </div>
           <div class="fig" aria-hidden="true">
             <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><div class="omni hl"><b>chrome://extensions</b></div></div>
-            <div class="fig-body"><div class="muted" style="padding:20px 0;text-align:center">貼上網址後按 Enter ⏎</div></div>
+            <div class="fig-body"><div class="muted" style="padding:20px 0;text-align:center" data-t="f_enter">貼上網址，按 Enter ⏎</div></div>
           </div>
         </li>
 
         <li class="step">
           <div class="txt">
-            <h3>打開右上角的「開發人員模式」</h3>
-            <p>把開關切到<b>藍色</b>，左上角就會多出幾個按鈕。</p>
+            <h3 data-t="s4_t">打開「開發人員模式」</h3>
+            <p data-t="s4_p">名字聽起來很專業，其實只是一個開關 😎 把右上角的開關切到<b>藍色</b>，左上角就會冒出幾個新按鈕。</p>
           </div>
           <div class="fig" aria-hidden="true">
             <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><div class="omni">chrome://extensions</div></div>
-            <div class="ext-head"><h4>擴充功能</h4><div class="row hl" style="padding:2px 6px"><span>開發人員模式</span><span class="toggle on"></span></div></div>
-            <div class="ext-btns"><span class="mbtn">載入未封裝項目</span><span class="mbtn">封裝擴充功能</span><span class="mbtn">更新</span></div>
+            <div class="ext-head"><h4 data-t="x_title">擴充功能</h4><div class="row hl" style="padding:2px 6px"><span data-t="x_dev">開發人員模式</span><span class="toggle on"></span></div></div>
+            <div class="ext-btns"><span class="mbtn" data-t="x_load">載入未封裝項目</span><span class="mbtn" data-t="x_pack">封裝擴充功能</span><span class="mbtn" data-t="x_upd">更新</span></div>
           </div>
         </li>
 
         <li class="step">
           <div class="txt">
-            <h3>按「載入未封裝項目」</h3>
-            <p>選剛剛解壓縮出來的資料夾，打開後要<b>看得到 <code>manifest.json</code></b> 這個檔案，再按「<b>選擇資料夾</b>」。</p>
+            <h3 data-t="s5_t">把資料夾交給 Chrome</h3>
+            <p data-t="s5_p">按「<b>載入未封裝項目</b>」，選剛剛解壓縮的資料夾。打開後要<b>看得到 <code>manifest.json</code></b>，再按「<b>選擇資料夾</b>」。</p>
           </div>
           <div class="fig" aria-hidden="true">
-            <div class="ext-btns" style="border-bottom:1px solid var(--border)"><span class="mbtn hl">載入未封裝項目</span><span class="mbtn">封裝擴充功能</span><span class="mbtn">更新</span></div>
+            <div class="ext-btns" style="border-bottom:1px solid var(--border)"><span class="mbtn hl" data-t="x_load">載入未封裝項目</span><span class="mbtn" data-t="x_pack">封裝擴充功能</span><span class="mbtn" data-t="x_upd">更新</span></div>
             <div class="fig-body">
               <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
-                <div style="background:var(--surface-2);padding:6px 10px" class="muted">📁 文件 › meeting-assistant</div>
+                <div style="background:var(--surface-2);padding:6px 10px" class="muted" data-t="f_path">📁 文件 › meeting-assistant</div>
                 <div class="files" style="min-height:0;padding:10px">
                   <div class="file dir"><div class="ico"></div>popup</div>
                   <div class="file dir"><div class="ico"></div>lib</div>
                   <div class="file"><div class="ico">📄</div>manifest.json</div>
                 </div>
-                <div class="between" style="padding:8px 10px;border-top:1px solid var(--border)"><span></span><span class="mbtn hl" style="background:var(--accent);color:#fff;border-color:var(--accent)">選擇資料夾</span></div>
+                <div class="between" style="padding:8px 10px;border-top:1px solid var(--border)"><span></span><span class="mbtn hl" style="background:var(--accent);color:#fff;border-color:var(--accent)" data-t="f_select">選擇資料夾</span></div>
               </div>
             </div>
           </div>
@@ -285,16 +307,16 @@
 
         <li class="step">
           <div class="txt">
-            <h3>把圖示釘在工具列</h3>
-            <p>點右上角的 <b>🧩 拼圖</b> → 找到「會議摘要助理」→ 按旁邊的 <b>📌 圖釘</b>。之後右上角就會一直看到 <span class="logo sm">✦</span>。</p>
+            <h3 data-t="s6_t">把 ✦ 釘在顯眼的地方</h3>
+            <p data-t="s6_p">點右上角的 <b>🧩 拼圖</b> → 找到「會議摘要助理」→ 按 <b>📌</b>。從此 ✦ 就住在你的工具列上了。</p>
           </div>
           <div class="fig" aria-hidden="true">
             <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><div class="omni">meet.google.com</div><div class="tb"><span class="ic hl">🧩</span></div></div>
             <div class="fig-body" style="display:flex;justify-content:flex-end">
               <div style="width:220px;border:1px solid var(--border);border-radius:10px;padding:8px;box-shadow:0 8px 20px rgba(0,0,0,.12)">
-                <div class="muted" style="margin-bottom:6px">擴充功能</div>
+                <div class="muted" style="margin-bottom:6px" data-t="x_title">擴充功能</div>
                 <div class="between" style="padding:4px 2px"><div class="row"><span class="logo sm">✦</span>會議摘要助理</div><span class="hl" style="padding:0 3px">📌</span></div>
-                <div class="between muted" style="padding:4px 2px"><div class="row"><span style="width:20px;text-align:center">🧭</span>其他擴充功能</div><span>📌</span></div>
+                <div class="between muted" style="padding:4px 2px"><div class="row"><span style="width:20px;text-align:center">🧭</span><span data-t="f_other">其他擴充功能</span></div><span>📌</span></div>
               </div>
             </div>
           </div>
@@ -302,52 +324,52 @@
 
         <li class="step">
           <div class="txt">
-            <h3>照著自動跳出的設定頁做</h3>
-            <p>會打開一個歡迎頁：<b>允許麥克風</b> → <b>貼上 AI 金鑰</b>（頁面上有 3 步驟教學，免費）→ 完成。每做完一步就會打勾。</p>
+            <h3 data-t="s7_t">最後一哩路：歡迎頁</h3>
+            <p data-t="s7_p">會自動跳出一個歡迎頁：<b>允許麥克風</b> → <b>貼上 AI 金鑰</b>（頁面上有免費申請教學）。每完成一步就會打一個勾 ✅</p>
           </div>
           <div class="fig" aria-hidden="true">
-            <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><div class="omni">歡迎使用會議摘要助理</div></div>
+            <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><div class="omni" data-t="w_title">歡迎使用會議摘要助理</div></div>
             <div class="fig-body" style="display:flex;flex-direction:column;gap:6px">
-              <div class="between" style="border:1px solid var(--ok);border-radius:8px;padding:7px 10px"><span>① 允許使用麥克風</span><b style="color:var(--ok)">✓</b></div>
-              <div class="between" style="border:1px solid var(--ok);border-radius:8px;padding:7px 10px"><span>② 連接 AI 服務</span><b style="color:var(--ok)">✓</b></div>
-              <div class="between" style="border:1px solid var(--border);border-radius:8px;padding:7px 10px"><span>③ 把圖示釘在工具列</span><span class="muted">…</span></div>
-              <div style="text-align:center;padding:4px 0"><span class="mbtn" style="background:var(--accent);color:#fff;border-color:var(--accent)">知道了，開始使用</span></div>
+              <div class="between" style="border:1px solid var(--ok);border-radius:8px;padding:7px 10px"><span data-t="w1">① 允許使用麥克風</span><b style="color:var(--ok)">✓</b></div>
+              <div class="between" style="border:1px solid var(--ok);border-radius:8px;padding:7px 10px"><span data-t="w2">② 連接 AI 服務</span><b style="color:var(--ok)">✓</b></div>
+              <div class="between" style="border:1px solid var(--border);border-radius:8px;padding:7px 10px"><span data-t="w3">③ 把圖示釘在工具列</span><span class="muted">…</span></div>
+              <div style="text-align:center;padding:4px 0"><span class="mbtn" style="background:var(--accent);color:#fff;border-color:var(--accent)" data-t="w_go">知道了，開始使用</span></div>
             </div>
           </div>
         </li>
       </ol>
-      <div class="note">⚠️ Chrome 有時會跳出「停用開發人員模式擴充功能」的提醒，請按<b>保留</b>或直接關掉，不要按停用。</div>
+      <div class="note" data-t="note">💡 Chrome 偶爾會跳出「停用開發人員模式擴充功能」的提醒，請按<b>保留</b>或直接關掉，千萬別按停用。</div>
 
       <!-- ── 更新 ── -->
-      <h2 id="update">有新版本時怎麼更新</h2>
-      <p class="lead">打開 <span class="logo sm">✦</span> 看到下面這個提醒時，照著做就好。會議記錄和設定都會保留。</p>
-      <ol class="steps" style="counter-reset:s">
+      <h2 id="update" data-t="up_h">新版本來敲門了 🎁</h2>
+      <p class="lead" data-t="up_lead">打開 ✦ 看到這個提醒時，三步就能升級。會議記錄和設定都會乖乖留著。</p>
+      <ol class="steps">
         <li class="step">
-          <div class="txt"><h3>看到「有新版本」提醒</h3><p>點提醒就會打開這一頁。</p></div>
+          <div class="txt"><h3 data-t="u1_t">看到「有新版本」提醒</h3><p data-t="u1_p">點一下提醒，就會帶你回到這一頁。</p></div>
           <div class="fig" aria-hidden="true" style="display:grid;place-items:center;padding:16px;background:var(--surface-2)">
-            <div class="pop"><div class="hd"><span class="logo sm">✦</span>會議摘要助理</div><div class="upd hl">🎁 有新版本 1.0.1，點這裡看怎麼更新</div><div class="big">● 開始記錄</div></div>
+            <div class="pop"><div class="hd"><span class="logo sm">✦</span><span data-t="pop_name">會議摘要助理</span></div><div class="upd hl" data-t="u_banner">🎁 有新版本 1.0.1，點這裡看怎麼更新</div><div class="big" data-t="pop_start">● 開始記錄</div></div>
           </div>
         </li>
         <li class="step">
-          <div class="txt"><h3>下載新版，解壓縮到同一個位置</h3><p>用上面同一個下載按鈕。解壓縮時選<b>原本的資料夾</b>，問要不要取代檔案時選「<b>取代目的地中的檔案</b>」。</p></div>
+          <div class="txt"><h3 data-t="u2_t">下載新版，蓋掉舊的</h3><p data-t="u2_p">用上面同一個下載按鈕。解壓縮到<b>原本的資料夾</b>，問要不要取代時選「<b>取代目的地中的檔案</b>」。</p></div>
           <div class="fig" aria-hidden="true">
             <div class="fig-body">
               <div style="border:1px solid var(--border);border-radius:10px;padding:12px">
-                <b>取代或略過檔案</b>
-                <div class="muted" style="margin:4px 0 8px">目的地已經有 34 個同名的檔案</div>
-                <div class="hl" style="padding:6px 8px;background:var(--accent-soft)">✓ 取代目的地中的檔案</div>
-                <div class="muted" style="padding:6px 8px">↷ 略過這些檔案</div>
+                <b data-t="r_t">取代或略過檔案</b>
+                <div class="muted" style="margin:4px 0 8px" data-t="r_d">目的地已經有 34 個同名的檔案</div>
+                <div class="hl" style="padding:6px 8px;background:var(--accent-soft)" data-t="r_rep">✓ 取代目的地中的檔案</div>
+                <div class="muted" style="padding:6px 8px" data-t="r_skip">↷ 略過這些檔案</div>
               </div>
             </div>
           </div>
         </li>
         <li class="step">
-          <div class="txt"><h3>到 <code>chrome://extensions</code> 按 ↻ 重新載入</h3><p>在「會議摘要助理」那一格按右下角的 <b>↻</b>，就更新完成了。</p></div>
+          <div class="txt"><h3 data-t="u3_t">按 ↻ 重新整理</h3><p data-t="u3_p">到 <code>chrome://extensions</code>，在「會議摘要助理」那一格按 <b>↻</b>，就升級完成啦 🎉</p></div>
           <div class="fig" aria-hidden="true">
             <div class="ext-card">
               <span class="logo" style="width:36px;height:36px;border-radius:10px;font-size:17px;flex:none">✦</span>
-              <div class="meta"><b>會議摘要助理</b> <span class="muted">1.0.1</span><div class="muted">開會時自動記錄逐字稿，會後用 AI 整理摘要…</div>
-                <div class="foot"><span class="mbtn">詳細資料</span><span class="mbtn">移除</span><span class="end"><span class="hl" style="font-size:16px;padding:0 4px">↻</span><span class="toggle on"></span></span></div>
+              <div class="meta"><b>會議摘要助理</b> <span class="muted">1.0.1</span><div class="muted" data-t="e_desc">開會時自動記錄逐字稿，會後用 AI 整理摘要…</div>
+                <div class="foot"><span class="mbtn" data-t="e_det">詳細資料</span><span class="mbtn" data-t="e_rm">移除</span><span class="end"><span class="hl" style="font-size:16px;padding:0 4px">↻</span><span class="toggle on"></span></span></div>
               </div>
             </div>
           </div>
@@ -356,14 +378,14 @@
     </section>
 
     <!-- ── 常見問題 ── -->
-    <h2>常見問題</h2>
-    <details><summary>Teams、Zoom 可以用嗎？</summary><p>可以，但要用<b>網頁版</b>開會（在 Chrome 裡開），電腦上安裝的 Teams／Zoom 應用程式不行。</p></details>
-    <details><summary>逐字稿一直沒有出現？</summary><p>看圖示裡的兩條綠色音量條：「我」不會跳，請到設定頁按「測試麥克風」；「對方」不會跳，代表會議沒有聲音。說話後大約 3～15 秒文字才會出現。</p></details>
-    <details><summary>可以記錄英文或中英夾雜嗎？</summary><p>可以，會照原文記錄，不會自動翻譯。簡體中文會自動轉成繁體。</p></details>
-    <details><summary>會議內容存在哪裡？安全嗎？</summary><p>逐字稿和摘要只存在你自己的電腦裡；辨識時聲音會加密傳給 AI 服務處理。詳見<a href="privacy.html">隱私權政策</a>。</p></details>
-    <details><summary>需要先告知其他人嗎？</summary><p>需要。開始記錄前，請先告訴與會者這場會議會被記錄。</p></details>
+    <h2 data-t="faq_h">常見問題</h2>
+    <details><summary data-t="q1">Teams、Zoom 也能用嗎？</summary><p data-t="a1">可以！不過要用<b>網頁版</b>，也就是在 Chrome 裡開會。電腦上安裝的 Teams／Zoom 應用程式，它聽不到。</p></details>
+    <details><summary data-t="q2">逐字稿怎麼一直沒出現？</summary><p data-t="a2">先看 ✦ 裡的兩條綠色音量條：「我」不跳 → 到設定頁按「測試麥克風」；「對方」不跳 → 會議本身沒有聲音。另外，說完話大約 3～15 秒文字才會出現，給它一點時間 ⏳</p></details>
+    <details><summary data-t="q3">英文、中英夾雜也行嗎？</summary><p data-t="a3">行！它會照原文記錄，不會擅自翻譯；簡體中文會自動轉成繁體。</p></details>
+    <details><summary data-t="q4">會議內容安全嗎？</summary><p data-t="a4">逐字稿和摘要只存在你自己的電腦裡。辨識時，聲音會加密傳給 AI 處理。詳見<a href="privacy.html">隱私權政策</a>。</p></details>
+    <details><summary data-t="q5">要先告訴其他人嗎？</summary><p data-t="a5">要喔！開始記錄前，先跟大家說一聲「這場會議會記錄」。這是基本禮貌，很多地方也是法律要求。</p></details>
 
-    <footer>會議摘要助理（PicoMeeting Assistant）・<a href="privacy.html">隱私權政策</a></footer>
+    <footer><span data-t="foot">會議摘要助理（PicoMeeting Assistant）</span>・<a href="privacy.html" data-t="privacy">隱私權政策</a></footer>
   </main>
 
   <script>
@@ -371,18 +393,136 @@
     const STORE_URL = "";
     const ZIP_URL = "https://github.com/carminowu-gen1/picomeeting-assistant/releases/latest/download/meeting-assistant.zip";
 
+    // 中文寫在 HTML 裡（沒有 JavaScript 也看得到），英文在這裡
+    const EN = {
+      doc_title: "PicoMeeting Assistant · Install & Use",
+      doc_desc: "Auto-transcribe your online meetings and get an AI summary, key points and action items — one click to Word.",
+      brand: "PicoMeeting Assistant",
+      why_h: "Why I made this 💛",
+      why_p: "I built this little tool for my wife. Her job means lots of online meetings, and trying to listen and take notes at the same time meant something always slipped through. So now she presses one button: it writes down what everyone says, and when the meeting ends it tidies everything into a summary and a to-do list. It works with web-based meetings like Google Meet, Teams and Zoom. No complicated settings, no features you'll never use — if you can click a button, you can use it.",
+      h1: "You focus on the meeting.<br>We'll take the notes.",
+      hero_p: "It quietly listens in Google Meet, Teams and Zoom, and writes down who said what. When the meeting ends, your summary, key points and action items are lined up and ready — one click turns them into a Word doc.",
+      cta: "⬇ Download free",
+      cta_hint: "Follow the pictures — you'll be done before your coffee cools ☕",
+      cta_store: "＋ Add to Chrome",
+      cta_store_hint: "Free · installs from the Chrome Web Store and updates itself",
+      pop_name: "PicoMeeting Assistant",
+      pop_start: "● Start recording",
+      pop_sum_t: "Product Weekly · 11/2",
+      pop_sum: "Q4 timeline to be locked by next Friday; Amy will update the budget…",
+      pop_full: "📄 Full text",
+      pop_copy: "📋 Copy",
+      use_h: "How does it work? Almost embarrassingly simple 😆",
+      use_lead: "Once it's installed, this is all you do in every meeting:",
+      m1: "Daniel", m3: "Me", m4: "Lily",
+      c1_t: "Walk into the meeting",
+      c1_p: "Open Google Meet, Teams or Zoom in Chrome — business as usual.",
+      me: "Me", others: "Others",
+      c2_t: "Hit the big blue button",
+      c2_p: "Click ✦ at the top right and press “Start recording”. When the green bars dance along with your voice, it's listening 💃",
+      doc_t: "Product Weekly", doc_s: "Summary", doc_a: "Action items",
+      c3_t: "Meeting over? Your summary's waiting",
+      c3_p: "Just leave the meeting — it wraps up on its own and writes the summary. Grab it with “⬇ Word”.",
+      store_h: "Install",
+      st1_t: "Click “Add to Chrome”",
+      st1_p: "On the store page, click “Add to Chrome”, then “Add extension”.",
+      st2_t: "Follow the welcome page",
+      st2_p: "Allow the microphone and pin the icon — about a minute.",
+      ins_h: "Install in 7 steps (really, it's quick)",
+      ins_lead: "Just follow the pictures — the <b style=\"color:var(--red)\">red box</b> is what you click 👇",
+      s1_t: "Bring the installer home",
+      s1_p: "Click the button below to download <code>meeting-assistant.zip</code>.",
+      dl: "⬇ Download meeting-assistant.zip",
+      f_done: "Download complete", f_openf: "Show in folder",
+      s2_t: "Unpack it",
+      s2_p: "<b>Right-click</b> the file → “<b>Extract All…</b>” and pick your <b>Documents</b> folder.",
+      s2_w: "⚠️ The extracted folder is its new home — <b>don't delete or move it</b> later, or it'll get lost.",
+      f_dl: "📁 Downloads",
+      cx_open: "Open", cx_ext: "Extract All…", cx_copy: "Copy", cx_del: "Delete",
+      s3_t: "Open Chrome's extensions page",
+      s3_p: "Click “Copy”, paste into Chrome's address bar at the top, and press <b>Enter</b>.",
+      copy: "Copy", copied: "✓ Copied",
+      f_enter: "Paste the address, press Enter ⏎",
+      s4_t: "Switch on “Developer mode”",
+      s4_p: "Sounds serious, but it's just a switch 😎 Flip the one at the top right to <b>blue</b> and a few new buttons pop up on the left.",
+      x_title: "Extensions", x_dev: "Developer mode", x_load: "Load unpacked", x_pack: "Pack extension", x_upd: "Update",
+      s5_t: "Hand the folder to Chrome",
+      s5_p: "Click “<b>Load unpacked</b>” and choose the folder you just extracted. Inside it you should <b>see <code>manifest.json</code></b> — then click “<b>Select Folder</b>”.",
+      f_path: "📁 Documents › meeting-assistant", f_select: "Select Folder",
+      s6_t: "Pin ✦ where you can see it",
+      s6_p: "Click the <b>🧩 puzzle piece</b> at the top right → find “會議摘要助理” (that's us) → click <b>📌</b>. Now ✦ lives on your toolbar.",
+      f_other: "Another extension",
+      s7_t: "Last stop: the welcome page",
+      s7_p: "A welcome page opens by itself: <b>allow the microphone</b> → <b>paste your AI key</b> (there's a free how-to right on the page). Each step gets a ✅. <i>The welcome page is in Chinese for now — just follow the green checkmarks.</i>",
+      w_title: "Welcome", w1: "① Allow microphone", w2: "② Connect AI service", w3: "③ Pin the icon", w_go: "Got it — let's go",
+      note: "💡 Chrome may now and then ask you to “Disable developer mode extensions”. Click <b>Keep</b> or just close it — please don't disable.",
+      up_h: "A new version is knocking 🎁",
+      up_lead: "When ✦ shows this notice, upgrading takes three steps. Your meetings and settings stay right where they are.",
+      u1_t: "Spot the “new version” notice",
+      u1_p: "Click it and it brings you back to this page.",
+      u_banner: "🎁 Version 1.0.1 is here — click to see how",
+      u2_t: "Download it and overwrite the old one",
+      u2_p: "Use the same download button above. Extract into the <b>same folder</b>, and when asked, choose “<b>Replace the files in the destination</b>”.",
+      r_t: "Replace or Skip Files", r_d: "The destination already has 34 files with the same names", r_rep: "✓ Replace the files in the destination", r_skip: "↷ Skip these files",
+      u3_t: "Hit ↻ to reload",
+      u3_p: "Go to <code>chrome://extensions</code> and click <b>↻</b> on the “會議摘要助理” card. Upgrade complete 🎉",
+      e_desc: "Auto-transcribes meetings and summarizes them with AI…", e_det: "Details", e_rm: "Remove",
+      faq_h: "FAQ",
+      q1: "Does it work with Teams and Zoom?",
+      a1: "Yes! Just use the <b>web version</b> — join the meeting inside Chrome. It can't hear the desktop Teams/Zoom apps.",
+      q2: "Why isn't any text showing up?",
+      a2: "Check the two green bars in ✦: if “Me” isn't moving, open Settings and click “Test microphone”; if “Others” isn't moving, the meeting itself has no sound. Also, text appears about 3–15 seconds after someone speaks — give it a moment ⏳",
+      q3: "English? A mix of languages?",
+      a3: "Sure! It writes down exactly what was said in the original language — no surprise translations. Simplified Chinese is converted to Traditional automatically.",
+      q4: "Is my meeting content safe?",
+      a4: "Transcripts and summaries live only on your own computer. During recognition, audio is sent encrypted to the AI service. See the <a href=\"privacy.html?lang=en\">privacy policy</a>.",
+      q5: "Should I tell everyone first?",
+      a5: "Yes, please! Before you hit record, let people know the meeting is being recorded. It's good manners — and in many places, the law.",
+      foot: "PicoMeeting Assistant (會議摘要助理)",
+      privacy: "Privacy policy",
+    };
+
     const $ = (id) => document.getElementById(id);
+    const nodes = [...document.querySelectorAll("[data-t]")];
+    const ZH = new Map(nodes.map((el) => [el, el.innerHTML])); // 原本的中文
+    const zhTitle = document.title, descEl = document.querySelector('meta[name="description"]'), zhDesc = descEl.content;
+    let lang = "zh";
+
+    function setLang(l) {
+      lang = l;
+      for (const el of nodes) el.innerHTML = l === "en" ? (EN[el.dataset.t] ?? ZH.get(el)) : ZH.get(el);
+      document.documentElement.lang = l === "en" ? "en" : "zh-TW";
+      document.title = l === "en" ? EN.doc_title : zhTitle;
+      descEl.content = l === "en" ? EN.doc_desc : zhDesc;
+      document.querySelectorAll(".langbar button").forEach((b) => b.classList.toggle("on", b.dataset.lang === l));
+      document.querySelectorAll('a[href^="privacy.html"]').forEach((a) => (a.href = l === "en" ? "privacy.html?lang=en" : "privacy.html"));
+      if (STORE_URL) {
+        $("mainBtn").textContent = l === "en" ? EN.cta_store : "＋ 加到 Chrome";
+        $("mainHint").textContent = l === "en" ? EN.cta_store_hint : "免費・從 Chrome 線上應用程式商店安裝，之後會自動更新";
+      }
+      try { localStorage.setItem("lang", l); } catch {}
+    }
+
     $("dl").href = ZIP_URL;
     if (STORE_URL) {
       $("store-only").hidden = false;
       $("manual-only").hidden = true;
       $("mainBtn").href = STORE_URL;
-      $("mainBtn").textContent = "＋ 加到 Chrome";
-      $("mainHint").textContent = "免費・從 Chrome 線上應用程式商店安裝，之後會自動更新";
     }
+    document.querySelectorAll(".langbar button").forEach((b) => b.addEventListener("click", () => setLang(b.dataset.lang)));
     document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
-      try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = "✓ 已複製"; setTimeout(() => (b.textContent = "複製"), 1500); } catch {}
+      try {
+        await navigator.clipboard.writeText(b.dataset.copy);
+        b.textContent = lang === "en" ? EN.copied : "✓ 已複製";
+        setTimeout(() => (b.textContent = lang === "en" ? EN.copy : "複製"), 1500);
+      } catch {}
     }));
+
+    // 語言：網址 ?lang= > 上次的選擇 > 瀏覽器語言
+    let saved = null;
+    try { saved = localStorage.getItem("lang"); } catch {}
+    const q = new URLSearchParams(location.search).get("lang");
+    setLang(q === "en" || q === "zh" ? q : saved || (/^zh/i.test(navigator.language) ? "zh" : "en"));
   </script>
 </body>
 </html>
