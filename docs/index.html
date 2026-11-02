@@ -7,116 +7,358 @@
   <meta name="description" content="開會時自動記錄逐字稿，會後用 AI 整理摘要、重點與待辦，一鍵匯出 Word。" />
   <style>
     :root {
-      --bg: #f6f7fb; --surface: #fff; --surface-2: #f0f2f7; --border: #e3e6ee;
-      --text: #16181d; --text-2: #5f6673; --accent: #2f6df6; --accent-2: #8b5cf6; --accent-soft: #e8efff;
-      --ok: #1f9d55; --warn-soft: #fff5d6; --warn: #8a6200; --radius: 14px;
+      --bg: #f6f7fb; --surface: #fff; --surface-2: #f0f2f7; --surface-3: #e6e9f0; --border: #e3e6ee;
+      --text: #16181d; --text-2: #5f6673; --text-3: #9aa1ad;
+      --accent: #2f6df6; --accent-2: #8b5cf6; --accent-soft: #e8efff;
+      --ok: #1f9d55; --red: #e5484d; --warn-soft: #fff5d6; --warn: #8a6200; --radius: 14px;
+      --chrome: #dee1e6; --chrome-2: #fff; --tile: #3c4043;
       color-scheme: light;
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #121418; --surface: #1b1e24; --surface-2: #23272f; --border: #2d323b;
-        --text: #eef0f4; --text-2: #a6adba; --accent: #5b8cff; --accent-soft: #1f2a46;
-        --ok: #3ddc84; --warn-soft: #3a2f16; --warn: #f3b63f; color-scheme: dark;
+        --bg: #121418; --surface: #1b1e24; --surface-2: #23272f; --surface-3: #2d323b; --border: #2d323b;
+        --text: #eef0f4; --text-2: #a6adba; --text-3: #6c7380;
+        --accent: #5b8cff; --accent-soft: #1f2a46; --ok: #3ddc84; --red: #ff6369;
+        --warn-soft: #3a2f16; --warn: #f3b63f; --chrome: #202124; --chrome-2: #35363a; --tile: #2b2d31;
+        color-scheme: dark;
       }
     }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.7 -apple-system, "Segoe UI", "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", system-ui, sans-serif; }
-    main { max-width: 760px; margin: 0 auto; padding: 48px 16px 80px; }
+    main { max-width: 900px; margin: 0 auto; padding: 48px 16px 80px; }
     a { color: var(--accent); }
-    h2 { font-size: 22px; margin: 56px 0 16px; }
-    .hero { text-align: center; }
-    .logo { display: inline-grid; place-items: center; width: 72px; height: 72px; border-radius: 20px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; font-size: 36px; }
-    .logo.sm { width: 22px; height: 22px; border-radius: 6px; font-size: 12px; vertical-align: -4px; }
-    .hero h1 { font-size: 32px; margin: 16px 0 8px; }
-    .hero p { color: var(--text-2); margin: 0 auto; max-width: 520px; }
-    .cta { margin-top: 28px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    h2 { font-size: 24px; margin: 64px 0 8px; }
+    .lead { color: var(--text-2); margin: 0 0 20px; }
+    .small { font-size: 14px; color: var(--text-2); }
+    code { background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; font-size: 14px; white-space: nowrap; }
+
+    /* ── Hero ── */
+    .hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; }
+    .logo { display: inline-grid; place-items: center; width: 64px; height: 64px; border-radius: 18px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; font-size: 32px; }
+    .logo.sm { width: 20px; height: 20px; border-radius: 6px; font-size: 11px; vertical-align: -4px; }
+    .hero h1 { font-size: 34px; margin: 14px 0 10px; line-height: 1.3; }
+    .hero p { color: var(--text-2); margin: 0; }
+    .cta { margin-top: 24px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
     .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 28px; border-radius: 12px; background: var(--accent); color: #fff; font-size: 17px; font-weight: 700; text-decoration: none; border: 0; cursor: pointer; }
     .btn:hover { filter: brightness(1.08); }
-    .btn.ghost { background: var(--surface-2); color: var(--text); font-size: 14px; padding: 8px 14px; font-weight: 600; }
-    .small { font-size: 14px; color: var(--text-2); }
-    .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
-    .card .n { width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 700; margin-bottom: 8px; }
-    .card b { display: block; margin-bottom: 4px; }
+    .btn.ghost { background: var(--surface-2); color: var(--text); font-size: 14px; padding: 8px 14px; font-weight: 600; border: 1px solid var(--border); }
+
+    /* ── 使用方式 ── */
+    .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+    .card .art { height: 150px; border-radius: 10px; background: var(--surface-2); display: grid; place-items: center; overflow: hidden; position: relative; }
+    .card .n { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; display: inline-grid; place-items: center; font-weight: 700; font-size: 14px; margin-right: 6px; }
+    .card b { font-size: 16px; }
     .card p { margin: 0; font-size: 14px; color: var(--text-2); }
-    .steps { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; counter-reset: s; }
-    .steps li { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px 16px 62px; position: relative; }
-    .steps li::before { counter-increment: s; content: counter(s); position: absolute; left: 18px; top: 16px; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 700; }
-    .steps p { margin: 4px 0 0; color: var(--text-2); font-size: 15px; }
-    code, .kbd { background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; font-size: 14px; white-space: nowrap; }
-    .copy { display: inline-flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
-    .note { background: var(--warn-soft); color: var(--warn); border-radius: 10px; padding: 12px 14px; font-size: 14px; margin-top: 12px; }
+
+    /* ── 步驟 ── */
+    .steps { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 16px; counter-reset: s; }
+    .step { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; display: grid; grid-template-columns: 1fr 1.15fr; gap: 20px; align-items: center; }
+    .step .txt { position: relative; padding-left: 46px; }
+    .step .txt::before { counter-increment: s; content: counter(s); position: absolute; left: 0; top: 0; width: 34px; height: 34px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 700; }
+    .step h3 { margin: 2px 0 6px; font-size: 18px; }
+    .step p { margin: 0 0 6px; color: var(--text-2); font-size: 15px; }
+    .copy { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .note { background: var(--warn-soft); color: var(--warn); border-radius: 12px; padding: 12px 16px; font-size: 14px; margin-top: 14px; }
+
+    /* ── 示意圖元件 ── */
+    .fig { border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: var(--surface); font-size: 12px; line-height: 1.4; box-shadow: 0 6px 20px rgba(0,0,0,.08); user-select: none; }
+    .win-bar { background: var(--chrome); padding: 7px 10px; display: flex; align-items: center; gap: 8px; }
+    .dots { display: flex; gap: 5px; } .dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--surface-3); display: block; }
+    .omni { flex: 1; min-width: 0; background: var(--chrome-2); border-radius: 999px; padding: 4px 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .omni b { color: var(--text); font-weight: 600; }
+    .tb { display: flex; gap: 6px; align-items: center; }
+    .tb .ic { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; font-size: 13px; color: var(--text-2); }
+    .tb .ic.ext { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; font-size: 11px; }
+    .fig-body { padding: 12px; }
+    .hl { outline: 3px solid var(--red); outline-offset: 3px; border-radius: 8px; animation: ring 1.6s ease-in-out infinite; position: relative; }
+    @keyframes ring { 50% { outline-offset: 6px; } }
+    @media (prefers-reduced-motion: reduce) { .hl { animation: none; } }
+    .tag { position: absolute; background: var(--red); color: #fff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; z-index: 2; }
+    .mbtn { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--text); background: var(--surface); font-size: 12px; white-space: nowrap; }
+    .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .between { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .toggle { width: 34px; height: 18px; border-radius: 999px; background: var(--surface-3); position: relative; flex: none; }
+    .toggle::after { content: ""; position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #fff; top: 2px; left: 2px; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+    .toggle.on { background: var(--accent); } .toggle.on::after { left: 18px; }
+    .muted { color: var(--text-2); }
+
+    /* popup 示意 */
+    .pop { width: min(230px, 100%); background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 12px 30px rgba(0,0,0,.15); font-size: 11px; text-align: left; }
+    .pop .hd { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 12px; }
+    .pop .big { background: var(--accent); color: #fff; border-radius: 10px; padding: 10px; text-align: center; font-weight: 700; font-size: 13px; }
+    .pop .big.stop { background: var(--red); }
+    .pop .sum { background: var(--surface-2); border-radius: 8px; padding: 8px; color: var(--text-2); }
+    .pop .sum b { color: var(--text); display: block; margin-bottom: 2px; }
+    .pop .acts { display: flex; gap: 4px; } .pop .acts span { flex: 1; text-align: center; padding: 5px 0; border-radius: 7px; background: var(--surface-2); font-size: 10px; }
+    .pop .acts span.p { background: var(--accent); color: #fff; }
+    .pop .meter { display: grid; grid-template-columns: 28px 1fr; gap: 6px; align-items: center; color: var(--text-2); }
+    .pop .bar { height: 5px; border-radius: 9px; background: var(--surface-3); overflow: hidden; } .pop .bar i { display: block; height: 100%; background: var(--ok); }
+    .pop .upd { background: var(--accent-soft); color: var(--accent); border-radius: 8px; padding: 6px 8px; font-weight: 600; }
+
+    /* 擴充功能頁示意 */
+    .ext-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    .ext-head h4 { margin: 0; font-size: 15px; font-weight: 500; }
+    .ext-btns { display: flex; gap: 6px; padding: 10px 12px; flex-wrap: wrap; }
+    .ext-card { margin: 10px 12px 12px; border: 1px solid var(--border); border-radius: 10px; padding: 10px; display: flex; gap: 10px; align-items: flex-start; }
+    .ext-card .meta { flex: 1; min-width: 0; }
+    .ext-card .foot { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+    .ext-card .foot .end { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+    /* 檔案總管示意 */
+    .files { display: flex; gap: 12px; padding: 14px; align-items: flex-start; position: relative; min-height: 150px; }
+    .file { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 84px; text-align: center; font-size: 11px; word-break: break-all; }
+    .file .ico { width: 44px; height: 52px; border-radius: 6px; display: grid; place-items: center; font-size: 22px; background: var(--surface-2); border: 1px solid var(--border); }
+    .file.zip .ico, .zipico { background: #f7c948; border: 1px solid #e1b12c; color: #6b4e00; font-size: 11px; font-weight: 800; }
+    .zipico { display: grid; place-items: center; width: 34px; height: 40px; border-radius: 6px; flex: none; }
+    .file.dir .ico { background: #f4c15d; border-color: #d9a43f; width: 52px; height: 42px; }
+    .ctx { position: absolute; left: clamp(60px, calc(100% - 172px), 108px); top: 22px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,.18); padding: 5px; min-width: 150px; }
+    .ctx div { padding: 5px 10px; border-radius: 6px; color: var(--text-2); }
+    .ctx div.hl { color: var(--text); background: var(--accent-soft); }
+
+    /* 會議示意 */
+    .meet { width: 100%; height: 100%; background: #202124; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px; }
+    .meet div { background: var(--tile); border-radius: 8px; position: relative; display: grid; place-items: center; }
+    .meet div span { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 700; }
+    .meet div small { position: absolute; left: 6px; bottom: 4px; color: #fff; font-size: 10px; }
+    .meet div.talk { outline: 2px solid #8ab4f8; }
+    .doc { width: 120px; height: 130px; background: #fff; border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.15); padding: 12px 10px; position: relative; color: #333; font-size: 9px; text-align: left; }
+    .doc b { font-size: 11px; display: block; margin-bottom: 4px; color: #1f2937; }
+    .doc i { display: block; height: 4px; background: #d6dae2; border-radius: 3px; margin: 4px 0; }
+    .doc h5 { margin: 6px 0 2px; color: #2563eb; font-size: 9px; }
+    .doc .w { position: absolute; right: -10px; bottom: -10px; width: 34px; height: 34px; border-radius: 8px; background: #2b579a; color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 16px; }
+
     details { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 10px; }
     summary { cursor: pointer; font-weight: 600; }
     details p { margin: 8px 0 0; color: var(--text-2); font-size: 15px; }
     footer { margin-top: 64px; text-align: center; font-size: 13px; color: var(--text-2); }
-    #manual-only[hidden], #store-only[hidden] { display: none; }
-    @media (max-width: 640px) { .cards { grid-template-columns: 1fr; } .hero h1 { font-size: 26px; } }
+    [hidden] { display: none !important; }
+
+    @media (max-width: 760px) {
+      .hero { grid-template-columns: 1fr; gap: 28px; text-align: center; }
+      .cta { align-items: center; }
+      .hero .pop { margin: 0 auto; }
+      .cards { grid-template-columns: 1fr; }
+      .step { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 27px; }
+    }
   </style>
 </head>
 <body>
   <main>
+    <!-- ── Hero ── -->
     <section class="hero">
-      <span class="logo">✦</span>
-      <h1>會議摘要助理</h1>
-      <p>開會時自動記下每個人說的話，會後用 AI 整理成摘要、重點和待辦事項，一鍵下載 Word。支援 Google Meet、Teams、Zoom、Jitsi。</p>
-      <div class="cta">
-        <a class="btn" id="mainBtn" href="#install">⬇ 下載並安裝</a>
-        <span class="small" id="mainHint">免費・約 2 分鐘裝好</span>
+      <div>
+        <span class="logo">✦</span>
+        <h1>會議摘要助理</h1>
+        <p>開會時自動記下每個人說的話，會後用 AI 整理成<b>摘要、重點、待辦事項</b>，一鍵下載 Word。支援 Google Meet、Teams、Zoom、Jitsi。</p>
+        <div class="cta">
+          <a class="btn" id="mainBtn" href="#install">⬇ 下載並安裝</a>
+          <span class="small" id="mainHint">免費・照著圖片做，約 3 分鐘裝好</span>
+        </div>
+      </div>
+      <div class="pop" aria-hidden="true">
+        <div class="hd"><span class="logo sm">✦</span>會議摘要助理</div>
+        <div class="big">● 開始記錄</div>
+        <div class="sum"><b>產品週會・11/2</b>確認 Q4 時程下週五前定案，Amy 負責更新預算……</div>
+        <div class="acts"><span>📄 查看全文</span><span>📋 複製</span><span class="p">⬇ Word</span></div>
       </div>
     </section>
 
-    <h2>怎麼用？</h2>
+    <!-- ── 使用方式 ── -->
+    <h2>怎麼用？只要 3 步</h2>
+    <p class="lead">裝好之後，每次開會都只要這樣：</p>
     <div class="cards">
-      <div class="card"><div class="n">1</div><b>進入會議</b><p>用 Chrome 打開 Google Meet、Teams 或 Zoom 的會議。</p></div>
-      <div class="card"><div class="n">2</div><b>按「開始記錄」</b><p>點右上角的 <span class="logo sm">✦</span> 圖示，按大大的藍色按鈕。</p></div>
-      <div class="card"><div class="n">3</div><b>開完會直接離開</b><p>摘要會自動產生，按「Word」就能下載。</p></div>
+      <div class="card">
+        <div class="art"><div class="meet" aria-hidden="true">
+          <div class="talk"><span style="background:#e8710a">王</span><small>王大明</small></div>
+          <div><span style="background:#1e8e3e">A</span><small>Amy Chen</small></div>
+          <div><span style="background:#a142f4">伐</span><small>我</small></div>
+          <div><span style="background:#1a73e8">李</span><small>李小美</small></div>
+        </div></div>
+        <div><span class="n">1</span><b>進入會議</b></div>
+        <p>用 Chrome 打開 Google Meet、Teams 或 Zoom 的會議。</p>
+      </div>
+      <div class="card">
+        <div class="art" aria-hidden="true">
+          <div style="position:absolute;top:12px;right:14px" class="tb"><span class="ic">🧩</span><span class="ic ext hl">✦</span></div>
+          <div class="pop" style="width:170px;margin-top:34px;padding:8px"><div class="big" style="padding:8px">● 開始記錄</div><div class="meter"><span>我</span><div class="bar"><i style="width:70%"></i></div></div><div class="meter"><span>對方</span><div class="bar"><i style="width:45%"></i></div></div></div>
+        </div>
+        <div><span class="n">2</span><b>按「開始記錄」</b></div>
+        <p>點右上角的 <span class="logo sm">✦</span>，按藍色大按鈕。綠色音量條會跟著說話跳動。</p>
+      </div>
+      <div class="card">
+        <div class="art" aria-hidden="true"><div class="doc"><b>產品週會</b><h5>會議摘要</h5><i></i><i style="width:80%"></i><h5>待辦事項</h5><i style="width:90%"></i><i style="width:60%"></i><span class="w">W</span></div></div>
+        <div><span class="n">3</span><b>開完會直接離開</b></div>
+        <p>會自動停止並產生摘要，按「⬇ Word」就能下載。</p>
+      </div>
     </div>
 
+    <!-- ── 商店安裝（填了 STORE_URL 才顯示）── -->
     <section id="store-only" hidden>
       <h2 id="install-store">安裝</h2>
       <ol class="steps">
-        <li><b>打開商店頁面</b><p>按上面的「加到 Chrome」按鈕。</p></li>
-        <li><b>按「加到 Chrome」→「新增擴充功能」</b></li>
-        <li><b>照著跳出的設定頁做</b><p>允許麥克風、把圖示釘在工具列，大約 1 分鐘。</p></li>
+        <li class="step"><div class="txt"><h3>按「加到 Chrome」</h3><p>在商店頁面按右上角的「加到 Chrome」，再按「新增擴充功能」。</p></div><div></div></li>
+        <li class="step"><div class="txt"><h3>照著跳出的設定頁做</h3><p>允許麥克風、把圖示釘在工具列，大約 1 分鐘。</p></div><div></div></li>
       </ol>
     </section>
 
+    <!-- ── 手動安裝 ── -->
     <section id="manual-only">
-      <h2 id="install">安裝（手動，只要做一次）</h2>
+      <h2 id="install">安裝（只要做一次）</h2>
+      <p class="lead">照著圖片做，<b style="color:var(--red)">紅框</b>就是要按的地方。</p>
       <ol class="steps">
-        <li>
-          <b>下載安裝檔</b>
-          <p><a class="btn ghost" id="dl" href="#">⬇ 下載 meeting-assistant.zip</a></p>
-        </li>
-        <li>
-          <b>解壓縮到一個不會刪掉的地方</b>
-          <p>在下載的檔案上按右鍵 →「解壓縮全部」，位置選「<b>文件</b>」資料夾。<br>
-          ⚠️ 之後<b>不要刪掉或搬動</b>這個資料夾，否則擴充功能會失效。</p>
-        </li>
-        <li>
-          <b>打開 Chrome 的擴充功能頁</b>
-          <p>按下面的按鈕複製網址，貼到 Chrome 的網址列，按 Enter。</p>
-          <div class="copy"><code>chrome://extensions</code> <button class="btn ghost" data-copy="chrome://extensions">複製</button></div>
-        </li>
-        <li><b>打開右上角的「開發人員模式」</b><p>把開關切到藍色。</p></li>
-        <li><b>按左上角「載入未封裝項目」</b><p>選剛剛解壓縮出來的資料夾（裡面要看得到 <code>manifest.json</code> 這個檔案），按「選擇資料夾」。</p></li>
-        <li><b>照著跳出的設定頁做</b><p>允許麥克風、貼上金鑰（頁面上有教學）、把圖示釘在工具列。</p></li>
-      </ol>
-      <div class="note">Chrome 可能會提醒「停用開發人員模式擴充功能」，請選<b>保留</b>，不然就要重新安裝。</div>
 
+        <li class="step">
+          <div class="txt">
+            <h3>下載安裝檔</h3>
+            <p>按下面的按鈕，會下載一個 <code>meeting-assistant.zip</code>。</p>
+            <p><a class="btn ghost" id="dl" href="#">⬇ 下載 meeting-assistant.zip</a></p>
+          </div>
+          <div class="fig" aria-hidden="true">
+            <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><div class="omni">github.com/…/meeting-assistant.zip</div><div class="tb"><span class="ic hl">⬇</span></div></div>
+            <div class="fig-body"><div class="between" style="border:1px solid var(--border);border-radius:10px;padding:10px">
+              <div class="row"><span class="zipico">ZIP</span><div><b>meeting-assistant.zip</b><div class="muted">已下載完成</div></div></div><span class="mbtn">開啟資料夾</span>
+            </div></div>
+          </div>
+        </li>
+
+        <li class="step">
+          <div class="txt">
+            <h3>解壓縮到「文件」資料夾</h3>
+            <p>在下載的檔案上<b>按右鍵</b> →「<b>全部解壓縮…</b>」，位置選「<b>文件</b>」，按「解壓縮」。</p>
+            <p>⚠️ 之後<b>不要刪掉或搬動</b>解壓縮出來的資料夾，不然擴充功能會失效。</p>
+          </div>
+          <div class="fig" aria-hidden="true">
+            <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><div class="omni">📁 下載</div></div>
+            <div class="files">
+              <div class="file zip"><div class="ico">ZIP</div>meeting-assistant.zip</div>
+              <div class="ctx"><div>開啟</div><div class="hl">全部解壓縮…</div><div>複製</div><div>刪除</div></div>
+            </div>
+          </div>
+        </li>
+
+        <li class="step">
+          <div class="txt">
+            <h3>打開 Chrome 的擴充功能頁</h3>
+            <p>按「複製」，貼到 Chrome 最上面的網址列，按 <b>Enter</b>。</p>
+            <div class="copy"><code>chrome://extensions</code> <button class="btn ghost" data-copy="chrome://extensions">複製</button></div>
+          </div>
+          <div class="fig" aria-hidden="true">
+            <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><div class="omni hl"><b>chrome://extensions</b></div></div>
+            <div class="fig-body"><div class="muted" style="padding:20px 0;text-align:center">貼上網址後按 Enter ⏎</div></div>
+          </div>
+        </li>
+
+        <li class="step">
+          <div class="txt">
+            <h3>打開右上角的「開發人員模式」</h3>
+            <p>把開關切到<b>藍色</b>，左上角就會多出幾個按鈕。</p>
+          </div>
+          <div class="fig" aria-hidden="true">
+            <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><div class="omni">chrome://extensions</div></div>
+            <div class="ext-head"><h4>擴充功能</h4><div class="row hl" style="padding:2px 6px"><span>開發人員模式</span><span class="toggle on"></span></div></div>
+            <div class="ext-btns"><span class="mbtn">載入未封裝項目</span><span class="mbtn">封裝擴充功能</span><span class="mbtn">更新</span></div>
+          </div>
+        </li>
+
+        <li class="step">
+          <div class="txt">
+            <h3>按「載入未封裝項目」</h3>
+            <p>選剛剛解壓縮出來的資料夾，打開後要<b>看得到 <code>manifest.json</code></b> 這個檔案，再按「<b>選擇資料夾</b>」。</p>
+          </div>
+          <div class="fig" aria-hidden="true">
+            <div class="ext-btns" style="border-bottom:1px solid var(--border)"><span class="mbtn hl">載入未封裝項目</span><span class="mbtn">封裝擴充功能</span><span class="mbtn">更新</span></div>
+            <div class="fig-body">
+              <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
+                <div style="background:var(--surface-2);padding:6px 10px" class="muted">📁 文件 › meeting-assistant</div>
+                <div class="files" style="min-height:0;padding:10px">
+                  <div class="file dir"><div class="ico"></div>popup</div>
+                  <div class="file dir"><div class="ico"></div>lib</div>
+                  <div class="file"><div class="ico">📄</div>manifest.json</div>
+                </div>
+                <div class="between" style="padding:8px 10px;border-top:1px solid var(--border)"><span></span><span class="mbtn hl" style="background:var(--accent);color:#fff;border-color:var(--accent)">選擇資料夾</span></div>
+              </div>
+            </div>
+          </div>
+        </li>
+
+        <li class="step">
+          <div class="txt">
+            <h3>把圖示釘在工具列</h3>
+            <p>點右上角的 <b>🧩 拼圖</b> → 找到「會議摘要助理」→ 按旁邊的 <b>📌 圖釘</b>。之後右上角就會一直看到 <span class="logo sm">✦</span>。</p>
+          </div>
+          <div class="fig" aria-hidden="true">
+            <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><div class="omni">meet.google.com</div><div class="tb"><span class="ic hl">🧩</span></div></div>
+            <div class="fig-body" style="display:flex;justify-content:flex-end">
+              <div style="width:220px;border:1px solid var(--border);border-radius:10px;padding:8px;box-shadow:0 8px 20px rgba(0,0,0,.12)">
+                <div class="muted" style="margin-bottom:6px">擴充功能</div>
+                <div class="between" style="padding:4px 2px"><div class="row"><span class="logo sm">✦</span>會議摘要助理</div><span class="hl" style="padding:0 3px">📌</span></div>
+                <div class="between muted" style="padding:4px 2px"><div class="row"><span style="width:20px;text-align:center">🧭</span>其他擴充功能</div><span>📌</span></div>
+              </div>
+            </div>
+          </div>
+        </li>
+
+        <li class="step">
+          <div class="txt">
+            <h3>照著自動跳出的設定頁做</h3>
+            <p>會打開一個歡迎頁：<b>允許麥克風</b> → <b>貼上 AI 金鑰</b>（頁面上有 3 步驟教學，免費）→ 完成。每做完一步就會打勾。</p>
+          </div>
+          <div class="fig" aria-hidden="true">
+            <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><div class="omni">歡迎使用會議摘要助理</div></div>
+            <div class="fig-body" style="display:flex;flex-direction:column;gap:6px">
+              <div class="between" style="border:1px solid var(--ok);border-radius:8px;padding:7px 10px"><span>① 允許使用麥克風</span><b style="color:var(--ok)">✓</b></div>
+              <div class="between" style="border:1px solid var(--ok);border-radius:8px;padding:7px 10px"><span>② 連接 AI 服務</span><b style="color:var(--ok)">✓</b></div>
+              <div class="between" style="border:1px solid var(--border);border-radius:8px;padding:7px 10px"><span>③ 把圖示釘在工具列</span><span class="muted">…</span></div>
+              <div style="text-align:center;padding:4px 0"><span class="mbtn" style="background:var(--accent);color:#fff;border-color:var(--accent)">知道了，開始使用</span></div>
+            </div>
+          </div>
+        </li>
+      </ol>
+      <div class="note">⚠️ Chrome 有時會跳出「停用開發人員模式擴充功能」的提醒，請按<b>保留</b>或直接關掉，不要按停用。</div>
+
+      <!-- ── 更新 ── -->
       <h2 id="update">有新版本時怎麼更新</h2>
-      <p class="small">出現「有新版本」的提醒時：</p>
-      <ol class="steps">
-        <li><b>下載新的安裝檔</b><p>按上面同一個下載按鈕。</p></li>
-        <li><b>解壓縮，覆蓋原本的資料夾</b><p>解壓縮到同一個位置，問到要不要取代檔案時選「取代」。</p></li>
-        <li><b>到 <code>chrome://extensions</code> 按「會議摘要助理」上的 ↻ 重新載入</b><p>會議記錄和設定都會保留。</p></li>
+      <p class="lead">打開 <span class="logo sm">✦</span> 看到下面這個提醒時，照著做就好。會議記錄和設定都會保留。</p>
+      <ol class="steps" style="counter-reset:s">
+        <li class="step">
+          <div class="txt"><h3>看到「有新版本」提醒</h3><p>點提醒就會打開這一頁。</p></div>
+          <div class="fig" aria-hidden="true" style="display:grid;place-items:center;padding:16px;background:var(--surface-2)">
+            <div class="pop"><div class="hd"><span class="logo sm">✦</span>會議摘要助理</div><div class="upd hl">🎁 有新版本 1.0.1，點這裡看怎麼更新</div><div class="big">● 開始記錄</div></div>
+          </div>
+        </li>
+        <li class="step">
+          <div class="txt"><h3>下載新版，解壓縮到同一個位置</h3><p>用上面同一個下載按鈕。解壓縮時選<b>原本的資料夾</b>，問要不要取代檔案時選「<b>取代目的地中的檔案</b>」。</p></div>
+          <div class="fig" aria-hidden="true">
+            <div class="fig-body">
+              <div style="border:1px solid var(--border);border-radius:10px;padding:12px">
+                <b>取代或略過檔案</b>
+                <div class="muted" style="margin:4px 0 8px">目的地已經有 34 個同名的檔案</div>
+                <div class="hl" style="padding:6px 8px;background:var(--accent-soft)">✓ 取代目的地中的檔案</div>
+                <div class="muted" style="padding:6px 8px">↷ 略過這些檔案</div>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="step">
+          <div class="txt"><h3>到 <code>chrome://extensions</code> 按 ↻ 重新載入</h3><p>在「會議摘要助理」那一格按右下角的 <b>↻</b>，就更新完成了。</p></div>
+          <div class="fig" aria-hidden="true">
+            <div class="ext-card">
+              <span class="logo" style="width:36px;height:36px;border-radius:10px;font-size:17px;flex:none">✦</span>
+              <div class="meta"><b>會議摘要助理</b> <span class="muted">1.0.1</span><div class="muted">開會時自動記錄逐字稿，會後用 AI 整理摘要…</div>
+                <div class="foot"><span class="mbtn">詳細資料</span><span class="mbtn">移除</span><span class="end"><span class="hl" style="font-size:16px;padding:0 4px">↻</span><span class="toggle on"></span></span></div>
+              </div>
+            </div>
+          </div>
+        </li>
       </ol>
     </section>
 
+    <!-- ── 常見問題 ── -->
     <h2>常見問題</h2>
     <details><summary>Teams、Zoom 可以用嗎？</summary><p>可以，但要用<b>網頁版</b>開會（在 Chrome 裡開），電腦上安裝的 Teams／Zoom 應用程式不行。</p></details>
-    <details><summary>逐字稿一直沒有出現？</summary><p>看一下圖示裡的兩條綠色音量條：「我」不會跳，請到設定頁按「測試麥克風」；「對方」不會跳，代表會議沒有聲音。說話後大約 3～15 秒文字才會出現。</p></details>
+    <details><summary>逐字稿一直沒有出現？</summary><p>看圖示裡的兩條綠色音量條：「我」不會跳，請到設定頁按「測試麥克風」；「對方」不會跳，代表會議沒有聲音。說話後大約 3～15 秒文字才會出現。</p></details>
     <details><summary>可以記錄英文或中英夾雜嗎？</summary><p>可以，會照原文記錄，不會自動翻譯。簡體中文會自動轉成繁體。</p></details>
     <details><summary>會議內容存在哪裡？安全嗎？</summary><p>逐字稿和摘要只存在你自己的電腦裡；辨識時聲音會加密傳給 AI 服務處理。詳見<a href="privacy.html">隱私權政策</a>。</p></details>
     <details><summary>需要先告知其他人嗎？</summary><p>需要。開始記錄前，請先告訴與會者這場會議會被記錄。</p></details>
