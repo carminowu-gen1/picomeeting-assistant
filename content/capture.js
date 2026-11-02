@@ -121,16 +121,33 @@
     }));
   }
 
+  let globalAt = 0, globalNames = [];
   function speakingNow() {
     const names = new Set();
-    // 1) 從「說話中」指示往上找 tile
-    for (const sel of S.speaking) {
-      document.querySelectorAll(sel).forEach((ind) => {
-        if (ind.closest("button")) return;
-        const tile = S.tile.map((t) => ind.closest(t)).find(Boolean) || ind.parentElement?.parentElement;
-        const n = tile && tileName(tile);
+    // 1) 先只在參加者的 tile 裡找「說話中」指示（每 0.5 秒跑一次，不能掃整個會議頁面）
+    const tiles = document.querySelectorAll(S.tile.join(","));
+    for (const tile of tiles) {
+      for (const sel of S.speaking) {
+        const ind = tile.matches(sel) ? tile : tile.querySelector(sel);
+        if (!ind || ind.closest("button")) continue;
+        const n = tileName(tile);
         if (n && !S.skip?.(n)) { names.add(n); speakingHit = sel; }
-      });
+        break;
+      }
+    }
+    // 2) 找不到 tile（平台改版）才掃整頁，而且最多每 2 秒一次
+    if (!tiles.length) {
+      if (Date.now() - globalAt < 2000) return globalNames;
+      globalAt = Date.now();
+      for (const sel of S.speaking) {
+        document.querySelectorAll(sel).forEach((ind) => {
+          if (ind.closest("button")) return;
+          const tile = ind.parentElement?.parentElement;
+          const n = tile && tileName(tile);
+          if (n && !S.skip?.(n)) { names.add(n); speakingHit = sel; }
+        });
+      }
+      globalNames = [...names];
     }
     // 2) Jitsi：dominant speaker 是加在 tile 本身的 class / id
     if (!names.size && key === "jitsi") {
@@ -353,8 +370,10 @@
     clearInterval(endTimer);
     seenInCall = inCall(); missing = 0;
     endTimer = setInterval(() => {
+      // 還在通話中就不讀整頁文字（innerText 會讓瀏覽器重新排版整個會議畫面，很耗效能）
+      if (inCall()) { seenInCall = true; missing = 0; return; }
+      if (seenInCall) missing++;
       const leftScreen = LEFT_TEXT.test(document.body?.innerText?.slice(0, 4000) || "");
-      if (inCall()) { seenInCall = true; missing = 0; } else if (seenInCall) missing++;
       // 出現「已離開」畫面、或曾在通話中而離開按鈕連續 3 次（約 6 秒）都不見 → 會議結束
       if (leftScreen || missing >= 3) {
         clearInterval(endTimer); endTimer = null;

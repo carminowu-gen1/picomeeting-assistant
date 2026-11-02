@@ -7,8 +7,8 @@ const sessions = new Map(); // tabId -> session
 // 依停頓切段：講完一句（靜音 PAUSE_MS）就切，最長 MAX_MS。
 // 多語模式下 Whisper 每段只判斷一種語言，切在句子邊界才不會把同段裡的另一種語言翻過去。
 const MIN_MS = 2500;        // 太短的段落辨識不準
-const MAX_MS = 15000;       // 一直有聲音時的上限
-const PAUSE_MS = 700;       // 靜音多久算一句講完
+const MAX_MS = 9000;        // 一直有聲音時的上限（越短字越快出來；太短會把一句話切斷）
+const PAUSE_MS = 600;       // 靜音多久算一句講完
 const MIN_VOICE_MS = 500;   // 一段裡「有人在說話」累積不到這麼久，就當成雜音不送（Whisper 聽到雜音會編出 YouTube 開場白）
 
 // 「有人在說話」= 音量明顯高於這個通道的背景雜音（自動估計），而且至少 0.008
@@ -56,7 +56,7 @@ async function start({ tabId, streamId, settings }) {
   // 即時音量（給 popup 的音量表）
   s.levelTimer = setInterval(() => {
     const levels = {};
-    for (const [k, ch] of Object.entries(s.channels)) levels[k] = +rms(ch.analyser).toFixed(4);
+    for (const [k, ch] of Object.entries(s.channels)) levels[k] = +(ch.level || 0).toFixed(4); // 用每 0.1 秒量好的值，不重算
     chrome.runtime.sendMessage({ type: "stt:levels", tabId: s.tabId, levels, ctxState: ctx.state });
   }, 400);
   report(s);
@@ -92,13 +92,12 @@ function makeChannel(s, name, stream) {
   analyser.fftSize = 2048;
   s.ctx.createMediaStreamSource(stream).connect(analyser);
   const ch = { name, stream, analyser, peak: 0, recorder: null, timer: null };
-  ch.meter = setInterval(() => { ch.peak = Math.max(ch.peak, rms(analyser)); }, 200);
   cycle(s, ch);
   return ch;
 }
 
 function rms(analyser) {
-  const buf = new Float32Array(analyser.fftSize);
+  const buf = (analyser._buf ??= new Float32Array(analyser.fftSize)); // 重複使用，不要每 0.1 秒配置一次
   analyser.getFloatTimeDomainData(buf);
   let sum = 0;
   for (const v of buf) sum += v * v;
@@ -136,7 +135,10 @@ function cycle(s, ch) {
   ch.timer = setInterval(() => {
     if (rec.state !== "recording") { clearInterval(ch.timer); return; }
     const now = Date.now();
-    if (isVoiced(ch, rms(ch.analyser))) { hadVoice = true; lastVoiceAt = now; voicedMs += 100; }
+    const r = rms(ch.analyser);
+    ch.level = r;
+    if (r > ch.peak) ch.peak = r;
+    if (isVoiced(ch, r)) { hadVoice = true; lastVoiceAt = now; voicedMs += 100; }
     const elapsed = now - startedAt;
     // AudioContext 沒在跑時 rms 永遠是 0 → 只會走 MAX_MS，等同固定切段
     if (elapsed >= MAX_MS || (hadVoice && elapsed >= MIN_MS && now - lastVoiceAt >= PAUSE_MS)) {
@@ -212,9 +214,17 @@ const HALLUCINATION = new RegExp([
 ].join("|"), "i");
 
 function isHallucination(t) {
-  if (/^※/.test(t) || HALLUCINATION.test(t)) return true;
+  if (/^※/.test(t) || HALLUCINATION.test(t) || isSelfRepeat(t)) return true;
   return /^(請不吝點贊|請看|请看|謝謝(大家)?(觀看|收看)|谢谢(大家)?(观看|收看)|字幕由|subtitles? by|thank you for watching|thanks for watching|thank you\.?$|you\.?$|bye\.?$)/i.test(t)
     || /^(.)\1{5,}$/.test(t) || /^(.{1,4})\1{2,}$/.test(t);
+}
+
+// 同一句話重複兩次以上（「I love it. I love it.」「She can do it. So, she can do it.」）是 Whisper 幻覺的典型樣子
+function isSelfRepeat(t) {
+  const parts = t.split(/[.!?。！？]+/)
+    .map((p) => p.toLowerCase().replace(/^\s*(?:(?:so|and|yeah|oh|well|ok|okay)\b|然後|所以|就是)[,，\s]*/i, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim())
+    .filter(Boolean);
+  return parts.length >= 2 && parts[0].length >= 2 && parts.every((p) => p === parts[0]);
 }
 
 // 整句只有附和聲（Mm-hmm、嗯…）就不記錄；「好」「Yes」「OK」這類有意義的回答保留
@@ -229,7 +239,6 @@ function stop(tabId) {
   clearInterval(s.levelTimer);
   for (const ch of Object.values(s.channels)) {
     clearTimeout(ch.timer);
-    clearInterval(ch.meter);
     try { ch.recorder?.state === "recording" && ch.recorder.stop(); } catch {}
     ch.stream.getTracks().forEach((t) => t.stop());
   }

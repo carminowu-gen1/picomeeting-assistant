@@ -3,13 +3,76 @@ import { summarizeTranscript } from "./lib/groq.js";
 import { buildDocx } from "./lib/docx.js";
 import { exportToGoogleDoc, googleStatus, googleConnect, googleDisconnect } from "./lib/gdocs.js";
 import { DEFAULT_SETTINGS, meetingToMarkdown, meetingToPlainText } from "./lib/format.js";
-import { pushSpeakerEvent, attributeSegments } from "./lib/speakers.js";
+import { pushSpeakerEvent, attributeSegments, dropUnspokenShort } from "./lib/speakers.js";
 import { toTraditional } from "./lib/s2t.js";
 import { withApi } from "./lib/config.js";
 
 const speakerLogs = new Map(); // tabId -> [{ t, names }]（只在記憶體，錄完就丟）
 
 const active = new Map(); // tabId -> meeting (錄製中)
+
+// ── 儲存：每場會議存在自己的 key（m:<id>），另外一份輕量索引（meetingIndex）──
+// 以前 50 場全塞在同一個 key：錄音時每 1.5 秒整包讀寫、popup 每 0.5 秒整包傳過去，越用越慢
+const MAX_MEETINGS = 50;
+const mkey = (id) => `m:${id}`;
+const metaOf = (m) => ({ id: m.id, title: m.title, startedAt: m.startedAt, recording: !!m.recording, summarizing: !!m.summarizing });
+
+async function migrateStorage() {
+  const { meetings, meetingIndex } = await chrome.storage.local.get(["meetings", "meetingIndex"]);
+  if (!Array.isArray(meetings)) return;
+  if (!meetingIndex) {
+    const data = { meetingIndex: meetings.slice(0, MAX_MEETINGS).map(metaOf) };
+    for (const m of meetings.slice(0, MAX_MEETINGS)) data[mkey(m.id)] = m;
+    await chrome.storage.local.set(data);
+  }
+  await chrome.storage.local.remove("meetings");
+}
+
+// 只有索引（id、標題、時間、狀態），很輕
+async function listMeetings() {
+  const { meetingIndex } = await chrome.storage.local.get("meetingIndex");
+  return meetingIndex || [];
+}
+async function loadMeeting(id) {
+  const k = mkey(id);
+  return (await chrome.storage.local.get(k))[k] || null;
+}
+// 索引的「讀→改→寫」要排隊，避免兩次存檔同時進行互相覆蓋
+let indexQueue = Promise.resolve();
+function updateIndex(fn) {
+  indexQueue = indexQueue.then(async () => {
+    const next = fn(await listMeetings());
+    if (next) await chrome.storage.local.set({ meetingIndex: next });
+  }).catch((e) => console.warn("index update failed", e));
+  return indexQueue;
+}
+async function saveMeeting(m) {
+  await chrome.storage.local.set({ [mkey(m.id)]: m });
+  const meta = metaOf(m);
+  await updateIndex((idx) => {
+    const i = idx.findIndex((x) => x.id === m.id);
+    if (i >= 0 && JSON.stringify(idx[i]) === JSON.stringify(meta)) return null; // 沒變就不寫
+    if (i >= 0) idx[i] = meta; else idx.unshift(meta);
+    idx.sort((a, b) => b.startedAt - a.startedAt);
+    const drop = idx.splice(MAX_MEETINGS);
+    if (drop.length) chrome.storage.local.remove(drop.map((x) => mkey(x.id)));
+    return idx;
+  });
+}
+async function removeMeeting(id) {
+  await chrome.storage.local.remove(mkey(id));
+  await updateIndex((idx) => idx.filter((x) => x.id !== id));
+}
+// 錄製中的會議以記憶體為準（最新），其餘從 storage 讀
+async function findMeeting(id) {
+  return [...active.values()].find((x) => x.id === id) || (await loadMeeting(id));
+}
+async function latestMeeting() {
+  const [rec] = active.values();
+  if (rec) return rec;
+  const [first] = await listMeetings();
+  return first ? loadMeeting(first.id) : null;
+}
 
 // MV3 service worker 閒置 30 秒會被關掉、記憶體歸零；錄製中的 tabId→meetingId 存到 session storage，
 // 醒來時從 storage.local（每 1.5 秒存一次）把會議拉回 active。
@@ -19,25 +82,33 @@ async function persistActive() {
   await chrome.storage.session.set({ activeMap: map });
 }
 const rehydrated = (async () => {
+  await migrateStorage();
   const { activeMap } = await chrome.storage.session.get("activeMap");
-  const all = await listMeetings();
   const keep = new Set(Object.values(activeMap || {}));
-  let dirty = false;
-  for (const m of all) {
-    if (m.recording && !keep.has(m.id)) { m.recording = false; m.endedAt = m.endedAt || Date.now(); dirty = true; } // 殘留的錄製標記
-    if (m.summarizing) { m.summarizing = false; m.summaryError = m.summaryError || "摘要中斷，請再按一次產生摘要"; dirty = true; } // SW 重啟中斷的摘要
+  for (const meta of await listMeetings()) {
+    if (!((meta.recording && !keep.has(meta.id)) || meta.summarizing)) continue; // 只讀需要修正的那幾場
+    const m = await loadMeeting(meta.id);
+    if (!m) continue;
+    if (m.recording && !keep.has(m.id)) { m.recording = false; m.endedAt = m.endedAt || Date.now(); } // 殘留的錄製標記
+    if (m.summarizing) { m.summarizing = false; m.summaryError = m.summaryError || "摘要中斷，請再按一次產生摘要"; } // SW 重啟中斷的摘要
+    await saveMeeting(m);
   }
-  if (dirty) await chrome.storage.local.set({ meetings: all });
   for (const [tabId, id] of Object.entries(activeMap || {})) {
-    const m = all.find((x) => x.id === id);
+    const m = await loadMeeting(id);
     if (m && m.recording) { active.set(Number(tabId), m); speakerLogs.set(Number(tabId), []); }
   }
   if (![...active.values()].some((m) => m.sttMode && m.sttMode !== "captions")) await closeOffscreen(); // 殘留的 offscreen 會抓著分頁串流
 })();
 
+// 設定放在記憶體，改設定時才重讀（以前每一則字幕更新都讀一次 storage）
+let settingsCache = null;
+chrome.storage.onChanged.addListener((changes, area) => { if (area === "local" && changes.settings) settingsCache = null; });
 async function getSettings() {
-  const { settings } = await chrome.storage.local.get("settings");
-  return withApi({ ...DEFAULT_SETTINGS, ...(settings || {}) });
+  if (!settingsCache) {
+    const { settings } = await chrome.storage.local.get("settings");
+    settingsCache = await withApi({ ...DEFAULT_SETTINGS, ...(settings || {}) });
+  }
+  return settingsCache;
 }
 
 // 一次性遷移：舊版預設是「字幕」，改成預設「語音辨識」（使用者手動選過的不動）
@@ -54,23 +125,6 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   if (!settings.sttLangMigrated) { if (settings.sttLanguage === "zh") next.sttLanguage = "auto"; next.sttLangMigrated = true; }
   await chrome.storage.local.set({ settings: next });
 });
-
-async function listMeetings() {
-  const { meetings } = await chrome.storage.local.get("meetings");
-  return meetings || [];
-}
-
-async function saveMeeting(m) {
-  const all = await listMeetings();
-  const i = all.findIndex((x) => x.id === m.id);
-  if (i >= 0) all[i] = m; else all.unshift(m);
-  await chrome.storage.local.set({ meetings: all.slice(0, 50) });
-}
-
-// 錄製中的會議以記憶體為準（最新），其餘從 storage 讀
-async function findMeeting(id) {
-  return [...active.values()].find((x) => x.id === id) || (await listMeetings()).find((x) => x.id === id) || null;
-}
 
 function newMeeting(tabId, info) {
   return {
@@ -201,8 +255,7 @@ function scheduleSave(m) {
 }
 
 async function summarize(meetingId) {
-  const all = await listMeetings();
-  const m = active.get([...active.values()].find((x) => x.id === meetingId)?.tabId) || all.find((x) => x.id === meetingId);
+  const m = await findMeeting(meetingId);
   if (!m) throw new Error("找不到會議");
   if (!m.lines.length) throw new Error("逐字稿是空的，無法產生摘要。");
   const settings = await getSettings();
@@ -224,8 +277,7 @@ async function summarize(meetingId) {
 }
 
 async function exportMeeting(meetingId, target) {
-  const all = await listMeetings();
-  const m = [...active.values()].find((x) => x.id === meetingId) || all.find((x) => x.id === meetingId);
+  const m = await findMeeting(meetingId);
   if (!m) throw new Error("找不到會議");
   const settings = await getSettings();
   const base = `${m.title}_${new Date(m.startedAt).toISOString().slice(0, 10)}`.replace(/[\\/:*?"<>|]/g, "_");
@@ -309,7 +361,8 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       } else {
         // 分頁通道是其他人：時間軸裡把「我」排除，剩下的才是候選
         const log = (speakerLogs.get(tabId) || []).map((e) => ({ t: e.t, names: e.names.filter((n) => n !== me && n !== "我") }));
-        lines = attributeSegments(log, msg.segments, msg.chunkStart, settings.sttSpeaker || "語音");
+        // 畫面上沒有對方在說話時冒出的短句，多半是雜音被編成句子
+        lines = attributeSegments(log, dropUnspokenShort(log, msg.segments, msg.chunkStart), msg.chunkStart, settings.sttSpeaker || "語音");
       }
       if (settings.toTraditional !== false) lines.forEach((l) => { l.text = toTraditional(l.text); });
       lines.forEach((l, i) => m.lines.push({ id: `stt-${msg.channel || "tab"}-${msg.chunkStart}-${i}`, ...l, src: "stt" }));
@@ -375,7 +428,8 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         const { update } = await chrome.storage.local.get("update");
         const s = await getSettings();
         const settings = { ready: s.ready, sttMode: s.sttMode, autoSummarize: s.autoSummarize }; // 不把金鑰傳出去
-        return reply({ tabId: tab?.id, info, current, meetings: await listMeetings(), settings, lastStartError, update });
+        // 只回最近一場（popup 只顯示這一場），不再把所有會議的逐字稿都傳過去
+        return reply({ tabId: tab?.id, info, current, latest: current || (await latestMeeting()), settings, lastStartError, update });
       }
       case "start": {
         try { const meeting = await startRecording(msg.tabId); await chrome.storage.session.set({ lastStartError: null }); return reply({ meeting }); }
@@ -392,8 +446,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         return reply({ meeting: m || null });
       }
       case "listMeetings":
-        return reply({ meetings: [...[...active.values()], ...(await listMeetings()).filter((x) => ![...active.values()].some((a) => a.id === x.id))]
-          .map(({ id, title, startedAt, recording }) => ({ id, title, startedAt, recording })) });
+        return reply({ meetings: [...[...active.values()].map(metaOf), ...(await listMeetings()).filter((x) => ![...active.values()].some((a) => a.id === x.id))] });
       case "summarize": return reply({ summary: await summarize(msg.meetingId) });
       case "export": return reply(await exportMeeting(msg.meetingId, msg.target));
       case "googleStatus": return reply(await googleStatus());
@@ -411,8 +464,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
           await setBadge(tabId, false);
         }
         clearTimeout(saveTimer);
-        const all = (await listMeetings()).filter((x) => x.id !== msg.meetingId);
-        await chrome.storage.local.set({ meetings: all });
+        await removeMeeting(msg.meetingId);
         return reply({ ok: true });
       }
       case "enableCaptions": return reply(await chrome.tabs.sendMessage(msg.tabId, { type: "enableCaptions" }));
@@ -427,7 +479,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         // "current"：正在錄的那場；否則最近一場
         let m = null;
         if (msg.meetingId && msg.meetingId !== "current") m = await findMeeting(msg.meetingId);
-        else m = [...active.values()][0] || (await listMeetings())[0] || null;
+        else m = await latestMeeting();
         return reply({ meeting: m, activeCount: active.size });
       }
       case "editLine": {

@@ -41,7 +41,7 @@ function level(v) {
 async function refresh() {
   state = await send({ type: "getState" });
   if (!state || state.error) return;
-  const { info, current, meetings, settings, lastStartError } = state;
+  const { info, current, latest: last, settings, lastStartError } = state;
 
   $("update").hidden = !state.update;
   if (state.update) {
@@ -80,7 +80,7 @@ async function refresh() {
   }
 
   // ── 最近一場會議 ──
-  const m = current || meetings[0];
+  const m = current || last;
   $("result").hidden = !m;
   if (m) renderResult(m);
 }
@@ -123,7 +123,7 @@ $("mainBtn").onclick = async () => {
 };
 
 // ── 三個動作 ──
-const latest = () => state?.current || state?.meetings?.[0];
+const latest = () => state?.current || state?.latest;
 
 $("openLive").onclick = async () => {
   const m = latest();
@@ -160,7 +160,7 @@ $("openOptions").onclick = () => chrome.runtime.openOptionsPage();
   await applyTheme();
   await refresh();
   const tick = async () => {
-    const live = state?.current || state?.meetings?.[0]?.summarizing;
+    const live = state?.current || state?.latest?.summarizing;
     if (!busy) await refresh();
     setTimeout(tick, live ? 500 : 3000);
   };

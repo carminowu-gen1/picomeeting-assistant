@@ -194,13 +194,19 @@ async function load() {
     return;
   }
   const changed = meeting?.id !== r.meeting.id;
-  meeting = r.meeting;
+  // 內容沒變就不重畫（以前每 1.2 秒整份逐字稿重跑一次）
+  const m = r.meeting, last = m.lines[m.lines.length - 1];
+  const sig = [m.id, m.title, m.recording, m.summarizing, !!m.summary, m.summarizedAt, m.lines.length, last?.id, last?.text, last?.speaker].join("|");
+  if (!changed && sig === lastSig) return;
+  lastSig = sig;
+  meeting = m;
   if (meetingId === "current") meetingId = meeting.id; // 鎖定這一場
   renderHeader(meeting);
   renderTranscript(meeting);
   renderSummary(meeting);
   if (changed) renderHistory();
 }
+let lastSig = "";
 
 (async () => {
   await applyTheme();
