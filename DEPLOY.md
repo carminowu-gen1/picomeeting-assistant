@@ -1,15 +1,63 @@
 # 部署與更新
 
-整體流程：**第一次上架在商店網站手動做一次，之後每次更新交給 GitHub 自動處理。**
+## 少數人使用：GitHub ＋ 手動安裝（目前採用）
+
+不上架商店、不用付費、不用等審查。每位同事手動安裝一次，之後有新版本時，擴充功能會提醒他們。
+
+```
+你：改程式 → 改 manifest.json 版本 → 推標籤 v1.0.1 → GitHub 自動打包並發布
+同事：看到「🎁 有新版本」→ 照說明頁下載、覆蓋資料夾、按重新載入
+```
+
+### 一次性設定（約 3 分鐘）
+
+1. **把 repo 改成公開**：GitHub repo →「Settings」→ 最下面「Danger Zone」→「Change visibility」→「Public」。
+   免費的 GitHub Pages 只能用在公開的 repo；同事下載安裝檔、擴充功能檢查新版本，也都需要 repo 是公開的。repo 裡沒有任何金鑰（已檢查過）。
+   - 注意：提交紀錄裡的作者 Email公開後會被看到。介意的話，請先在 GitHub「Settings」→「Emails」勾選「Keep my email addresses private」，之後的提交改用 GitHub 提供的 noreply 地址。
+2. **開啟說明頁**：repo →「Settings」→「Pages」→ Source 選「Deploy from a branch」→ Branch 選 `main`、資料夾選 `/docs` →「Save」。
+   約 1 分鐘後就能打開 <https://carminowu-gen1.github.io/picomeeting-assistant/>。
+3. **發布第一版**：在 `D:\MA` 執行
+   ```bash
+   git tag v1.0.0
+   git push --tags
+   ```
+   GitHub 大約 2 分鐘就會打包好並建立 Release，說明頁上的「下載」按鈕就能用了。
+
+**不要**在 GitHub Secrets 設定 `PROXY_URL`／`ACCESS_CODE`：repo 公開後，任何人都下載得到安裝檔，裡面的存取碼也會外流。少數人用的話，請每個人在歡迎頁申請自己的免費 Groq 金鑰（約 2 分鐘，頁面上有教學）。
+
+### 傳給同事的訊息（直接複製貼上）
+
+```
+【會議摘要助理】開會自動記錄＋整理摘要
+安裝說明（照著做約 2 分鐘，卡住隨時問我）：
+https://carminowu-gen1.github.io/picomeeting-assistant/
+
+使用：進入 Meet/Teams/Zoom 會議 → 點 Chrome 右上角 ✦ → 按「開始記錄」
+開完會直接離開，摘要會自動產生，按「Word」下載。
+※ Teams、Zoom 請用網頁版　※ 記錄前請先告知與會者
+```
+
+### 之後發新版本
+
+1. 改程式，把 `manifest.json` 的 `version` 加 1（例如 `1.0.0` → `1.0.1`）。
+2. 執行：
+   ```bash
+   git commit -am "說明這次改了什麼"
+   git tag v1.0.1
+   git push --follow-tags
+   ```
+3. 同事打開圖示時會看到「🎁 有新版本」。擴充功能最多每 12 小時檢查一次，點提醒就會打開更新步驟。
+
+---
+
+# 以下是人數變多、想上架商店時才需要
+
+上架後同事點連結就能安裝，更新也全自動。流程：第一次在商店網站手動上架，之後由 GitHub 自動送審。
 
 ```
 改程式 → 改 manifest.json 版本 → 推標籤 v1.0.1
   → GitHub 自動打包 → 自動上傳商店並送審 → 審核通過 → 同事的 Chrome 自動更新
 ```
-
-同事那一端：點連結 → 加到 Chrome → 照歡迎頁做 2～3 步，之後就不用再管。
-
----
 
 ## 一、先決定一件事：同事要不要自己申請金鑰
 
@@ -68,10 +116,7 @@
   | 遠端程式碼 | 選「否，我沒有使用遠端程式碼」 |
 
 - 資料使用：勾選「**網站內容**」和「**個人通訊**」（會議的音訊與文字），並勾選下方三項聲明。
-- 隱私權政策網址：必填。repo 是私人的，同事打不開，所以要另外放一份公開的版本。最簡單的方法：
-  1. 打開 [gist.github.com](https://gist.github.com)
-  2. 檔名填 `privacy.md`，內容貼上 `PRIVACY.md`（先把最後一行的聯絡 Email 改成你的）
-  3. 按「Create **public** gist」，把網址貼到這個欄位
+- 隱私權政策網址：填 `https://carminowu-gen1.github.io/picomeeting-assistant/privacy.html`（repo 要是公開的，網址才打得開）
 
 **發布**
 - 可見度選「**不公開**」（只有拿到連結的人能安裝）

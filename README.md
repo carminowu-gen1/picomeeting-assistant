@@ -2,7 +2,8 @@
 
 開會時自動記錄逐字稿，會後用 AI 整理摘要、重點與待辦，一鍵匯出 Word。支援 Google Meet、Microsoft Teams（網頁版）、Zoom（網頁版）、Jitsi Meet。
 
-- **要發給同事用** → 看 [DEPLOY.md](DEPLOY.md)
+- **安裝說明（給同事）** → https://carminowu-gen1.github.io/picomeeting-assistant/
+- **要發給同事用、發新版本** → 看 [DEPLOY.md](DEPLOY.md)
 - **隱私權政策** → [PRIVACY.md](PRIVACY.md)
 
 ## 使用方式
@@ -33,7 +34,8 @@ popup/               主視窗：一顆大按鈕＋三個動作
 live/                全文頁（側邊欄／分頁）
 options/             設定（基本＋進階）
 welcome/             安裝後的歡迎頁
-deploy/              Cloudflare Worker 代理
+docs/                安裝說明頁、隱私權政策（GitHub Pages）
+deploy/              Cloudflare Worker 代理（選用）
 build.ps1            打包成要上傳商店的 zip
 ```
 

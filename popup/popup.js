@@ -43,6 +43,12 @@ async function refresh() {
   if (!state || state.error) return;
   const { info, current, meetings, settings, lastStartError } = state;
 
+  $("update").hidden = !state.update;
+  if (state.update) {
+    $("update").textContent = `🎁 有新版本 ${state.update.version}，點這裡看怎麼更新`;
+    $("update").onclick = (e) => { e.preventDefault(); chrome.tabs.create({ url: state.update.url }); window.close(); };
+  }
+
   $("where").textContent = current ? `正在記錄 ${current.platformName || "會議"}` : info ? `已連上 ${info.platformName}` : "目前不在會議頁面";
 
   // ── 主按鈕 ──

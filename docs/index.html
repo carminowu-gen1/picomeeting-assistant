@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>會議摘要助理｜安裝與使用</title>
+  <meta name="description" content="開會時自動記錄逐字稿，會後用 AI 整理摘要、重點與待辦，一鍵匯出 Word。" />
+  <style>
+    :root {
+      --bg: #f6f7fb; --surface: #fff; --surface-2: #f0f2f7; --border: #e3e6ee;
+      --text: #16181d; --text-2: #5f6673; --accent: #2f6df6; --accent-2: #8b5cf6; --accent-soft: #e8efff;
+      --ok: #1f9d55; --warn-soft: #fff5d6; --warn: #8a6200; --radius: 14px;
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #121418; --surface: #1b1e24; --surface-2: #23272f; --border: #2d323b;
+        --text: #eef0f4; --text-2: #a6adba; --accent: #5b8cff; --accent-soft: #1f2a46;
+        --ok: #3ddc84; --warn-soft: #3a2f16; --warn: #f3b63f; color-scheme: dark;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.7 -apple-system, "Segoe UI", "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", system-ui, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 16px 80px; }
+    a { color: var(--accent); }
+    h2 { font-size: 22px; margin: 56px 0 16px; }
+    .hero { text-align: center; }
+    .logo { display: inline-grid; place-items: center; width: 72px; height: 72px; border-radius: 20px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; font-size: 36px; }
+    .logo.sm { width: 22px; height: 22px; border-radius: 6px; font-size: 12px; vertical-align: -4px; }
+    .hero h1 { font-size: 32px; margin: 16px 0 8px; }
+    .hero p { color: var(--text-2); margin: 0 auto; max-width: 520px; }
+    .cta { margin-top: 28px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 28px; border-radius: 12px; background: var(--accent); color: #fff; font-size: 17px; font-weight: 700; text-decoration: none; border: 0; cursor: pointer; }
+    .btn:hover { filter: brightness(1.08); }
+    .btn.ghost { background: var(--surface-2); color: var(--text); font-size: 14px; padding: 8px 14px; font-weight: 600; }
+    .small { font-size: 14px; color: var(--text-2); }
+    .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+    .card .n { width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 700; margin-bottom: 8px; }
+    .card b { display: block; margin-bottom: 4px; }
+    .card p { margin: 0; font-size: 14px; color: var(--text-2); }
+    .steps { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; counter-reset: s; }
+    .steps li { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px 16px 62px; position: relative; }
+    .steps li::before { counter-increment: s; content: counter(s); position: absolute; left: 18px; top: 16px; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 700; }
+    .steps p { margin: 4px 0 0; color: var(--text-2); font-size: 15px; }
+    code, .kbd { background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; font-size: 14px; white-space: nowrap; }
+    .copy { display: inline-flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+    .note { background: var(--warn-soft); color: var(--warn); border-radius: 10px; padding: 12px 14px; font-size: 14px; margin-top: 12px; }
+    details { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 10px; }
+    summary { cursor: pointer; font-weight: 600; }
+    details p { margin: 8px 0 0; color: var(--text-2); font-size: 15px; }
+    footer { margin-top: 64px; text-align: center; font-size: 13px; color: var(--text-2); }
+    #manual-only[hidden], #store-only[hidden] { display: none; }
+    @media (max-width: 640px) { .cards { grid-template-columns: 1fr; } .hero h1 { font-size: 26px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <span class="logo">✦</span>
+      <h1>會議摘要助理</h1>
+      <p>開會時自動記下每個人說的話，會後用 AI 整理成摘要、重點和待辦事項，一鍵下載 Word。支援 Google Meet、Teams、Zoom、Jitsi。</p>
+      <div class="cta">
+        <a class="btn" id="mainBtn" href="#install">⬇ 下載並安裝</a>
+        <span class="small" id="mainHint">免費・約 2 分鐘裝好</span>
+      </div>
+    </section>
+
+    <h2>怎麼用？</h2>
+    <div class="cards">
+      <div class="card"><div class="n">1</div><b>進入會議</b><p>用 Chrome 打開 Google Meet、Teams 或 Zoom 的會議。</p></div>
+      <div class="card"><div class="n">2</div><b>按「開始記錄」</b><p>點右上角的 <span class="logo sm">✦</span> 圖示，按大大的藍色按鈕。</p></div>
+      <div class="card"><div class="n">3</div><b>開完會直接離開</b><p>摘要會自動產生，按「Word」就能下載。</p></div>
+    </div>
+
+    <section id="store-only" hidden>
+      <h2 id="install-store">安裝</h2>
+      <ol class="steps">
+        <li><b>打開商店頁面</b><p>按上面的「加到 Chrome」按鈕。</p></li>
+        <li><b>按「加到 Chrome」→「新增擴充功能」</b></li>
+        <li><b>照著跳出的設定頁做</b><p>允許麥克風、把圖示釘在工具列，大約 1 分鐘。</p></li>
+      </ol>
+    </section>
+
+    <section id="manual-only">
+      <h2 id="install">安裝（手動，只要做一次）</h2>
+      <ol class="steps">
+        <li>
+          <b>下載安裝檔</b>
+          <p><a class="btn ghost" id="dl" href="#">⬇ 下載 meeting-assistant.zip</a></p>
+        </li>
+        <li>
+          <b>解壓縮到一個不會刪掉的地方</b>
+          <p>在下載的檔案上按右鍵 →「解壓縮全部」，位置選「<b>文件</b>」資料夾。<br>
+          ⚠️ 之後<b>不要刪掉或搬動</b>這個資料夾，否則擴充功能會失效。</p>
+        </li>
+        <li>
+          <b>打開 Chrome 的擴充功能頁</b>
+          <p>按下面的按鈕複製網址，貼到 Chrome 的網址列，按 Enter。</p>
+          <div class="copy"><code>chrome://extensions</code> <button class="btn ghost" data-copy="chrome://extensions">複製</button></div>
+        </li>
+        <li><b>打開右上角的「開發人員模式」</b><p>把開關切到藍色。</p></li>
+        <li><b>按左上角「載入未封裝項目」</b><p>選剛剛解壓縮出來的資料夾（裡面要看得到 <code>manifest.json</code> 這個檔案），按「選擇資料夾」。</p></li>
+        <li><b>照著跳出的設定頁做</b><p>允許麥克風、貼上金鑰（頁面上有教學）、把圖示釘在工具列。</p></li>
+      </ol>
+      <div class="note">Chrome 可能會提醒「停用開發人員模式擴充功能」，請選<b>保留</b>，不然就要重新安裝。</div>
+
+      <h2 id="update">有新版本時怎麼更新</h2>
+      <p class="small">出現「有新版本」的提醒時：</p>
+      <ol class="steps">
+        <li><b>下載新的安裝檔</b><p>按上面同一個下載按鈕。</p></li>
+        <li><b>解壓縮，覆蓋原本的資料夾</b><p>解壓縮到同一個位置，問到要不要取代檔案時選「取代」。</p></li>
+        <li><b>到 <code>chrome://extensions</code> 按「會議摘要助理」上的 ↻ 重新載入</b><p>會議記錄和設定都會保留。</p></li>
+      </ol>
+    </section>
+
+    <h2>常見問題</h2>
+    <details><summary>Teams、Zoom 可以用嗎？</summary><p>可以，但要用<b>網頁版</b>開會（在 Chrome 裡開），電腦上安裝的 Teams／Zoom 應用程式不行。</p></details>
+    <details><summary>逐字稿一直沒有出現？</summary><p>看一下圖示裡的兩條綠色音量條：「我」不會跳，請到設定頁按「測試麥克風」；「對方」不會跳，代表會議沒有聲音。說話後大約 3～15 秒文字才會出現。</p></details>
+    <details><summary>可以記錄英文或中英夾雜嗎？</summary><p>可以，會照原文記錄，不會自動翻譯。簡體中文會自動轉成繁體。</p></details>
+    <details><summary>會議內容存在哪裡？安全嗎？</summary><p>逐字稿和摘要只存在你自己的電腦裡；辨識時聲音會加密傳給 AI 服務處理。詳見<a href="privacy.html">隱私權政策</a>。</p></details>
+    <details><summary>需要先告知其他人嗎？</summary><p>需要。開始記錄前，請先告訴與會者這場會議會被記錄。</p></details>
+
+    <footer>會議摘要助理（PicoMeeting Assistant）・<a href="privacy.html">隱私權政策</a></footer>
+  </main>
+
+  <script>
+    // ── 上架商店後，把連結貼在這裡，頁面就會自動改成「加到 Chrome」 ──
+    const STORE_URL = "";
+    const ZIP_URL = "https://github.com/carminowu-gen1/picomeeting-assistant/releases/latest/download/meeting-assistant.zip";
+
+    const $ = (id) => document.getElementById(id);
+    $("dl").href = ZIP_URL;
+    if (STORE_URL) {
+      $("store-only").hidden = false;
+      $("manual-only").hidden = true;
+      $("mainBtn").href = STORE_URL;
+      $("mainBtn").textContent = "＋ 加到 Chrome";
+      $("mainHint").textContent = "免費・從 Chrome 線上應用程式商店安裝，之後會自動更新";
+    }
+    document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = "✓ 已複製"; setTimeout(() => (b.textContent = "複製"), 1500); } catch {}
+    }));
+  </script>
+</body>
+</html>

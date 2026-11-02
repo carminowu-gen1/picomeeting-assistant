@@ -60,7 +60,10 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" "dist/meeting-assistant-${{ steps.ver.outputs.version }}.zip" --title "${{ github.ref_name }}" --generate-notes
+        # 另附一份固定檔名的 meeting-assistant.zip，說明頁的下載按鈕永遠指向最新版
+        run: |
+          Copy-Item "dist/meeting-assistant-${{ steps.ver.outputs.version }}.zip" "dist/meeting-assistant.zip"
+          gh release create "${{ github.ref_name }}" "dist/meeting-assistant.zip" "dist/meeting-assistant-${{ steps.ver.outputs.version }}.zip" --title "${{ github.ref_name }}" --generate-notes
 
       - name: 上傳到 Chrome 線上應用程式商店並送審
         if: env.HAS_CWS == 'true' && (github.ref_type == 'tag' || inputs.upload_to_store)

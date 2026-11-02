@@ -44,6 +44,8 @@ async function getSettings() {
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   // 第一次安裝：打開歡迎頁（3 步驟設定）
   if (reason === "install") chrome.tabs.create({ url: chrome.runtime.getURL("welcome/welcome.html") });
+  if (reason === "update") await chrome.storage.local.set({ update: null }); // 剛更新完，清掉提醒
+  checkForUpdate(true);
   const { settings } = await chrome.storage.local.get("settings");
   if (!settings) return;
   const next = { ...settings };
@@ -367,7 +369,9 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         const info = tab ? await chrome.tabs.sendMessage(tab.id, { type: "ping" }).catch(() => null) : null;
         const current = tab ? active.get(tab.id) : null;
         const { lastStartError } = await chrome.storage.session.get("lastStartError");
-        return reply({ tabId: tab?.id, info, current, meetings: await listMeetings(), settings: await getSettings(), lastStartError });
+        checkForUpdate(); // 不等結果；下次打開 popup 就會看到
+        const { update } = await chrome.storage.local.get("update");
+        return reply({ tabId: tab?.id, info, current, meetings: await listMeetings(), settings: await getSettings(), lastStartError, update });
       }
       case "start": {
         try { const meeting = await startRecording(msg.tabId); await chrome.storage.session.set({ lastStartError: null }); return reply({ meeting }); }
@@ -451,6 +455,29 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   })().catch((e) => reply({ error: e.message || String(e) }));
   return true;
 });
+
+// ── 新版本提醒：只對手動安裝（開發人員模式）的人；商店安裝會自己更新 ──
+const UPDATE_REPO = "carminowu-gen1/picomeeting-assistant";
+const UPDATE_PAGE = "https://carminowu-gen1.github.io/picomeeting-assistant/#update";
+const newerThan = (a, b) => {
+  const x = a.split(".").map(Number), y = b.split(".").map(Number);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
+  return false;
+};
+async function checkForUpdate(force = false) {
+  try {
+    if ((await chrome.management.getSelf()).installType !== "development") return;
+    const { updateCheckedAt = 0 } = await chrome.storage.local.get("updateCheckedAt");
+    if (!force && Date.now() - updateCheckedAt < 12 * 3600e3) return; // 最多 12 小時查一次
+    await chrome.storage.local.set({ updateCheckedAt: Date.now() });
+    const r = await fetch(`https://api.github.com/repos/${UPDATE_REPO}/releases/latest`, { headers: { accept: "application/vnd.github+json" } });
+    if (!r.ok) return; // repo 是私人或還沒有 release：不提醒
+    const latest = String((await r.json()).tag_name || "").replace(/^v/, "");
+    const has = latest && newerThan(latest, chrome.runtime.getManifest().version);
+    await chrome.storage.local.set({ update: has ? { version: latest, url: UPDATE_PAGE } : null });
+  } catch {}
+}
+chrome.runtime.onStartup.addListener(() => checkForUpdate());
 
 chrome.tabs.onRemoved.addListener(async (tabId) => { await rehydrated; if (active.has(tabId)) stopRecording(tabId); });
 
