@@ -10,7 +10,7 @@ import { buildDocx } from "./lib/docx.js";
 import { t, detectLang, setLang, applyI18n } from "./i18n.js";
 import { setLabelFn } from "./diarize.js";
 
-const VERSION = "1.3.2";
+const VERSION = "1.3.3";
 const GROQ = "https://api.groq.com";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -54,6 +54,9 @@ function applyLang() {
   setLabelFn((letter) => t("speaker", { x: letter }));
   setLocale(t("locale"), { summary: t("sum_h"), points: t("sum_points"), decisions: t("sum_decisions"), todo: t("sum_todo"), owner: t("sum_owner"), due: t("sum_due"), open: t("x_open"), transcript: t("x_transcript"), sep: t("locale") === "en-US" ? ": " : "：" });
   applyI18n();
+  // 說明／隱私權連結帶上目前語言
+  const code = { "zh-TW": "zh", "en-US": "en", "ja-JP": "ja" }[t("locale")] || "zh";
+  $("guideLink").href = `../?lang=${code}`; $("privacyLink").href = `../privacy.html?lang=${code}`;
   diar.relabel();
   for (const l of meeting?.lines || []) l.speaker = diar.get(l.speakerId)?.label || l.speaker;
 }

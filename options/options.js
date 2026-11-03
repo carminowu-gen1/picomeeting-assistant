@@ -37,6 +37,7 @@ async function loadModels() {
   $("modelHint").textContent = r?.models?.length ? `Groq 目前提供 ${r.models.length} 個聊天模型；「自動」會挑其中最適合的，模型下架時自動換` : "連上 Groq 後才會列出模型（請先填金鑰）";
 }
 loadModels();
+document.getElementById("ver").textContent = chrome.runtime.getManifest().version;
 FIELDS.forEach((f) => { const el = $(f); el.addEventListener(el.type === "checkbox" || el.tagName === "SELECT" ? "change" : "input", scheduleSave); });
 $("apiKey").addEventListener("change", () => setTimeout(loadModels, 1500));
 
