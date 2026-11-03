@@ -133,7 +133,7 @@ function newMeeting(tabId, info) {
     tabId,
     platform: info.platform,
     platformName: info.platformName,
-    title: (info.title || "會議").replace(/\s*[-|]\s*(Google Meet|Microsoft Teams|Zoom|Jitsi Meet).*$/i, "").trim() || "會議",
+    title: (info.title || "會議").replace(/\s*[-|]\s*(Google Meet|Microsoft Teams|Zoom|Jitsi Meet|YouTube).*$/i, "").trim() || "會議",
     startedAt: Date.now(),
     endedAt: null,
     lines: [],
@@ -149,18 +149,39 @@ async function setBadge(tabId, on) {
   } catch {}
 }
 
+// 只有一般網頁能錄（chrome://、擴充功能商店等系統頁面 Chrome 不允許擷取）
+const recordable = (url) => /^https?:/i.test(url || "") && !/^https:\/\/chrome(webstore)?\.google\.com\/webstore/i.test(url);
+
+// 問分頁是哪種會議；沒有 content script（不在清單上的網站）就當場注入一次
+async function pageInfo(tab, inject = true) {
+  if (!tab || !recordable(tab.url)) return null;
+  let info = await chrome.tabs.sendMessage(tab.id, { type: "ping" }).catch(() => null);
+  if (!info && inject) {
+    try {
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content/capture.js"] });
+      info = await chrome.tabs.sendMessage(tab.id, { type: "ping" }).catch(() => null);
+    } catch {}
+  }
+  // 注入不了也照樣能錄聲音（只是沒有發言者名字）
+  return info || { platform: "web", platformName: new URL(tab.url).hostname.replace(/^www\./, "") };
+}
+
 async function startRecording(tabId) {
   const settings = await getSettings();
-  const info = await chrome.tabs.sendMessage(tabId, { type: "ping" }).catch(() => null);
-  if (!info) throw new Error("這個分頁不是支援的會議頁面，或頁面尚未載入完成。");
+  const tab = await chrome.tabs.get(tabId).catch(() => null);
+  if (!tab || !recordable(tab.url)) throw new Error("這個頁面不能錄音：請切到會議或影片的網頁再按開始。");
+  const info = await pageInfo(tab);
+  if (!info.title) info.title = tab.title;
   const m = newMeeting(tabId, info);
-  try { const t = await chrome.tabs.get(tabId); m.url = t.url; } catch {}
-  const mode = settings.sttMode || "stt";
+  m.url = tab.url;
+  // 一般網頁沒有字幕可抓：一律用語音辨識
+  const mode = info.platform === "web" ? "stt" : settings.sttMode || "stt";
   m.sttMode = mode;
   active.set(tabId, m);
   speakerLogs.set(tabId, []);
-  if (mode !== "stt") await chrome.tabs.sendMessage(tabId, { type: "start", autoCaptions: settings.autoCaptions, watchSpeakers: mode === "both", myName: settings.myName });
-  else await chrome.tabs.sendMessage(tabId, { type: "startSpeakerWatch", myName: settings.myName });
+  const tell = (msg) => chrome.tabs.sendMessage(tabId, msg).catch(() => null); // 沒有 content script 也不影響錄音
+  if (mode !== "stt") await tell({ type: "start", autoCaptions: settings.autoCaptions, watchSpeakers: mode === "both", myName: settings.myName });
+  else await tell({ type: "startSpeakerWatch", myName: settings.myName });
   if (mode !== "captions") {
     try { await startStt(tabId, settings); m.stt = "on"; }
     catch (e) {
@@ -437,7 +458,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     switch (msg.type) {
       case "getState": {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        const info = tab ? await chrome.tabs.sendMessage(tab.id, { type: "ping" }).catch(() => null) : null;
+        const info = await pageInfo(tab);
         const current = tab ? active.get(tab.id) : null;
         const { lastStartError } = await chrome.storage.session.get("lastStartError");
         checkForUpdate(); // 不等結果；下次打開 popup 就會看到

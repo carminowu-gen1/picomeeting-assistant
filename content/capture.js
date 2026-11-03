@@ -83,7 +83,15 @@
   };
 
   const key = Object.keys(PLATFORMS).find((k) => PLATFORMS[k].match());
-  if (!key) return;
+  if (!key) {
+    // 任何其他網頁（自架會議、網路研討會、影片…）：只錄分頁聲音＋麥克風，按停止才結束
+    chrome.runtime.onMessage.addListener((msg, _s, reply) => {
+      if (msg.type === "ping") reply({ platform: "web", platformName: host.replace(/^www\./, ""), recording: false, captionsFound: false });
+      else reply({ ok: true });
+      return true;
+    });
+    return;
+  }
   const P = PLATFORMS[key];
   const S = SPEAKING[key];
 

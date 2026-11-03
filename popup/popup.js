@@ -23,7 +23,7 @@ function friendly(err) {
   if (/active stream/i.test(e)) return "上一次的錄音還沒結束，請重新整理會議頁面後再試一次。";
   if (/尚未完成設定|金鑰|API Key/i.test(e)) return "還沒完成設定，請按右上角 ⚙ 完成設定。";
   if (/存取碼/.test(e)) return "組織服務無法使用，請聯絡管理員。";
-  if (/不是支援的會議頁面|尚未載入/.test(e)) return "請先進入會議，再按開始記錄。";
+  if (/不能錄音|不是支援的會議頁面|尚未載入/.test(e)) return "這個頁面不能錄，請切到會議或影片的網頁再按開始。";
   if (/麥克風/.test(e)) return "無法使用麥克風，請在跳出的視窗按「允許」。";
   if (/額度|429/.test(e)) return "使用量暫時達到上限，請稍後再試。";
   return e.replace(/^無法啟動語音辨識：/, "").slice(0, 120);
@@ -49,7 +49,7 @@ async function refresh() {
     $("update").onclick = (e) => { e.preventDefault(); chrome.tabs.create({ url: state.update.url }); window.close(); };
   }
 
-  $("where").textContent = current ? `正在記錄 ${current.platformName || "會議"}` : info ? `已連上 ${info.platformName}` : "目前不在會議頁面";
+  $("where").textContent = current ? `正在記錄 ${current.platformName || "會議"}` : info ? (info.platform === "web" ? `可以錄 ${info.platformName}` : `已連上 ${info.platformName}`) : "這個頁面不能錄";
 
   // ── 主按鈕 ──
   const btn = $("mainBtn"), st = $("status");
@@ -64,7 +64,7 @@ async function refresh() {
     btn.disabled = false;
     btn.classList.add("stop");
     $("mainLabel").textContent = "停止記錄";
-    st.textContent = `記錄中 ${elapsed(current.startedAt)} · ${current.lineCount} 句 · 離開會議會自動停止`;
+    st.textContent = `記錄中 ${elapsed(current.startedAt)} · ${current.lineCount} 句 · ` + (current.platform === "web" ? "按停止就會產生摘要" : "離開會議會自動停止");
     if (current.sttMode !== "captions" && current.stt === "on") {
       const fresh = current.levelsAt && Date.now() - current.levelsAt < 3000;
       $("meters").hidden = false;
@@ -76,7 +76,7 @@ async function refresh() {
     btn.disabled = !info;
     $("mainLabel").textContent = "開始記錄";
     if (lastStartError && info) { st.textContent = friendly(lastStartError.text); st.classList.add("err"); }
-    else st.textContent = info ? "離開會議時會自動停止並產生摘要" : "請先進入 Google Meet、Teams、Zoom 或 Jitsi 會議";
+    else st.textContent = !info ? "請切到會議或影片的網頁" : info.platform === "web" ? "會錄這個分頁的聲音和你的麥克風，按停止就產生摘要" : "離開會議時會自動停止並產生摘要";
   }
 
   // ── 最近一場會議 ──
