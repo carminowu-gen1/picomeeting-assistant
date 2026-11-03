@@ -113,3 +113,8 @@ input[type="text"], input[type="password"], select { width: 100%; padding: 12px 
 .light[data-state="bad"] { color: var(--danger); }
 .light[data-state="wait"] .led { animation: blink 1.2s infinite; }
 @keyframes blink { 50% { opacity: .35; } }
+.light.tr { margin-left: auto; }
+.light.tr[data-state="on"] .led { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+.light.tr[data-state="on"] { color: var(--accent); }
+.trx { margin-top: 4px; color: var(--text-2); font-size: .9em; border-left: 3px solid var(--accent-soft); padding-left: 8px; }
+.trx:empty { display: none; }

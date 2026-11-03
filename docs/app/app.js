@@ -10,7 +10,7 @@ import { buildDocx } from "./lib/docx.js";
 import { t, detectLang, setLang, applyI18n } from "./i18n.js";
 import { setLabelFn } from "./diarize.js";
 
-const VERSION = "1.2.3";
+const VERSION = "1.3.0";
 const GROQ = "https://api.groq.com";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -155,7 +155,8 @@ function chipFor(line) {
   return `<button class="chip ${line.confidence}" style="--c:${color}" data-id="${esc(line.speakerId)}" title="${t("chip_title")}">${esc(c?.label || line.speaker)}${mark}</button>`;
 }
 function lineHtml(line, i) {
-  return `<div class="lh">${chipFor(line)}<span class="t">${fmtTime(line.t)}</span></div><div class="tx" contenteditable="true" data-i="${i}">${esc(line.text)}</div>`;
+  const tr = settings.translate && line.tr?.lang === trTarget() ? line.tr.text : "";
+  return `<div class="lh">${chipFor(line)}<span class="t">${fmtTime(line.t)}</span></div><div class="tx" contenteditable="true" data-i="${i}">${esc(line.text)}</div><div class="trx" data-i="${i}">${esc(tr)}</div>`;
 }
 function appendLine(line, fresh) {
   const box = $("lines");
@@ -165,6 +166,7 @@ function appendLine(line, fresh) {
   el.innerHTML = lineHtml(line, meeting.lines.length - 1);
   box.appendChild(el);
   if (fresh) box.scrollTop = box.scrollHeight;
+  if (settings.translate) scheduleTranslate();
 }
 function renderLines() {
   const box = $("lines");
@@ -284,6 +286,47 @@ async function stopRecording() {
 }
 document.addEventListener("visibilitychange", async () => { if (recording && document.visibilityState === "visible" && !wakeLock) { try { wakeLock = await navigator.wakeLock?.request("screen"); } catch {} } });
 
+/* ───────── 翻譯：原文照記，另外在每句下面顯示翻譯（翻成介面語言） ───────── */
+const trTarget = () => t("sumLang"); // 翻成介面語言
+let trTimer = null, trBusy = false;
+function scheduleTranslate() { clearTimeout(trTimer); trTimer = setTimeout(runTranslate, 1500); }
+async function runTranslate() {
+  if (trBusy || !settings.translate || !meeting) return;
+  const target = trTarget();
+  const todo = meeting.lines.map((l, i) => ({ l, i })).filter(({ l }) => l.text.trim() && l.tr?.lang !== target).slice(0, 25);
+  if (!todo.length) return;
+  trBusy = true;
+  try {
+    const body = {
+      model: "llama-3.1-8b-instant", temperature: 0, response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: `You translate meeting transcript lines into ${target}. Keep numbers, names and meaning; do not add anything. If a line is already in ${target}, return it unchanged. Output JSON: {"t": [string, ...]} with exactly one item per input line, same order.` },
+        { role: "user", content: JSON.stringify(todo.map(({ l }) => l.text)) },
+      ],
+    };
+    const r = await fetch(`${GROQ}/openai/v1/chat/completions`, { method: "POST", headers: { "content-type": "application/json", ...hdr() }, body: JSON.stringify(body) });
+    if (!r.ok) throw new Error(`${r.status}`);
+    const out = JSON.parse((await r.json()).choices?.[0]?.message?.content || "{}").t || [];
+    todo.forEach(({ l, i }, k) => {
+      let txt = typeof out[k] === "string" ? out[k].trim() : "";
+      if (settings.toTraditional && target === "繁體中文") txt = toTraditional(txt);
+      if (txt.replace(/\s/g, "") === l.text.replace(/\s/g, "")) txt = ""; // 本來就是目標語言：不重複顯示
+      l.tr = { lang: target, text: txt };
+      const el = document.querySelector(`#lines .trx[data-i="${i}"]`); if (el) el.textContent = txt;
+    });
+    scheduleSave();
+    if (meeting.lines.some((l) => l.text.trim() && l.tr?.lang !== target)) scheduleTranslate(); // 還有沒翻的，繼續
+  } catch (e) { toast(t("tr_fail") + friendly(e), true); }
+  finally { trBusy = false; }
+}
+$("trBtn").onclick = () => {
+  settings = store.saveSettings({ translate: !settings.translate });
+  $("trBtn").dataset.state = settings.translate ? "on" : "off";
+  toast(settings.translate ? t("tr_on") : t("tr_off"));
+  renderLines();
+  if (settings.translate) runTranslate();
+};
+
 /* ───────── 摘要／匯出 ───────── */
 function summaryHtml(s) {
   const list = (t, items) => items?.length ? `<h3>${t}</h3><ul>${items.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "";
@@ -306,7 +349,8 @@ async function summarize() {
   }
 }
 async function copyAll() {
-  const text = meetingToPlainText(meeting, { includeTranscript: true });
+  let text = meetingToPlainText(meeting, { includeTranscript: true });
+  if (settings.translate) text += "\n\n" + meeting.lines.map((l) => `[${fmtTime(l.t)}] ${l.speaker}: ${l.text}${l.tr?.text ? `\n　→ ${l.tr.text}` : ""}`).join("\n");
   try { await navigator.clipboard.writeText(text); toast(t("copied")); }
   catch { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); toast(t("copied2")); }
 }
@@ -347,7 +391,7 @@ function readSettings() {
   const uiChanged = ($("sUiLang").value || "auto") !== (settings.uiLang || "auto");
   settings = store.saveSettings({ apiKey: $("sKey").value.trim(), sttLanguage: $("sLang").value, language: $("sSumLang").value, uiLang: $("sUiLang").value, toTraditional: $("sS2T").checked, bigText: $("sBig").checked, autoSummarize: $("sAuto").checked });
   applyBig();
-  if (uiChanged) { applyLang(); fillSettings(); renderLines(); updateButtons(); }
+  if (uiChanged) { applyLang(); fillSettings(); renderLines(); updateButtons(); if (settings.translate) scheduleTranslate(); }
 }
 for (const id of ["sKey", "sLang", "sSumLang", "sUiLang", "sS2T", "sBig", "sAuto"]) $(id).addEventListener("change", readSettings);
 $("sKeyCheck").onclick = async () => { const m = $("sKeyMsg"); m.textContent = t("checking"); m.className = "msg small"; try { await checkKey($("sKey").value.trim()); m.textContent = t("key_ok"); m.className = "msg small ok"; } catch (e) { m.textContent = "✗ " + friendly(e); m.className = "msg small err"; } };
@@ -463,6 +507,7 @@ if ("serviceWorker" in navigator) {
 $("updateBtn").onclick = () => { if (recording) { toast(t("upd_rec"), true); return; } location.reload(); };
 settings = await store.restoreSettings(); // localStorage 被清掉時從 IndexedDB 找回金鑰
 applyLang();
+$("trBtn").dataset.state = settings.translate ? "on" : "off";
 if (!settings.setupDone || !settings.apiKey) {
   // iPhone 的 Safari 和桌面 App 分開存資料：在 Safari 裡就先教她放到桌面，從桌面打開再設定
   if (isIOS() && !isStandalone()) { $("w0").hidden = false; $("w1").querySelector(".num").textContent = "2"; $("w2").querySelector(".num").textContent = "3"; $("wFoot").hidden = true; }
