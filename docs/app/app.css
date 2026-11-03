@@ -76,6 +76,8 @@ input[type="text"], input[type="password"], select { width: 100%; padding: 12px 
 .summary h3 { margin: 12px 0 4px; font-size: .85em; color: var(--accent); letter-spacing: .04em; } .summary h3:first-child { margin-top: 0; }
 .summary p { margin: 0; white-space: pre-wrap; } .summary ul { margin: 0; padding-left: 20px; }
 .summary .wait { display: flex; align-items: center; gap: 10px; color: var(--text-2); }
+.summary .regen { display: flex; gap: 8px; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+.summary .regen select { flex: 1; padding: 8px 10px; }
 
 .bottom { padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); background: var(--surface); box-shadow: 0 -1px 0 var(--border); display: flex; flex-direction: column; gap: 10px; }
 .actions { display: flex; gap: 10px; } .actions .btn { flex: 1; padding: 14px 6px; }

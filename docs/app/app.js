@@ -10,7 +10,7 @@ import { buildDocx } from "./lib/docx.js";
 import { t, detectLang, setLang, applyI18n } from "./i18n.js";
 import { setLabelFn } from "./diarize.js";
 
-const VERSION = "1.3.1";
+const VERSION = "1.3.2";
 const GROQ = "https://api.groq.com";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -336,20 +336,32 @@ function summaryHtml(s) {
   const list = (t, items) => items?.length ? `<h3>${t}</h3><ul>${items.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "";
   return `<h3>${t("sum_h")}</h3><p>${esc(s.summary)}</p>` + list(t("sum_points"), s.key_points) + list(t("sum_decisions"), s.decisions)
     + list(t("sum_todo"), s.action_items?.map((a) => `${a.task}${a.owner ? t("sum_owner", { x: a.owner }) : ""}${a.due ? t("sum_due", { x: a.due }) : ""}`))
-    + list(t("sum_open"), s.open_questions) + (s.model ? `<p class="small muted">${esc(t("sum_by", { m: s.model }))}</p>` : "");
+    + list(t("sum_open"), s.open_questions) + (s.model ? `<p class="small muted">${esc(t("sum_by", { m: s.model }))}</p>` : "")
+    + regenHtml(s.lang);
 }
-async function summarize() {
+const SUM_LANGS = ["繁體中文", "English", "日本語"];
+function regenHtml(cur) {
+  const sel = SUM_LANGS.map((l) => `<option${l === (cur || sumLang()) ? " selected" : ""}>${l}</option>`).join("");
+  return `<div class="regen"><select id="regenLang" aria-label="${t("regen_lang")}">${sel}</select><button class="btn sm" id="regenBtn">${t("regen")}</button></div>`;
+}
+function bindRegen() {
+  const b = $("regenBtn"); if (!b) return;
+  b.onclick = () => { if (recording) return; summarize($("regenLang").value); };
+}
+async function summarize(lang) {
   if (!meeting?.lines.length) return;
+  const language = typeof lang === "string" ? lang : meeting.summary?.lang || sumLang();
   const box = $("summary");
   box.hidden = false; box.innerHTML = `<div class="wait"><span class="spin"></span> ${t("sum_wait")}</div>`;
   try {
-    const s = await summarizeTranscript(meeting, { apiBase: GROQ, apiHeaders: hdr(), model: settings.model, autoFallback: settings.autoFallback, tokenSaver: settings.tokenSaver, language: sumLang(), toTraditional: settings.toTraditional });
+    const s = await summarizeTranscript(meeting, { apiBase: GROQ, apiHeaders: hdr(), model: settings.model, autoFallback: settings.autoFallback, tokenSaver: settings.tokenSaver, language, toTraditional: settings.toTraditional });
+    s.lang = language;
     meeting.summary = s; store.saveMeeting(meeting);
-    box.innerHTML = summaryHtml(s);
+    box.innerHTML = summaryHtml(s); bindRegen();
     toast(t("sum_done"));
   } catch (e) {
-    box.innerHTML = `<div class="note"><span>${t("sum_fail")}${esc(friendly(e))}</span><button class="btn sm" id="retrySum">${t("retry")}</button></div>`;
-    $("retrySum").onclick = summarize;
+    box.innerHTML = `<div class="note"><span>${t("sum_fail")}${esc(friendly(e))}</span><button class="btn sm" id="retrySum">${t("retry")}</button></div>` + regenHtml(language);
+    $("retrySum").onclick = () => summarize(language); bindRegen();
   }
 }
 async function copyAll() {
@@ -373,7 +385,7 @@ function openMeeting(id) {
   if (!m) return;
   meeting = m; diar = new Diarizer(m.diar);
   renderLines(); updateButtons(); tick(); setStatus(m.endedAt ? t("ended") : t("ready"), m.endedAt ? "done" : "");
-  $("summary").hidden = !m.summary; if (m.summary) $("summary").innerHTML = summaryHtml(m.summary);
+  $("summary").hidden = !m.summary; if (m.summary) { $("summary").innerHTML = summaryHtml(m.summary); bindRegen(); }
   show("main");
 }
 function renderHistory() {
