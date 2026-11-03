@@ -10,7 +10,7 @@ import { buildDocx } from "./lib/docx.js";
 import { t, detectLang, setLang, applyI18n } from "./i18n.js";
 import { setLabelFn } from "./diarize.js";
 
-const VERSION = "1.3.3";
+const VERSION = "1.4.0";
 const GROQ = "https://api.groq.com";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -512,6 +512,40 @@ $("installBtn").onclick = async () => {
   installEvt.prompt(); const { outcome } = await installEvt.userChoice; installEvt = null; if (outcome === "accepted") $("install").hidden = true; };
 $("installClose").onclick = () => { $("install").hidden = true; localStorage.setItem("pm:installDismissed", "1"); };
 
+/* ───────── 安裝引導：掃 QR code（?install=1）或第一次用手機打開時，教她放到桌面 ───────── */
+const isInApp = () => /Line\/|FBAN|FBAV|Instagram|MicroMessenger|KAKAOTALK/i.test(navigator.userAgent);
+const isIOSSafari = () => isIOS() && !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(navigator.userAgent);
+function needInstallGuide() {
+  if (isStandalone()) return false;
+  if (!isIOS() && !/Android/i.test(navigator.userAgent)) return false; // 電腦不用
+  try { if (sessionStorage.getItem("pm:skipInstall")) return false; } catch {}
+  return new URLSearchParams(location.search).has("install") || !settings.setupDone;
+}
+function showInstallGuide() {
+  const android = /Android/i.test(navigator.userAgent);
+  $("igInApp").hidden = !isInApp();
+  $("igIOS").hidden = isInApp() || !isIOS();
+  $("igArrow").hidden = isInApp() || !isIOSSafari();
+  $("igAndroid").hidden = isInApp() || !android;
+  $("igAndManual").hidden = !!installEvt;
+  $("igInstall").hidden = !installEvt;
+  show("installGuide");
+}
+function leaveInstallGuide() {
+  try { sessionStorage.setItem("pm:skipInstall", "1"); } catch {}
+  $("igArrow").hidden = true;
+  startApp();
+}
+$("igSkip").onclick = leaveInstallGuide;
+$("igCopy").onclick = async () => { try { await navigator.clipboard.writeText(location.origin + location.pathname); toast(t("ig_copied")); } catch { toast(location.origin + location.pathname); } };
+$("igInstall").onclick = async () => {
+  if (!installEvt) return;
+  installEvt.prompt(); const { outcome } = await installEvt.userChoice; installEvt = null;
+  if (outcome === "accepted") { $("igAndroid").hidden = true; $("igDone").hidden = false; }
+};
+window.addEventListener("beforeinstallprompt", () => { if (!$("installGuide").hidden) { $("igInstall").hidden = false; $("igAndManual").hidden = true; } });
+window.addEventListener("appinstalled", () => { if (!$("installGuide").hidden) { $("igAndroid").hidden = true; $("igDone").hidden = false; } });
+
 /* ───────── 啟動 ───────── */
 applyBig();
 if ("serviceWorker" in navigator) {
@@ -527,6 +561,8 @@ $("updateBtn").onclick = () => { if (recording) { toast(t("upd_rec"), true); ret
 settings = await store.restoreSettings(); // localStorage 被清掉時從 IndexedDB 找回金鑰
 applyLang();
 $("trBtn").dataset.state = settings.translate ? "on" : "off";
+if (needInstallGuide()) showInstallGuide(); else startApp();
+function startApp() {
 if (!settings.setupDone || !settings.apiKey) {
   // iPhone 的 Safari 和桌面 App 分開存資料：在 Safari 裡就先教她放到桌面，從桌面打開再設定
   if (isIOS() && !isStandalone()) { $("w0").hidden = false; $("w1").querySelector(".num").textContent = "2"; $("w2").querySelector(".num").textContent = "3"; $("wFoot").hidden = true; }
@@ -538,4 +574,5 @@ if (!settings.setupDone || !settings.apiKey) {
   startWorker().catch(() => {});
   setTimeout(offerInstall, 800); // beforeinstallprompt 通常在載入後才來，晚一點再問
   checkLights();
+}
 }

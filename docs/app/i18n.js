@@ -2,6 +2,12 @@
 const T = {
   zh: {
     locale: "zh-TW", sumLang: "繁體中文", speaker: "說話者 {x}", app: "小伐速記", sub: "會議摘要助理",
+    ig_h: "把小伐速記放到手機桌面", ig_p: "放到桌面後，就像一般 App 一樣一點就開，設定也只要做一次。",
+    ig_ios1: "按 Safari 最下面的「分享」按鈕<br><small>新版 iPhone：先按右下角「⋯」，再按「分享」</small>", ig_ios2: "往下滑，點「<b>加入主畫面</b>」",
+    ig_ios3: "按右上角「<b>新增</b>」。桌面出現小伐的圖示後，<b>從圖示打開</b>繼續設定", ig_arrow: "分享按鈕在這下面",
+    ig_and_btn: "📲 安裝到手機桌面", ig_and_manual: "按右上角「⋮」→「加到主畫面」或「安裝應用程式」",
+    ig_inapp: "你現在是在 LINE／Facebook 裡面開的，這裡沒辦法放到桌面。請按右上角（或右下角）的選單，選「用 Safari 開啟」或「用瀏覽器開啟」。",
+    ig_copy: "複製網址", ig_copied: "網址已複製，貼到 Safari／Chrome 打開", ig_skip: "先不用，直接在瀏覽器裡用", ig_done: "✓ 裝好了！請關掉這頁，從手機桌面的「小伐速記」圖示打開",
     // 歡迎頁
     w_tag: "把手機放在桌上，它會記下每個人說的話，<br>散會後自動整理成摘要。",
     w0_h: "先把它放到手機桌面", w0_p: "iPhone 會把「桌面的 App」和「Safari」分開存資料，先放到桌面、再從桌面打開設定，金鑰就只要貼一次。",
@@ -57,6 +63,12 @@ const T = {
   },
   en: {
     locale: "en-US", sumLang: "English", speaker: "Speaker {x}", app: "PicoNotes", sub: "Meeting notes assistant",
+    ig_h: "Put PicoNotes on your Home Screen", ig_p: "Once it's there, it opens with one tap like any app — and you only set it up once.",
+    ig_ios1: "Tap Safari's <b>Share</b> button at the bottom<br><small>Newer iPhones: tap “⋯” at the bottom right first, then “Share”</small>", ig_ios2: "Scroll down and tap “<b>Add to Home Screen</b>”",
+    ig_ios3: "Tap “<b>Add</b>” at the top right. When the PicoNotes icon appears, <b>open it from there</b> to finish setup", ig_arrow: "The Share button is down here",
+    ig_and_btn: "📲 Install on Home Screen", ig_and_manual: "Tap ⋮ at the top right → “Add to Home screen” or “Install app”",
+    ig_inapp: "You opened this inside LINE / Facebook, which can't add apps to the Home Screen. Open the menu (top or bottom right) and choose “Open in Safari” or “Open in browser”.",
+    ig_copy: "Copy link", ig_copied: "Link copied — paste it into Safari / Chrome", ig_skip: "Not now — just use it in the browser", ig_done: "✓ Installed! Close this page and open PicoNotes from your Home Screen",
     w_tag: "Put your phone on the table. It writes down what everyone says<br>and turns it into a summary when the meeting ends.",
     w0_h: "First, add it to your Home Screen", w0_p: "iPhone keeps data for \"Home Screen apps\" and \"Safari\" separately. Add it to the Home Screen first and set up from there, so you only paste the key once.",
     w0_1: "Tap Safari's Share button ⎙", w0_2: "Scroll to \"<b>Add to Home Screen</b>\" → tap \"<b>Add</b>\"", w0_3: "Close Safari, open the \"PicoNotes\" icon on your Home Screen, and continue below", w0_note: "If you already opened it from the Home Screen, you won't see this step.",
@@ -104,6 +116,12 @@ const T = {
   },
   ja: {
     locale: "ja-JP", sumLang: "日本語", speaker: "話者 {x}", app: "PicoNotes", sub: "会議メモアシスタント",
+    ig_h: "PicoNotes をホーム画面に追加", ig_p: "ホーム画面に置けば、普通のアプリのようにワンタップで開けます。設定も一度だけ。",
+    ig_ios1: "Safari 下部の「<b>共有</b>」ボタンをタップ<br><small>新しい iPhone：右下の「⋯」を押してから「共有」</small>", ig_ios2: "下にスクロールして「<b>ホーム画面に追加</b>」",
+    ig_ios3: "右上の「<b>追加</b>」をタップ。ホーム画面にアイコンが出たら、<b>そこから開いて</b>設定を続けます", ig_arrow: "共有ボタンはこの下",
+    ig_and_btn: "📲 ホーム画面にインストール", ig_and_manual: "右上の「⋮」→「ホーム画面に追加」または「アプリをインストール」",
+    ig_inapp: "LINE／Facebook の中で開いているため、ホーム画面に追加できません。右上（または右下）のメニューから「Safari で開く」「ブラウザで開く」を選んでください。",
+    ig_copy: "URL をコピー", ig_copied: "URL をコピーしました。Safari／Chrome に貼り付けて開いてください", ig_skip: "今はしない（ブラウザで使う）", ig_done: "✓ 追加できました！このページを閉じて、ホーム画面の PicoNotes から開いてください",
     w_tag: "スマホを机に置くだけ。みんなの発言を記録し、<br>会議が終わると自動で要約します。",
     w0_h: "まずホーム画面に追加", w0_p: "iPhone は「ホーム画面のアプリ」と「Safari」のデータを別々に保存します。先にホーム画面に追加し、そこから開いて設定すれば、キーの貼り付けは一回で済みます。",
     w0_1: "Safari 下部の「共有」⎙ をタップ", w0_2: "「<b>ホーム画面に追加</b>」→ 右上の「<b>追加</b>」", w0_3: "Safari を閉じ、ホーム画面の「PicoNotes」アイコンから開いて、下の手順へ", w0_note: "すでにホーム画面から開いている場合、この手順は表示されません。",

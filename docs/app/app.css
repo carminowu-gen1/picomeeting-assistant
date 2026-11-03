@@ -106,6 +106,21 @@ input[type="text"], input[type="password"], select { width: 100%; padding: 12px 
 .install b { display: block; }
 .install .icon.sm { width: 32px; height: 32px; font-size: 16px; }
 
+/* ── 安裝引導（掃 QR code 進來）── */
+.ig .hero h1 { font-size: 1.4em; }
+.igsteps { list-style: none; margin: 0; padding: 18px 16px; gap: 16px; }
+.igsteps li { display: flex; align-items: center; gap: 12px; font-size: 1.05em; line-height: 1.45; }
+.igsteps .num { flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 800; }
+.igsteps .ico { flex: none; width: 44px; height: 44px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
+.igsteps .ico img { border-radius: 7px; }
+.igsteps small { color: var(--text-2); }
+.ig .card.ok { color: var(--ok); font-weight: 700; text-align: center; }
+.btn.link { background: transparent; color: var(--text-2); font-weight: 600; text-decoration: underline; }
+.igarrow { position: fixed; left: 50%; bottom: calc(8px + env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; color: var(--accent); font-weight: 800; animation: bob 1s ease-in-out infinite; pointer-events: none; }
+.igarrow b { font-size: 34px; line-height: 1; }
+.igarrow span { background: var(--surface); padding: 4px 10px; border-radius: 999px; box-shadow: var(--shadow); font-size: .85em; }
+@keyframes bob { 50% { transform: translate(-50%, 8px); } }
+
 /* ── 燈號 ── */
 .lights { display: flex; gap: 8px; padding: 0 16px 6px; }
 .light { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px 4px 8px; border-radius: 999px; border: 0; background: var(--surface); color: var(--text-2); font: inherit; font-size: .8em; font-weight: 700; box-shadow: var(--shadow); cursor: pointer; }

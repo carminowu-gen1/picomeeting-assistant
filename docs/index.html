@@ -172,6 +172,13 @@
     .hero h1 { font-size: 40px; margin: 18px 0 12px; }
     @media (max-width: 760px) { .brand { justify-content: center; } .hero h1 { font-size: 30px; } main { padding-top: 72px; } }
     @media (max-width: 420px) { .langbar button { padding: 5px 9px; font-size: 12px; } }
+    .qrbox { display: flex; gap: 14px; align-items: center; margin-top: 18px; padding: 12px 14px; border-radius: 16px; background: var(--surface, #fff); box-shadow: 0 6px 20px rgba(0,0,0,.08); max-width: 420px; }
+    .qrbox img.qr { width: 112px; height: 112px; border-radius: 8px; flex: none; image-rendering: pixelated; }
+    .qrbox b { display: block; margin-bottom: 4px; }
+    .qrbox .small { line-height: 1.5; }
+    .qrbox .openapp { display: none; }
+    .qrbig { width: 180px; height: 180px; border-radius: 10px; image-rendering: pixelated; display: block; margin: 10px 0; }
+    @media (max-width: 760px), (pointer: coarse) { .qrbox img.qr, .qrbox .qrtext { display: none; } .qrbox .openapp { display: inline-flex; } .qrbox { justify-content: center; } }
     .story { margin-top: 56px; background: var(--accent-soft); border-radius: 18px; padding: 24px 28px; }
     .story h2 { margin: 0 0 8px; font-size: 20px; }
     .story p { margin: 0; font-size: 17px; line-height: 1.9; }
@@ -215,6 +222,11 @@
         <div class="cta">
           <a class="btn" id="mainBtn" href="#install" data-t="cta">⬇ 免費下載</a>
           <span class="small" id="mainHint" data-t="cta_hint">照著圖做，泡杯咖啡的時間就裝好了 ☕</span>
+        </div>
+        <div class="qrbox">
+          <img class="qr" src="qr-app.png" width="112" height="112" alt="QR code" />
+          <div class="qrtext"><b data-t="qr_h">📱 手機版：拿手機相機掃一下</b><span class="small" data-t="qr_p">掃完會一步一步帶你把「小伐速記」放到手機桌面。iPhone 直接用內建「相機」對準就好。</span></div>
+          <a class="btn openapp" href="https://carminowu-gen1.github.io/picomeeting-assistant/app/?install=1&amp;openExternalBrowser=1" data-t="qr_open">📱 打開手機版</a>
         </div>
       </div>
       <div class="pop" aria-hidden="true">
@@ -464,8 +476,10 @@
           <li class="step">
             <div class="txt">
               <h3 data-t="p1_t">用手機打開這個網址</h3>
+              <img class="qrbig" src="qr-app.png" width="180" height="180" alt="QR code" />
+              <p class="small" data-t="p1_qr">在電腦上看這頁？用手機相機掃上面的 QR code 最快，掃完會自動帶你一步一步放到手機桌面。</p>
               <p data-t="p1_p">iPhone 用 <b>Safari</b>，Android 用 <b>Chrome</b>。按「複製」再貼到網址列也可以。介面會跟著手機語言自動顯示繁體中文、English 或日本語。</p>
-              <div class="copy"><a href="https://carminowu-gen1.github.io/picomeeting-assistant/app/" style="word-break:break-all">carminowu-gen1.github.io/picomeeting-assistant/app/</a> <button class="btn ghost" data-copy="https://carminowu-gen1.github.io/picomeeting-assistant/app/" data-t="copy">複製</button></div>
+              <div class="copy"><a href="https://carminowu-gen1.github.io/picomeeting-assistant/app/?install=1&amp;openExternalBrowser=1" style="word-break:break-all">carminowu-gen1.github.io/picomeeting-assistant/app/</a> <button class="btn ghost" data-copy="https://carminowu-gen1.github.io/picomeeting-assistant/app/" data-t="copy">複製</button></div>
             </div>
             <div class="fig" aria-hidden="true">
               <div class="win-bar"><div class="omni hl"><b>…github.io/picomeeting-assistant/app/</b></div></div>
@@ -670,6 +684,10 @@
       ms_path: "⚙️ System Settings › Privacy & Security › Microphone",
       pi_mobile: "Chrome on a phone can't install extensions, so on mobile you use the <b>web app — “PicoNotes for iPhone / Android”</b> — nothing to install. Put the phone on the table to record an in-person meeting: the transcript appears live, speakers are told apart automatically, and a summary is written the moment you stop. Your notes (up to 30 meetings) and your key stay on the phone only.",
       p1_t: "Open this address on your phone",
+      qr_h: "📱 Phone app: just scan with your camera",
+      qr_p: "Scanning opens a step-by-step guide that puts PicoNotes on your Home Screen. On iPhone, the built-in Camera app works.",
+      qr_open: "📱 Open the phone app",
+      p1_qr: "Reading this on a computer? Scan the QR code above with your phone — it walks you through adding the app to your Home Screen.",
       p1_p: "Use <b>Safari</b> on iPhone or <b>Chrome</b> on Android. You can also tap “Copy” and paste it into the address bar. The app follows your phone's language — Traditional Chinese, English or Japanese.",
       p2_t: "Add it to your Home Screen first, then open it like an app",
       p2_p: "<b>iPhone</b>: tap Safari's “Share” button at the bottom → “<b>Add to Home Screen</b>”, then <b>open it from the Home Screen icon</b> before doing the steps below. Safari and Home-Screen apps keep their data separately, so adding it first means you only paste your key once.<br><b>Android</b>: an “Add to Home screen” card appears on the page — one tap installs it. Or tap <b>⋮</b> at the top right of Chrome → “<b>Add to Home screen</b>”.",
@@ -826,6 +844,10 @@
       ms_path: "⚙️ システム設定 › プライバシーとセキュリティ › マイク",
       pi_mobile: "スマホの Chrome には拡張機能を入れられないので、スマホでは<b>ウェブアプリ「PicoNotes for iPhone／Android」</b>を使います。インストールは不要です。会議の机にスマホを置けば、文字起こしがリアルタイムで表示され、誰が話しているかを自動で聞き分け、停止すると要約が自動で書き上がります。記録（最大 30 件）もキーも、あなたのスマホの中にだけ保存されます。",
       p1_t: "スマホでこのアドレスを開く",
+      qr_h: "📱 スマホ版：カメラでスキャンするだけ",
+      qr_p: "スキャンすると、PicoNotes をホーム画面に追加する手順を一歩ずつ案内します。iPhone は標準の「カメラ」アプリでOK。",
+      qr_open: "📱 スマホ版を開く",
+      p1_qr: "パソコンで見ていますか？上の QR コードをスマホでスキャンするのがいちばん早いです。ホーム画面への追加まで案内します。",
       p1_p: "iPhone は <b>Safari</b>、Android は <b>Chrome</b> で。「コピー」を押してアドレスバーに貼り付けても OK。画面はスマホの言語に合わせて繁体字中国語・英語・日本語で表示されます。",
       p2_t: "先にホーム画面に追加して、アプリのように開く",
       p2_p: "<b>iPhone</b>：Safari 下部の「共有」ボタン →「<b>ホーム画面に追加</b>」。その後は<b>ホーム画面のアイコンから開いて</b>、下の設定をしてください。Safari とホーム画面のアプリはデータを別々に保存するので、先に追加しておけばキーの貼り付けは 1 回で済みます。<br><b>Android</b>：ページに「ホーム画面に追加」カードが出るので、タップするだけ。または Chrome 右上の <b>⋮</b> →「<b>ホーム画面に追加</b>」。",
