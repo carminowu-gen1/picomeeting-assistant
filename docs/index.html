@@ -3,8 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>會議摘要助理｜你專心開會，筆記交給我</title>
-  <meta name="description" content="開會時自動記錄逐字稿，會後用 AI 整理摘要、重點與待辦，一鍵匯出 Word。" />
+  <title>小伐速記｜你專心開會，筆記交給我</title>
+  <meta name="description" content="小伐速記（PicoNotes）會議摘要助理：開會時自動記錄逐字稿，會後用 AI 整理摘要、重點與待辦，一鍵匯出 Word。手機版還能分辨是誰在說話。" />
+  <link rel="icon" href="icons/icon48.png" type="image/png" />
+  <link rel="apple-touch-icon" href="icons/icon192.png" />
   <style>
     :root {
       --bg: #f6f7fb; --surface: #fff; --surface-2: #f0f2f7; --surface-3: #e6e9f0; --border: #e3e6ee;
@@ -24,7 +26,7 @@
       }
     }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.7 -apple-system, "Segoe UI", "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", system-ui, sans-serif; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.7 -apple-system, "Segoe UI", "Microsoft JhengHei", "PingFang TC", "Hiragino Sans", "Noto Sans TC", "Noto Sans JP", system-ui, sans-serif; }
     main { max-width: 900px; margin: 0 auto; padding: 48px 16px 80px; }
     a { color: var(--accent); }
     h2 { font-size: 24px; margin: 64px 0 8px; }
@@ -34,8 +36,8 @@
 
     /* ── Hero ── */
     .hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; }
-    .logo { display: inline-grid; place-items: center; width: 64px; height: 64px; border-radius: 18px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; font-size: 32px; }
-    .logo.sm { width: 20px; height: 20px; border-radius: 6px; font-size: 11px; vertical-align: -4px; }
+    .logo { display: inline-block; width: 64px; height: 64px; border-radius: 18px; flex: none; object-fit: contain; vertical-align: middle; }
+    .logo.sm { width: 20px; height: 20px; border-radius: 6px; vertical-align: -4px; }
     .hero h1 { font-size: 34px; margin: 14px 0 10px; line-height: 1.3; }
     .hero p { color: var(--text-2); margin: 0; }
     .cta { margin-top: 24px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
@@ -51,6 +53,13 @@
     .card .n { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; display: inline-grid; place-items: center; font-weight: 700; font-size: 14px; margin-right: 6px; }
     .card b { font-size: 16px; }
     .card p { margin: 0; font-size: 14px; color: var(--text-2); }
+
+    /* ── 功能亮點 ── */
+    .feats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .feat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+    .feat .ico { font-size: 24px; line-height: 1; margin-bottom: 8px; }
+    .feat b { display: block; font-size: 15px; margin-bottom: 4px; }
+    .feat p { margin: 0; font-size: 14px; color: var(--text-2); }
 
     /* ── 步驟 ── */
     .steps { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 16px; counter-reset: s; }
@@ -70,7 +79,8 @@
     .omni b { color: var(--text); font-weight: 600; }
     .tb { display: flex; gap: 6px; align-items: center; }
     .tb .ic { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; font-size: 13px; color: var(--text-2); }
-    .tb .ic.ext { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; font-size: 11px; }
+    .tb .ic.ext { padding: 0; overflow: hidden; }
+    .tb .ic.ext img { width: 22px; height: 22px; display: block; }
     .fig-body { padding: 12px; }
     .hl { outline: 3px solid var(--red); outline-offset: 3px; border-radius: 8px; animation: ring 1.6s ease-in-out infinite; position: relative; }
     @keyframes ring { 50% { outline-offset: 6px; } }
@@ -83,6 +93,10 @@
     .toggle::after { content: ""; position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #fff; top: 2px; left: 2px; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
     .toggle.on { background: var(--accent); } .toggle.on::after { left: 18px; }
     .muted { color: var(--text-2); }
+    .chip { display: inline-block; padding: 0 7px; border-radius: 999px; border: 1.5px solid var(--accent); color: var(--accent); font-size: 10px; line-height: 16px; white-space: nowrap; }
+    .chip.unsure { border-style: dashed; border-color: var(--text-3); color: var(--text-2); }
+    .light { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); vertical-align: middle; margin-right: 3px; }
+    .light.bad { background: var(--red); }
 
     /* popup 示意 */
     .pop { width: min(230px, 100%); background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 12px 30px rgba(0,0,0,.15); font-size: 11px; text-align: left; }
@@ -96,6 +110,8 @@
     .pop .meter { display: grid; grid-template-columns: 28px 1fr; gap: 6px; align-items: center; color: var(--text-2); }
     .pop .bar { height: 5px; border-radius: 9px; background: var(--surface-3); overflow: hidden; } .pop .bar i { display: block; height: 100%; background: var(--ok); }
     .pop .upd { background: var(--accent-soft); color: var(--accent); border-radius: 8px; padding: 6px 8px; font-weight: 600; }
+    .pop .line { color: var(--text-2); display: flex; gap: 5px; align-items: flex-start; line-height: 1.35; }
+    .pop .line span:last-child { color: var(--text); }
 
     /* 擴充功能頁示意 */
     .ext-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
@@ -139,18 +155,23 @@
       .hero { grid-template-columns: 1fr; gap: 28px; text-align: center; }
       .cta { align-items: center; }
       .hero .pop { margin: 0 auto; }
-      .cards { grid-template-columns: 1fr; }
+      .cards, .feats { grid-template-columns: 1fr; }
       .step { grid-template-columns: 1fr; }
       .hero h1 { font-size: 27px; }
     }
-  
+
     /* ── 語言切換 ── */
     .langbar { position: absolute; top: 12px; right: 12px; z-index: 50; display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 3px; box-shadow: 0 4px 14px rgba(0,0,0,.1); }
-    .langbar button { border: 0; background: none; color: var(--text-2); font: inherit; font-size: 13px; font-weight: 700; padding: 5px 12px; border-radius: 999px; cursor: pointer; }
+    .langbar button { border: 0; background: none; color: var(--text-2); font: inherit; font-size: 13px; font-weight: 700; padding: 5px 12px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
     .langbar button.on { background: var(--accent); color: #fff; }
-    .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; color: var(--text-2); font-size: 17px; }
+    .brand { display: flex; align-items: center; gap: 14px; color: var(--text-2); }
+    .brand .names { display: flex; flex-direction: column; line-height: 1.25; text-align: left; }
+    .brand .name { font-weight: 800; font-size: 22px; color: var(--text); }
+    .brand .name small { font-weight: 600; font-size: 14px; color: var(--text-3); margin-left: 8px; }
+    .brand .tagline { font-size: 14px; font-weight: 600; color: var(--text-2); margin-top: 2px; }
     .hero h1 { font-size: 40px; margin: 18px 0 12px; }
-    @media (max-width: 760px) { .brand { justify-content: center; } .hero h1 { font-size: 30px; } main { padding-top: 64px; } }
+    @media (max-width: 760px) { .brand { justify-content: center; } .hero h1 { font-size: 30px; } main { padding-top: 72px; } }
+    @media (max-width: 420px) { .langbar button { padding: 5px 9px; font-size: 12px; } }
     .story { margin-top: 56px; background: var(--accent-soft); border-radius: 18px; padding: 24px 28px; }
     .story h2 { margin: 0 0 8px; font-size: 20px; }
     .story p { margin: 0; font-size: 17px; line-height: 1.9; }
@@ -176,22 +197,28 @@
 </head>
 <body>
   <div class="langbar" role="group" aria-label="Language">
-    <button data-lang="zh" class="on">中文</button><button data-lang="en">EN</button>
+    <button data-lang="zh" class="on">中文</button><button data-lang="en">EN</button><button data-lang="ja">日本語</button>
   </div>
   <main>
     <!-- ── Hero ── -->
     <section class="hero">
       <div>
-        <div class="brand"><span class="logo">✦</span><span data-t="brand">會議摘要助理</span></div>
+        <div class="brand">
+          <img class="logo" src="icons/icon128.png" width="64" height="64" alt="小伐速記 PicoNotes" />
+          <div class="names">
+            <span class="name"><span data-t="brand">小伐速記</span><small data-t="brand_en">PicoNotes</small></span>
+            <span class="tagline" data-t="tagline">會議摘要助理</span>
+          </div>
+        </div>
         <h1 data-t="h1">你專心開會，<br>筆記交給我。</h1>
-        <p data-t="hero_p">它會在 Google Meet、Teams、Zoom 裡安靜地聽，把每個人說的話記下來。散會後，摘要、重點、待辦事項自動排好隊，一鍵變成 Word 帶走。</p>
+        <p data-t="hero_p">它會在 Google Meet、Teams、Zoom、Jitsi 裡安靜地聽，把每個人說的話記下來；背景的音樂和雜音會先在你的電腦上濾掉。散會後，摘要、重點、待辦事項自動排好隊，一鍵變成 Word 帶走。實體會議就用手機版，它還認得出是誰在說話。</p>
         <div class="cta">
           <a class="btn" id="mainBtn" href="#install" data-t="cta">⬇ 免費下載</a>
           <span class="small" id="mainHint" data-t="cta_hint">照著圖做，泡杯咖啡的時間就裝好了 ☕</span>
         </div>
       </div>
       <div class="pop" aria-hidden="true">
-        <div class="hd"><span class="logo sm">✦</span><span data-t="pop_name">會議摘要助理</span></div>
+        <div class="hd"><img class="logo sm" src="icons/icon48.png" alt="" /><span data-t="pop_name">小伐速記</span></div>
         <div class="big" data-t="pop_start">● 開始記錄</div>
         <div class="sum"><b data-t="pop_sum_t">產品週會・11/2</b><span data-t="pop_sum">確認 Q4 時程下週五前定案，Amy 負責更新預算……</span></div>
         <div class="acts"><span data-t="pop_full">📄 查看全文</span><span data-t="pop_copy">📋 複製</span><span class="p">⬇ Word</span></div>
@@ -202,7 +229,7 @@
     <!-- ── 為什麼做這個 ── -->
     <section class="story">
       <h2 data-t="why_h">為什麼做這個？💛</h2>
-      <p data-t="why_p">這個小工具，是為了我老婆做的。她在公司常常要開線上會議，一邊聽一邊抄筆記，總是抄不完，也聽不完整。所以我做了它：開會時按一下，它就把大家說的話記下來；散會後，自動整理成摘要和待辦事項。支援 Google Meet、Teams、Zoom 這些網頁會議。沒有複雜的設定，也沒有用不到的功能，就算完全不懂電腦，也能輕鬆上手。</p>
+      <p data-t="why_p">這個小工具，是為了我老婆做的。她在公司常常要開線上會議，一邊聽一邊抄筆記，總是抄不完，也聽不完整。所以我做了它：開會時按一下，它就把大家說的話記下來；散會後，自動整理成摘要和待辦事項。支援 Google Meet、Teams、Zoom 這些網頁會議；實體會議就把手機放在桌上，它會自動分辨是誰在說話。沒有複雜的設定，也沒有用不到的功能，就算完全不懂電腦，也能輕鬆上手。</p>
     </section>
 
     <!-- ── 使用方式 ── -->
@@ -217,11 +244,11 @@
           <div><span style="background:#1a73e8">L</span><small data-t="m4">李小美</small></div>
         </div></div>
         <div><span class="n">1</span><b data-t="c1_t">走進會議室</b></div>
-        <p data-t="c1_p">用 Chrome 打開 Google Meet、Teams 或 Zoom 會議，跟平常一樣。</p>
+        <p data-t="c1_p">用 Chrome 打開 Google Meet、Teams、Zoom 或 Jitsi 會議，跟平常一樣。</p>
       </div>
       <div class="card">
         <div class="art" aria-hidden="true">
-          <div style="position:absolute;top:12px;right:14px" class="tb"><span class="ic">🧩</span><span class="ic ext hl">✦</span></div>
+          <div style="position:absolute;top:12px;right:14px" class="tb"><span class="ic">🧩</span><span class="ic ext hl"><img src="icons/icon48.png" alt="" /></span></div>
           <div class="pop" style="width:170px;margin-top:34px;padding:8px"><div class="big" style="padding:8px" data-t="pop_start">● 開始記錄</div><div class="meter"><span data-t="me">我</span><div class="bar"><i style="width:70%"></i></div></div><div class="meter"><span data-t="others">對方</span><div class="bar"><i style="width:45%"></i></div></div></div>
         </div>
         <div><span class="n">2</span><b data-t="c2_t">按下藍色大按鈕</b></div>
@@ -232,6 +259,18 @@
         <div><span class="n">3</span><b data-t="c3_t">散會！摘要已經在等你</b></div>
         <p data-t="c3_p">直接離開會議就好，它會自己收工、寫好摘要。按「⬇ Word」帶走。</p>
       </div>
+    </div>
+
+    <!-- ── 功能亮點 ── -->
+    <h2 data-t="feat_h">還有這些貼心的小地方 ✨</h2>
+    <p class="lead" data-t="feat_lead">不用設定、不用學，它們都是自動的。</p>
+    <div class="feats">
+      <div class="feat"><div class="ico">🎧</div><b data-t="f1_t">聽得清楚，不怕吵</b><p data-t="f1_p">降噪（RNNoise）和語音偵測（Silero VAD）都在你的裝置上完成：背景音樂、冷氣聲、鍵盤聲不會被送去辨識，也不會變成奇怪的文字。</p></div>
+      <div class="feat"><div class="ico">🎚️</div><b data-t="f2_t">麥克風太小聲？它會自己調</b><p data-t="f2_p">開始記錄時會先檢查麥克風有沒有自動增益；沒有的話就用軟體幫你放大，不用翻設定。</p></div>
+      <div class="feat"><div class="ico">🌏</div><b data-t="f3_t">說什麼語言都行</b><p data-t="f3_p">中文、英文、日文、中英夾雜，都照原文記下來，不會擅自翻譯；簡體字自動變繁體。</p></div>
+      <div class="feat"><div class="ico">🗣️</div><b data-t="f4_t">手機版認得出是誰在說話</b><p data-t="f4_p">實體會議把手機放桌上，它用聲紋分辨說話者 A、B、C，點一下就能改成名字。全部在手機上完成，免費。</p></div>
+      <div class="feat"><div class="ico">🈶</div><b data-t="f5_t">三種語言的介面</b><p data-t="f5_p">手機版跟著手機的語言自動顯示繁體中文、English 或日本語，想換也可以手動切。</p></div>
+      <div class="feat"><div class="ico">🎁</div><b data-t="f6_t">更新自己來</b><p data-t="f6_p">手機版有新版本時會出現一張小卡片「有新版本 → 更新」，按一下就好；沒新版就什麼都不會出現。電腦版則會在 ✦ 裡提醒你。</p></div>
     </div>
 
     <!-- ── 商店安裝（填了 STORE_URL 才顯示）── -->
@@ -260,7 +299,7 @@
         <li class="step">
           <div class="txt">
             <h3 data-t="s1_t">把安裝檔抱回家</h3>
-            <p data-t="s1_p">按下面的按鈕，下載 <code>meeting-assistant.zip</code>。</p>
+            <p data-t="s1_p">按下面的按鈕，下載 <code>meeting-assistant.zip</code>（大約 6 MB）。</p>
             <p><a class="btn ghost dl" id="dl" href="#"><span data-t="dl">⬇ 下載 meeting-assistant.zip</span><span class="ver" hidden></span></a></p>
           </div>
           <div class="fig" aria-hidden="true">
@@ -291,7 +330,7 @@
         <li class="step" data-os="linux">
           <div class="txt">
             <h3 data-t="l2_t">解壓縮到此處</h3>
-            <p data-t="l2_p">在檔案管理員對 zip <b>按右鍵</b> →「<b>解壓縮到此處</b>」。喜歡終端機的話也可以：<code class="wrap">unzip meeting-assistant.zip -d ~/會議摘要助理</code></p>
+            <p data-t="l2_p">在檔案管理員對 zip <b>按右鍵</b> →「<b>解壓縮到此處</b>」。喜歡終端機的話也可以：<code class="wrap">unzip meeting-assistant.zip -d ~/meeting-assistant</code></p>
             <p data-t="s2_w">⚠️ 解壓縮出來的資料夾就是它的家，之後<b>別刪掉也別搬家</b>，不然它會迷路。</p>
           </div>
           <div class="fig" aria-hidden="true">
@@ -366,14 +405,14 @@
         <li class="step">
           <div class="txt">
             <h3 data-t="s6_t">把 ✦ 釘在顯眼的地方</h3>
-            <p data-t="s6_p">點右上角的 <b>🧩 拼圖</b> → 找到「會議摘要助理」→ 按 <b>📌</b>。從此 ✦ 就住在你的工具列上了。</p>
+            <p data-t="s6_p">點右上角的 <b>🧩 拼圖</b> → 找到「小伐速記」→ 按 <b>📌</b>。從此 ✦ 就住在你的工具列上了。</p>
           </div>
           <div class="fig" aria-hidden="true">
             <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><div class="omni">meet.google.com</div><div class="tb"><span class="ic hl">🧩</span></div></div>
             <div class="fig-body" style="display:flex;justify-content:flex-end">
               <div style="width:220px;border:1px solid var(--border);border-radius:10px;padding:8px;box-shadow:0 8px 20px rgba(0,0,0,.12)">
                 <div class="muted" style="margin-bottom:6px" data-t="x_title">擴充功能</div>
-                <div class="between" style="padding:4px 2px"><div class="row"><span class="logo sm">✦</span>會議摘要助理</div><span class="hl" style="padding:0 3px">📌</span></div>
+                <div class="between" style="padding:4px 2px"><div class="row"><img class="logo sm" src="icons/icon48.png" alt="" /><span data-t="pop_name">小伐速記</span></div><span class="hl" style="padding:0 3px">📌</span></div>
                 <div class="between muted" style="padding:4px 2px"><div class="row"><span style="width:20px;text-align:center">🧭</span><span data-t="f_other">其他擴充功能</span></div><span>📌</span></div>
               </div>
             </div>
@@ -386,7 +425,7 @@
             <p data-t="s7_p">會自動跳出一個歡迎頁：<b>允許麥克風</b> → <b>貼上 AI 金鑰</b>（頁面上有免費申請教學）。每完成一步就會打一個勾 ✅</p>
           </div>
           <div class="fig" aria-hidden="true">
-            <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><div class="omni" data-t="w_title">歡迎使用會議摘要助理</div></div>
+            <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><div class="omni" data-t="w_title">歡迎使用小伐速記</div></div>
             <div class="fig-body" style="display:flex;flex-direction:column;gap:6px">
               <div class="between" style="border:1px solid var(--ok);border-radius:8px;padding:7px 10px"><span data-t="w1">① 允許使用麥克風</span><b style="color:var(--ok)">✓</b></div>
               <div class="between" style="border:1px solid var(--ok);border-radius:8px;padding:7px 10px"><span data-t="w2">② 連接 AI 服務</span><b style="color:var(--ok)">✓</b></div>
@@ -404,7 +443,7 @@
           </div>
           <div class="fig" aria-hidden="true">
             <div class="fig-body" style="display:flex;flex-direction:column;gap:10px">
-              <div class="dlg"><span style="font-size:22px">🎙️</span><b data-t="md_t">「Google Chrome」想要取用麥克風。</b><div class="muted" data-t="md_d">會議摘要助理需要聽到你的聲音才能記錄。</div><div class="btns"><span data-t="md_no">不允許</span><span class="p hl" data-t="md_ok">允許</span></div></div>
+              <div class="dlg"><span style="font-size:22px">🎙️</span><b data-t="md_t">「Google Chrome」想要取用麥克風。</b><div class="muted" data-t="md_d">小伐速記需要聽到你的聲音才能記錄。</div><div class="btns"><span data-t="md_no">不允許</span><span class="p hl" data-t="md_ok">允許</span></div></div>
               <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
                 <div style="background:var(--surface-2);padding:5px 10px" class="muted" data-t="ms_path">⚙️ 系統設定 › 隱私權與安全性 › 麥克風</div>
                 <div class="between" style="padding:7px 10px"><div class="row"><span class="ic" style="width:20px;text-align:center">🌐</span>Google Chrome</div><span class="toggle on hl"></span></div>
@@ -417,25 +456,36 @@
 
       <!-- 手機 -->
       <div data-os="mobile">
-        <p class="intro" data-t="pi_mobile">手機的 Chrome 裝不了擴充功能，所以手機改用<b>網頁版 App</b>，不用安裝任何東西。把手機放在會議桌上錄實體會議，或放在電腦旁邊當錄音筆都行；它會自動分辨不同的說話者。</p>
+        <p class="intro" data-t="pi_mobile">手機的 Chrome 裝不了擴充功能，所以手機改用<b>網頁版 App「小伐速記 for iPhone／Android」</b>，不用安裝任何東西。把手機放在會議桌上錄實體會議：逐字稿即時出現、自動分辨是誰在說話，按停止就自動寫好摘要。記錄（最多 30 場）和金鑰都只留在你的手機裡。</p>
         <ol class="steps">
           <li class="step">
             <div class="txt">
               <h3 data-t="p1_t">用手機打開這個網址</h3>
-              <p data-t="p1_p">iPhone 用 <b>Safari</b>，Android 用 <b>Chrome</b>。按「複製」再貼到網址列也可以。</p>
+              <p data-t="p1_p">iPhone 用 <b>Safari</b>，Android 用 <b>Chrome</b>。按「複製」再貼到網址列也可以。介面會跟著手機語言自動顯示繁體中文、English 或日本語。</p>
               <div class="copy"><a href="https://carminowu-gen1.github.io/picomeeting-assistant/app/" style="word-break:break-all">carminowu-gen1.github.io/picomeeting-assistant/app/</a> <button class="btn ghost" data-copy="https://carminowu-gen1.github.io/picomeeting-assistant/app/" data-t="copy">複製</button></div>
             </div>
             <div class="fig" aria-hidden="true">
               <div class="win-bar"><div class="omni hl"><b>…github.io/picomeeting-assistant/app/</b></div></div>
               <div class="fig-body" style="display:grid;place-items:center;padding:18px 12px">
-                <div class="pop" style="box-shadow:none"><div class="hd"><span class="logo sm">✦</span><span data-t="pop_name">會議摘要助理</span></div><div class="big" data-t="pop_start">● 開始記錄</div><div class="meter"><span>A</span><div class="bar"><i style="width:70%"></i></div></div><div class="meter"><span>B</span><div class="bar"><i style="width:40%"></i></div></div></div>
+                <div class="pop" style="box-shadow:none"><div class="hd"><img class="logo sm" src="icons/icon48.png" alt="" /><span data-t="pop_name">小伐速記</span><span class="muted" style="margin-left:auto;font-weight:500"><span class="light"></span>🎤 <span class="light"></span>✦</span></div><div class="big" data-t="pop_start">● 開始記錄</div><div class="meter"><span>A</span><div class="bar"><i style="width:70%"></i></div></div><div class="meter"><span>B</span><div class="bar"><i style="width:40%"></i></div></div></div>
               </div>
             </div>
           </li>
           <li class="step">
             <div class="txt">
-              <h3 data-t="p2_t">允許麥克風</h3>
-              <p data-t="p2_p">第一次按「開始記錄」時手機會問要不要用麥克風，按「<b>允許</b>」。</p>
+              <h3 data-t="p2_t">先加到主畫面，之後像 App 一樣打開</h3>
+              <p data-t="p2_p"><b>iPhone</b>：按 Safari 下方的「分享」→「<b>加入主畫面</b>」，然後<b>從主畫面的圖示打開</b>，再做下面的設定。Safari 和主畫面 App 的資料是分開存的，先加入主畫面，金鑰就只要貼一次。<br><b>Android</b>：頁面上會出現「加到主畫面」卡片，按一下就裝好；或按 Chrome 右上角的 <b>⋮</b> →「<b>加到主畫面</b>」。</p>
+            </div>
+            <div class="fig" aria-hidden="true">
+              <div class="fig-body" style="display:grid;place-items:center;padding:14px 12px">
+                <div class="sheet" style="width:min(240px,100%)"><div><span data-t="sh_copy">拷貝</span><span>📋</span></div><div><span data-t="sh_book">加入書籤</span><span>📖</span></div><div class="hl"><span data-t="sh_home">加入主畫面</span><span>➕</span></div><div><span data-t="sh_print">列印</span><span>🖨️</span></div></div>
+              </div>
+            </div>
+          </li>
+          <li class="step">
+            <div class="txt">
+              <h3 data-t="p3_t">允許麥克風</h3>
+              <p data-t="p3_p">第一次按「開始記錄」時手機會問要不要用麥克風，按「<b>允許</b>」。</p>
             </div>
             <div class="fig" aria-hidden="true">
               <div class="fig-body" style="display:grid;place-items:center;padding:18px 12px">
@@ -445,25 +495,29 @@
           </li>
           <li class="step">
             <div class="txt">
-              <h3 data-t="p3_t">貼上 Groq 金鑰</h3>
-              <p data-t="p3_p">在設定裡貼上你的 <b>Groq API 金鑰</b>（跟電腦版用同一把就好，頁面上有免費申請教學）。</p>
+              <h3 data-t="p4_t">貼上 Groq 金鑰</h3>
+              <p data-t="p4_p">在設定裡按金鑰欄位旁的「<b>貼上</b>」，把你的 <b>Groq API 金鑰</b> 貼進去（跟電腦版用同一把就好，頁面上有免費申請教學）。金鑰只存在你的手機裡，不會上傳到別的地方。</p>
             </div>
             <div class="fig" aria-hidden="true">
               <div class="fig-body" style="display:flex;flex-direction:column;gap:8px">
                 <div class="muted" data-t="pk_l">Groq API 金鑰</div>
-                <div class="hl" style="border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">gsk_••••••••••••••••••••</div>
+                <div class="row" style="flex-wrap:nowrap"><div style="flex:1;min-width:0;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">gsk_••••••••••••••••</div><span class="mbtn hl" data-t="pk_paste">📋 貼上</span></div>
                 <div style="text-align:center"><span class="mbtn" style="background:var(--accent);color:#fff;border-color:var(--accent)" data-t="pk_save">儲存</span></div>
               </div>
             </div>
           </li>
           <li class="step">
             <div class="txt">
-              <h3 data-t="p4_t">加到主畫面，之後像 App 一樣打開</h3>
-              <p data-t="p4_p"><b>iPhone</b>：按 Safari 下方的「分享」按鈕 → 「<b>加入主畫面</b>」。<br><b>Android</b>：按 Chrome 右上角的 <b>⋮</b> → 「<b>加到主畫面</b>」。</p>
+              <h3 data-t="p5_t">開始記錄，看它認人</h3>
+              <p data-t="p5_p">按「開始記錄」，逐字稿會即時出現，說話的人會標成「說話者 A、B、C」。<b>點一下標籤</b>就能改成名字；打一個已經有的名字，兩個人就會合併成同一位。實線標籤代表它很確定，虛線加「?」代表不太確定。按「停止」後會自動整理摘要，可以一鍵複製全文或存成 Word。</p>
             </div>
             <div class="fig" aria-hidden="true">
               <div class="fig-body" style="display:grid;place-items:center;padding:14px 12px">
-                <div class="sheet" style="width:min(240px,100%)"><div><span data-t="sh_copy">拷貝</span><span>📋</span></div><div><span data-t="sh_book">加入書籤</span><span>📖</span></div><div class="hl"><span data-t="sh_home">加入主畫面</span><span>➕</span></div><div><span data-t="sh_print">列印</span><span>🖨️</span></div></div>
+                <div class="pop" style="box-shadow:none"><div class="big stop" data-t="pop_stop">■ 停止</div>
+                  <div class="line"><span class="chip hl" data-t="spk_a">說話者 A</span><span data-t="spk_a_t">那我們下週五前把時程定下來。</span></div>
+                  <div class="line"><span class="chip">Amy</span><span data-t="spk_b_t">好，預算我來更新。</span></div>
+                  <div class="line"><span class="chip unsure" data-t="spk_c">說話者 C ?</span><span data-t="spk_c_t">我這邊沒問題。</span></div>
+                </div>
               </div>
             </div>
           </li>
@@ -473,12 +527,12 @@
       <!-- ── 更新 ── -->
       <h2 id="update" data-t="up_h">新版本來敲門了 🎁</h2>
       <p class="lead" data-os="win mac linux" data-t="up_lead">打開 ✦ 看到這個提醒時，三步就能升級。會議記錄和設定都會乖乖留著。</p>
-      <p class="lead" data-os="mobile" data-t="up_mobile">手機版<b>不用更新</b>：每次重新打開網址（或主畫面上的圖示），拿到的就是最新版 🎉</p>
+      <p class="lead" data-os="mobile" data-t="up_mobile">手機版<b>會自己更新</b>：新版本準備好時，畫面上會出現一張小卡片「有新版本 → 更新」，按一下就好；平常什麼都不會出現 🎉</p>
       <ol class="steps" data-os="win mac linux">
         <li class="step">
           <div class="txt"><h3 data-t="u1_t">看到「有新版本」提醒</h3><p data-t="u1_p">點一下提醒，就會帶你回到這一頁。</p></div>
           <div class="fig" aria-hidden="true" style="display:grid;place-items:center;padding:16px;background:var(--surface-2)">
-            <div class="pop"><div class="hd"><span class="logo sm">✦</span><span data-t="pop_name">會議摘要助理</span></div><div class="upd hl" data-t="u_banner">🎁 有新版本 1.0.1，點這裡看怎麼更新</div><div class="big" data-t="pop_start">● 開始記錄</div></div>
+            <div class="pop"><div class="hd"><img class="logo sm" src="icons/icon48.png" alt="" /><span data-t="pop_name">小伐速記</span></div><div class="upd hl" data-t="u_banner">🎁 有新版本 1.2.0，點這裡看怎麼更新</div><div class="big" data-t="pop_start">● 開始記錄</div></div>
           </div>
         </li>
         <li class="step" data-os="mac linux">
@@ -503,11 +557,11 @@
           </div>
         </li>
         <li class="step">
-          <div class="txt"><h3 data-t="u3_t">按 ↻ 重新整理</h3><p data-t="u3_p">到 <code>chrome://extensions</code>，在「會議摘要助理」那一格按 <b>↻</b>，就升級完成啦 🎉</p></div>
+          <div class="txt"><h3 data-t="u3_t">按 ↻ 重新整理</h3><p data-t="u3_p">到 <code>chrome://extensions</code>，在「小伐速記」那一格按 <b>↻</b>，就升級完成啦 🎉</p></div>
           <div class="fig" aria-hidden="true">
             <div class="ext-card">
-              <span class="logo" style="width:36px;height:36px;border-radius:10px;font-size:17px;flex:none">✦</span>
-              <div class="meta"><b>會議摘要助理</b> <span class="muted">1.0.1</span><div class="muted" data-t="e_desc">開會時自動記錄逐字稿，會後用 AI 整理摘要…</div>
+              <img class="logo" src="icons/icon48.png" alt="" style="width:36px;height:36px;border-radius:10px" />
+              <div class="meta"><b data-t="pop_name">小伐速記</b> <span class="muted">1.2.0</span><div class="muted" data-t="e_desc">開會時自動記錄逐字稿，會後用 AI 整理摘要…</div>
                 <div class="foot"><span class="mbtn" data-t="e_det">詳細資料</span><span class="mbtn" data-t="e_rm">移除</span><span class="end"><span class="hl" style="font-size:16px;padding:0 4px">↻</span><span class="toggle on"></span></span></div>
               </div>
             </div>
@@ -518,16 +572,19 @@
 
     <!-- ── 常見問題 ── -->
     <h2 data-t="faq_h">常見問題</h2>
-    <details><summary data-t="q1">Teams、Zoom 也能用嗎？</summary><p data-t="a1">可以！不過要用<b>網頁版</b>，也就是在 Chrome 裡開會。電腦上安裝的 Teams／Zoom 應用程式，它聽不到。</p></details>
+    <details><summary data-t="q1">Teams、Zoom 也能用嗎？</summary><p data-t="a1">可以！Google Meet、Teams、Zoom、Jitsi 都行，不過要用<b>網頁版</b>，也就是在 Chrome 裡開會。電腦上安裝的 Teams／Zoom 應用程式，它聽不到。</p></details>
+    <details><summary data-t="q9">背景音樂、冷氣聲會不會被記進去？</summary><p data-t="a9">不會。降噪（RNNoise）和語音偵測（Silero VAD）都在你的電腦或手機上先跑一遍，只有真的有人在說話的片段才會送去辨識，所以不會出現「音樂被翻成歌詞」這種事。</p></details>
     <details><summary data-t="q6">載入時出現「Cannot load extension… desktop.ini」？</summary><p data-t="a6">這是選錯資料夾，或 Windows 在資料夾裡放了隱藏檔 <code>desktop.ini</code>。在「文件」裡<b>新建一個空資料夾</b>，把 zip 解壓縮到裡面，載入時選<b>打開就看得到 <code>manifest.json</code></b> 的那一層（不要選「下載」或「桌面」）。還是不行的話：檔案總管上方「檢視 → 顯示 → 隱藏的項目」，把那個資料夾裡的 <code>desktop.ini</code> 刪掉再載入一次。</p></details>
     <details><summary data-t="q7">電腦比較慢（例如 Surface Go）怎麼辦？</summary><p data-t="a7">最吃效能的其實是會議本身。試試這幾招：① 在 Meet／Teams 裡<b>關掉背景模糊、虛擬背景和視訊特效</b>（最有感）；② 不需要看畫面時<b>關掉自己的視訊</b>；③ 會議中<b>不用一直開著「查看全文」</b>，會後再看就好；④ 開會時<b>關掉其他不用的分頁</b>；⑤ 筆電插著電源，Windows 電源模式選「最佳效能」。</p></details>
     <details><summary data-t="q8">Mac 錄不到我的聲音？</summary><p data-t="a8">多半是 macOS 還沒把麥克風交給 Chrome。打開「<b>系統設定 → 隱私權與安全性 → 麥克風</b>」，把 <b>Google Chrome</b> 的開關打開，再回 Chrome 重新按「開始記錄」。第一次錄音時如果跳出「Chrome 想要使用麥克風」，記得按「允許」。</p></details>
     <details><summary data-t="q2">逐字稿怎麼一直沒出現？</summary><p data-t="a2">先看 ✦ 裡的兩條綠色音量條：「我」不跳 → 到設定頁按「測試麥克風」；「對方」不跳 → 會議本身沒有聲音。另外，說完話大約 3～15 秒文字才會出現，給它一點時間 ⏳</p></details>
-    <details><summary data-t="q3">英文、中英夾雜也行嗎？</summary><p data-t="a3">行！它會照原文記錄，不會擅自翻譯；簡體中文會自動轉成繁體。</p></details>
-    <details><summary data-t="q4">會議內容安全嗎？</summary><p data-t="a4">逐字稿和摘要只存在你自己的電腦裡。辨識時，聲音會加密傳給 AI 處理。詳見<a href="privacy.html">隱私權政策</a>。</p></details>
+    <details><summary data-t="q10">手機版上的 🎤 和 ✦ 小燈是什麼？</summary><p data-t="a10">🎤 是麥克風、✦ 是 Groq 連線的狀態燈。綠燈代表一切正常；紅燈閃爍代表有問題，點一下它就會用白話告訴你怎麼修（例如麥克風沒允許、金鑰貼錯）。</p></details>
+    <details><summary data-t="q11">手機版怎麼知道是誰在說話？會認錯嗎？</summary><p data-t="a11">它靠聲紋（每個人聲音的特徵）分辨，全部在手機上完成、不花錢也不上傳。一開始會標成「說話者 A、B、C」，點一下就能改名；打一個已經有的名字，兩個標籤就會合併。它不太確定時會用虛線標籤加「?」提醒你，確定時是實線。聲音很像的人偶爾會認錯，改一下名字就好。</p></details>
+    <details><summary data-t="q3">英文、中英夾雜也行嗎？</summary><p data-t="a3">行！中文、英文、日文、中英夾雜，它都會照原文記錄，不會擅自翻譯；簡體中文會自動轉成繁體。</p></details>
+    <details><summary data-t="q4">會議內容安全嗎？</summary><p data-t="a4">逐字稿和摘要只存在你自己的電腦或手機裡。降噪和語音偵測都在本機完成；辨識時，只有有人在說話的聲音片段會加密傳給 AI 處理。詳見<a href="privacy.html">隱私權政策</a>。</p></details>
     <details><summary data-t="q5">要先告訴其他人嗎？</summary><p data-t="a5">要喔！開始記錄前，先跟大家說一聲「這場會議會記錄」。這是基本禮貌，很多地方也是法律要求。</p></details>
 
-    <footer><span data-t="foot">會議摘要助理（PicoMeeting Assistant）</span>・<a href="privacy.html" data-t="privacy">隱私權政策</a></footer>
+    <footer><span data-t="foot">小伐速記 PicoNotes・會議摘要助理</span>・<a href="privacy.html" data-t="privacy">隱私權政策</a></footer>
   </main>
 
   <script>
@@ -535,21 +592,22 @@
     const STORE_URL = "";
     const ZIP_URL = "https://github.com/carminowu-gen1/picomeeting-assistant/releases/latest/download/meeting-assistant.zip";
 
-    // 中文寫在 HTML 裡（沒有 JavaScript 也看得到），英文在這裡
+    // 中文寫在 HTML 裡（沒有 JavaScript 也看得到），英文和日文在這裡
     const EN = {
-      doc_title: "PicoMeeting Assistant · Install & Use",
-      doc_desc: "Auto-transcribe your online meetings and get an AI summary, key points and action items — one click to Word.",
-      brand: "PicoMeeting Assistant",
+      doc_title: "PicoNotes · Meeting notes assistant",
+      doc_desc: "PicoNotes auto-transcribes your meetings and gives you an AI summary, key points and action items — one click to Word. The phone version even tells speakers apart.",
+      brand: "PicoNotes", brand_en: "小伐速記", tagline: "Meeting notes assistant",
       why_h: "Why I made this 💛",
-      why_p: "I built this little tool for my wife. Her job means lots of online meetings, and trying to listen and take notes at the same time meant something always slipped through. So now she presses one button: it writes down what everyone says, and when the meeting ends it tidies everything into a summary and a to-do list. It works with web-based meetings like Google Meet, Teams and Zoom. No complicated settings, no features you'll never use — if you can click a button, you can use it.",
+      why_p: "I built this little tool for my wife. Her job means lots of online meetings, and trying to listen and take notes at the same time meant something always slipped through. So now she presses one button: it writes down what everyone says, and when the meeting ends it tidies everything into a summary and a to-do list. It works with web-based meetings like Google Meet, Teams and Zoom; for in-person meetings, put the phone on the table and it tells the speakers apart by itself. No complicated settings, no features you'll never use — if you can click a button, you can use it.",
       h1: "You focus on the meeting.<br>We'll take the notes.",
-      hero_p: "It quietly listens in Google Meet, Teams and Zoom, and writes down who said what. When the meeting ends, your summary, key points and action items are lined up and ready — one click turns them into a Word doc.",
+      hero_p: "It quietly listens in Google Meet, Teams, Zoom and Jitsi, and writes down who said what; background music and noise are filtered out on your own computer first. When the meeting ends, your summary, key points and action items are lined up and ready — one click turns them into a Word doc. For in-person meetings, the phone version even knows who's speaking.",
       cta: "⬇ Download free",
       cta_hint: "Follow the pictures — you'll be done before your coffee cools ☕",
       cta_store: "＋ Add to Chrome",
       cta_store_hint: "Free · installs from the Chrome Web Store and updates itself",
-      pop_name: "PicoMeeting Assistant",
+      pop_name: "PicoNotes",
       pop_start: "● Start recording",
+      pop_stop: "■ Stop",
       pop_sum_t: "Product Weekly · 11/2",
       pop_sum: "Q4 timeline to be locked by next Friday; Amy will update the budget…",
       pop_full: "📄 Full text",
@@ -558,13 +616,27 @@
       use_lead: "Once it's installed, this is all you do in every meeting:",
       m1: "Daniel", m3: "Me", m4: "Lily",
       c1_t: "Walk into the meeting",
-      c1_p: "Open Google Meet, Teams or Zoom in Chrome — business as usual.",
+      c1_p: "Open Google Meet, Teams, Zoom or Jitsi in Chrome — business as usual.",
       me: "Me", others: "Others",
       c2_t: "Hit the big blue button",
       c2_p: "Click ✦ at the top right and press “Start recording”. When the green bars dance along with your voice, it's listening 💃",
       doc_t: "Product Weekly", doc_s: "Summary", doc_a: "Action items",
       c3_t: "Meeting over? Your summary's waiting",
       c3_p: "Just leave the meeting — it wraps up on its own and writes the summary. Grab it with “⬇ Word”.",
+      feat_h: "The thoughtful little things ✨",
+      feat_lead: "Nothing to set up, nothing to learn — they all just happen.",
+      f1_t: "Hears you clearly, even in a noisy room",
+      f1_p: "Noise reduction (RNNoise) and voice detection (Silero VAD) run on your own device: background music, air-con hum and keyboard clatter never get sent for transcription — and never turn into strange text.",
+      f2_t: "Microphone too quiet? It adjusts itself",
+      f2_p: "When you start recording it checks whether your mic has automatic gain; if not, it boosts the volume in software — no digging through settings.",
+      f3_t: "Any language is fine",
+      f3_p: "Chinese, English, Japanese, or a mix — it writes down exactly what was said with no surprise translations. Simplified Chinese becomes Traditional automatically.",
+      f4_t: "The phone version knows who's talking",
+      f4_p: "Put the phone on the table in a real-life meeting and it tells Speaker A, B and C apart by their voiceprint — tap a label to give it a name. All on the phone, and free.",
+      f5_t: "Three interface languages",
+      f5_p: "The phone version follows your phone's language — Traditional Chinese, English or Japanese — and you can switch manually any time.",
+      f6_t: "Updates take care of themselves",
+      f6_p: "When a new version of the phone app is ready, a small “New version → Update” card appears; one tap and you're done. No new version, nothing shows. On the computer, ✦ lets you know.",
       store_h: "Install",
       st1_t: "Click “Add to Chrome”",
       st1_p: "On the store page, click “Add to Chrome”, then “Add extension”.",
@@ -585,26 +657,29 @@
       m8_t: "Let macOS hand the microphone to Chrome",
       m8_p: "The first time you press “Start recording”, macOS asks “<b>Chrome would like to access the microphone</b>” — click “<b>Allow</b>”.",
       m8_w: "Didn't see that dialog, or clicked “Don't Allow” by mistake? Open <b>System Settings → Privacy &amp; Security → Microphone</b>, switch on <b>Google Chrome</b>, then go back to Chrome and press “Start recording” again.",
-      md_t: "“Google Chrome” would like to access the microphone.", md_d: "PicoMeeting Assistant needs to hear you to take notes.", md_no: "Don't Allow", md_ok: "Allow",
+      md_t: "“Google Chrome” would like to access the microphone.", md_d: "PicoNotes needs to hear you to take notes.", md_no: "Don't Allow", md_ok: "Allow",
       ms_path: "⚙️ System Settings › Privacy & Security › Microphone",
-      pi_mobile: "Chrome on a phone can't install extensions, so on mobile you use the <b>web app</b> instead — nothing to install. Put the phone on the table to record an in-person meeting, or next to your computer as a voice recorder; it tells the different speakers apart automatically.",
+      pi_mobile: "Chrome on a phone can't install extensions, so on mobile you use the <b>web app — “PicoNotes for iPhone / Android”</b> — nothing to install. Put the phone on the table to record an in-person meeting: the transcript appears live, speakers are told apart automatically, and a summary is written the moment you stop. Your notes (up to 30 meetings) and your key stay on the phone only.",
       p1_t: "Open this address on your phone",
-      p1_p: "Use <b>Safari</b> on iPhone or <b>Chrome</b> on Android. You can also tap “Copy” and paste it into the address bar.",
-      p2_t: "Allow the microphone",
-      p2_p: "The first time you press “Start recording”, your phone asks to use the microphone — tap “<b>Allow</b>”.",
-      pd_t: "“github.io” would like to use the microphone",
-      p3_t: "Paste your Groq key",
-      p3_p: "In Settings, paste your <b>Groq API key</b> (the same one you use on the computer is fine — there's a free how-to on the page).",
-      pk_l: "Groq API key", pk_save: "Save",
-      p4_t: "Add to Home Screen and open it like an app",
-      p4_p: "<b>iPhone</b>: tap Safari's “Share” button at the bottom → “<b>Add to Home Screen</b>”.<br><b>Android</b>: tap <b>⋮</b> at the top right of Chrome → “<b>Add to Home screen</b>”.",
+      p1_p: "Use <b>Safari</b> on iPhone or <b>Chrome</b> on Android. You can also tap “Copy” and paste it into the address bar. The app follows your phone's language — Traditional Chinese, English or Japanese.",
+      p2_t: "Add it to your Home Screen first, then open it like an app",
+      p2_p: "<b>iPhone</b>: tap Safari's “Share” button at the bottom → “<b>Add to Home Screen</b>”, then <b>open it from the Home Screen icon</b> before doing the steps below. Safari and Home-Screen apps keep their data separately, so adding it first means you only paste your key once.<br><b>Android</b>: an “Add to Home screen” card appears on the page — one tap installs it. Or tap <b>⋮</b> at the top right of Chrome → “<b>Add to Home screen</b>”.",
       sh_copy: "Copy", sh_book: "Add Bookmark", sh_home: "Add to Home Screen", sh_print: "Print",
-      up_mobile: "On mobile there's <b>nothing to update</b>: every time you reopen the address (or the icon on your Home Screen) you get the latest version 🎉",
+      p3_t: "Allow the microphone",
+      p3_p: "The first time you press “Start recording”, your phone asks to use the microphone — tap “<b>Allow</b>”.",
+      pd_t: "“github.io” would like to use the microphone",
+      p4_t: "Paste your Groq key",
+      p4_p: "In Settings, tap “<b>Paste</b>” next to the key field to drop in your <b>Groq API key</b> (the same one you use on the computer is fine — there's a free how-to on the page). The key is stored only on your phone and never uploaded anywhere else.",
+      pk_l: "Groq API key", pk_paste: "📋 Paste", pk_save: "Save",
+      p5_t: "Start recording and watch it tell people apart",
+      p5_p: "Press “Start recording”: the transcript appears live and each voice is labelled “Speaker A, B, C”. <b>Tap a label</b> to give it a name; type a name that already exists and the two are merged into one person. A solid label means it's sure; a dashed label with “?” means it isn't. Press “Stop” and the summary is written automatically — copy it all with one tap or save it as Word.",
+      spk_a: "Speaker A", spk_a_t: "So let's lock the timeline by next Friday.", spk_b_t: "Sure, I'll update the budget.", spk_c: "Speaker C ?", spk_c_t: "Fine by me.",
+      up_mobile: "The phone app <b>updates itself</b>: when a new version is ready, a small “New version → Update” card appears — one tap and you're done. The rest of the time, nothing shows 🎉",
       mu2_t: "Download it and swap the whole folder",
       mu2_p: "Click the button below to download the latest version. Unpack it, then drag the <b>whole <code>meeting-assistant</code> folder</b> over the old one; when asked, choose “<b>Replace</b>”.",
       mr_t: "An item named “meeting-assistant” already exists in Documents.", mr_d: "Do you want to replace it with the one you're moving?", mr_stop: "Stop", mr_rep: "Replace",
       s1_t: "Bring the installer home",
-      s1_p: "Click the button below to download <code>meeting-assistant.zip</code>.",
+      s1_p: "Click the button below to download <code>meeting-assistant.zip</code> (about 6 MB).",
       dl: "⬇ Download meeting-assistant.zip",
       f_done: "Download complete", f_openf: "Show in folder",
       s2_t: "Unpack it",
@@ -623,27 +698,29 @@
       s5_p: "Click “<b>Load unpacked</b>” and choose the folder you just extracted. Inside it you should <b>see <code>manifest.json</code></b> — then click “<b>Select Folder</b>”.",
       f_path: "📁 Documents › meeting-assistant", f_select: "Select Folder",
       s6_t: "Pin ✦ where you can see it",
-      s6_p: "Click the <b>🧩 puzzle piece</b> at the top right → find “會議摘要助理” (that's us) → click <b>📌</b>. Now ✦ lives on your toolbar.",
+      s6_p: "Click the <b>🧩 puzzle piece</b> at the top right → find “PicoNotes” → click <b>📌</b>. Now ✦ lives on your toolbar.",
       f_other: "Another extension",
       s7_t: "Last stop: the welcome page",
       s7_p: "A welcome page opens by itself: <b>allow the microphone</b> → <b>paste your AI key</b> (there's a free how-to right on the page). Each step gets a ✅. <i>The welcome page is in Chinese for now — just follow the green checkmarks.</i>",
-      w_title: "Welcome", w1: "① Allow microphone", w2: "② Connect AI service", w3: "③ Pin the icon", w_go: "Got it — let's go",
+      w_title: "Welcome to PicoNotes", w1: "① Allow microphone", w2: "② Connect AI service", w3: "③ Pin the icon", w_go: "Got it — let's go",
       note: "💡 Chrome may now and then ask you to “Disable developer mode extensions”. Click <b>Keep</b> or just close it — please don't disable.",
       up_h: "A new version is knocking 🎁",
       up_lead: "When ✦ shows this notice, upgrading takes three steps. Your meetings and settings stay right where they are.",
       u1_t: "Spot the “new version” notice",
       u1_p: "Click it and it brings you back to this page.",
-      u_banner: "🎁 Version 1.0.1 is here — click to see how",
+      u_banner: "🎁 Version 1.2.0 is here — click to see how",
       u2_t: "Download it and overwrite the old one",
       u2_p: "Click the button below to download the latest version. Extract into the <b>same folder</b>, and when asked, choose “<b>Replace the files in the destination</b>”.",
       dl2: "⬇ Download the latest meeting-assistant.zip",
       r_t: "Replace or Skip Files", r_d: "The destination already has 34 files with the same names", r_rep: "✓ Replace the files in the destination", r_skip: "↷ Skip these files",
       u3_t: "Hit ↻ to reload",
-      u3_p: "Go to <code>chrome://extensions</code> and click <b>↻</b> on the “會議摘要助理” card. Upgrade complete 🎉",
+      u3_p: "Go to <code>chrome://extensions</code> and click <b>↻</b> on the “PicoNotes” card. Upgrade complete 🎉",
       e_desc: "Auto-transcribes meetings and summarizes them with AI…", e_det: "Details", e_rm: "Remove",
       faq_h: "FAQ",
       q1: "Does it work with Teams and Zoom?",
-      a1: "Yes! Just use the <b>web version</b> — join the meeting inside Chrome. It can't hear the desktop Teams/Zoom apps.",
+      a1: "Yes! Google Meet, Teams, Zoom and Jitsi all work — just use the <b>web version</b> and join the meeting inside Chrome. It can't hear the desktop Teams/Zoom apps.",
+      q9: "Will background music or the air-con end up in my notes?",
+      a9: "No. Noise reduction (RNNoise) and voice detection (Silero VAD) run first, on your own computer or phone, so only the parts where someone is actually speaking are sent for transcription — no “music turned into lyrics” surprises.",
       q6: "“Cannot load extension… desktop.ini” when loading?",
       a6: "You picked the wrong folder, or Windows dropped a hidden <code>desktop.ini</code> file into it. Create a <b>new empty folder</b> in Documents, extract the zip into it, and when loading choose the folder where you <b>see <code>manifest.json</code> right away</b> (not Downloads or Desktop). Still stuck? In File Explorer choose “View → Show → Hidden items”, delete <code>desktop.ini</code> from that folder, and load again.",
       q7: "My computer is on the slow side (e.g. Surface Go) — any tips?",
@@ -652,33 +729,194 @@
       a8: "Most likely macOS hasn't handed the microphone to Chrome yet. Open <b>System Settings → Privacy &amp; Security → Microphone</b>, switch on <b>Google Chrome</b>, then go back to Chrome and press “Start recording” again. If “Chrome would like to access the microphone” pops up the first time you record, click “Allow”.",
       q2: "Why isn't any text showing up?",
       a2: "Check the two green bars in ✦: if “Me” isn't moving, open Settings and click “Test microphone”; if “Others” isn't moving, the meeting itself has no sound. Also, text appears about 3–15 seconds after someone speaks — give it a moment ⏳",
+      q10: "What are the little 🎤 and ✦ lights in the phone app?",
+      a10: "🎤 is the microphone and ✦ is the Groq connection. Green means all good; a blinking red light means something's wrong — tap it and it tells you in plain words how to fix it (e.g. microphone not allowed, key pasted wrong).",
+      q11: "How does the phone app know who's speaking? Can it get it wrong?",
+      a11: "It uses voiceprints — the characteristics of each person's voice — entirely on the phone, free, with nothing uploaded. Speakers start out as “Speaker A, B, C”; tap a label to rename it, and type a name that already exists to merge two labels. When it isn't sure it shows a dashed label with “?”; a solid label means it's confident. People with very similar voices can occasionally be mixed up — just fix the name.",
       q3: "English? A mix of languages?",
-      a3: "Sure! It writes down exactly what was said in the original language — no surprise translations. Simplified Chinese is converted to Traditional automatically.",
+      a3: "Sure! Chinese, English, Japanese or a mix — it writes down exactly what was said in the original language, no surprise translations. Simplified Chinese is converted to Traditional automatically.",
       q4: "Is my meeting content safe?",
-      a4: "Transcripts and summaries live only on your own computer. During recognition, audio is sent encrypted to the AI service. See the <a href=\"privacy.html?lang=en\">privacy policy</a>.",
+      a4: "Transcripts and summaries live only on your own computer or phone. Noise reduction and voice detection happen on the device; during recognition, only the audio where someone is speaking is sent, encrypted, to the AI service. See the <a href=\"privacy.html?lang=en\">privacy policy</a>.",
       q5: "Should I tell everyone first?",
       a5: "Yes, please! Before you hit record, let people know the meeting is being recorded. It's good manners — and in many places, the law.",
-      foot: "PicoMeeting Assistant (會議摘要助理)",
+      foot: "PicoNotes (小伐速記) · Meeting notes assistant",
       privacy: "Privacy policy",
     };
+
+    const JA = {
+      doc_title: "PicoNotes · 会議メモアシスタント",
+      doc_desc: "PicoNotes（小伐速記）は会議を自動で文字起こしし、AI が要約・ポイント・やることリストにまとめます。ワンクリックで Word に。スマホ版は話している人も聞き分けます。",
+      brand: "PicoNotes", brand_en: "小伐速記", tagline: "会議メモアシスタント",
+      why_h: "どうして作ったの？💛",
+      why_p: "この小さなツールは、妻のために作りました。仕事でオンライン会議が多く、聞きながらメモを取ろうとすると、どうしても書ききれないし聞き逃してしまう。だから作りました。会議中にボタンをひとつ押すだけで、みんなの発言を書き留めてくれて、終わったら自動で要約とやることリストにまとめてくれます。Google Meet・Teams・Zoom などのウェブ会議に対応。対面の会議ならスマホを机に置くだけで、誰が話しているかも自動で聞き分けます。面倒な設定も、使わない機能もありません。パソコンが苦手でも、すぐに使えます。",
+      h1: "会議に集中してください。<br>メモは任せて。",
+      hero_p: "Google Meet・Teams・Zoom・Jitsi の中でそっと耳を傾け、誰が何を言ったかを書き留めます。背景の音楽や雑音は、先にあなたのパソコンの中で取り除きます。会議が終わると、要約・ポイント・やることリストがすぐに並び、ワンクリックで Word にして持ち帰れます。対面の会議はスマホ版で — 誰が話しているかまで分かります。",
+      cta: "⬇ 無料でダウンロード",
+      cta_hint: "絵のとおりに進めれば、コーヒーが冷める前に終わります ☕",
+      cta_store: "＋ Chrome に追加",
+      cta_store_hint: "無料・Chrome ウェブストアからインストール、更新は自動",
+      pop_name: "PicoNotes",
+      pop_start: "● 記録を開始",
+      pop_stop: "■ 停止",
+      pop_sum_t: "プロダクト週次会議・11/2",
+      pop_sum: "Q4 のスケジュールは来週金曜までに確定。予算の更新は Amy が担当……",
+      pop_full: "📄 全文を見る",
+      pop_copy: "📋 コピー",
+      use_h: "使い方は？拍子抜けするほど簡単です 😆",
+      use_lead: "インストールしたら、毎回の会議でやることはこの 3 つだけ：",
+      m1: "山田 太郎", m3: "自分", m4: "佐藤 花子",
+      c1_t: "会議に入る",
+      c1_p: "Chrome で Google Meet・Teams・Zoom・Jitsi の会議を開きます。いつもどおりで OK。",
+      me: "自分", others: "相手",
+      c2_t: "大きな青いボタンを押す",
+      c2_p: "右上の ✦ をクリックして「記録を開始」。緑のバーが声に合わせて踊っていれば、ちゃんと聞いています 💃",
+      doc_t: "プロダクト週次会議", doc_s: "会議の要約", doc_a: "やること",
+      c3_t: "会議終了！要約はもうできています",
+      c3_p: "そのまま会議から退出するだけ。自動で記録を終えて要約を書き上げます。「⬇ Word」で持ち帰りましょう。",
+      feat_h: "こんな気配りも ✨",
+      feat_lead: "設定も勉強もいりません。ぜんぶ自動です。",
+      f1_t: "うるさい場所でもはっきり聞き取る",
+      f1_p: "ノイズ除去（RNNoise）と音声検出（Silero VAD）はあなたの端末の中で動きます。BGM・エアコンの音・キーボードの音は文字起こしに送られないので、変な文字になることもありません。",
+      f2_t: "マイクの音が小さい？自動で調整します",
+      f2_p: "記録を始めるときにマイクの自動ゲインを確認し、なければソフトウェアで音量を上げます。設定をいじる必要はありません。",
+      f3_t: "どの言語でも OK",
+      f3_p: "日本語・中国語・英語・混ざっていても、話したとおりに書き留めます。勝手に翻訳しません。簡体字は自動で繁体字に変換します。",
+      f4_t: "スマホ版は誰が話しているか分かる",
+      f4_p: "対面の会議でスマホを机に置くと、声紋で「話者 A・B・C」を聞き分けます。ラベルをタップすれば名前に変更できます。すべてスマホの中で処理、無料です。",
+      f5_t: "3 つの言語の画面",
+      f5_p: "スマホ版はスマホの言語に合わせて繁体字中国語・英語・日本語で表示されます。手動で切り替えることもできます。",
+      f6_t: "更新はおまかせ",
+      f6_p: "スマホ版は新しいバージョンが用意できると「新しいバージョン → 更新」という小さなカードが出ます。タップするだけ。新版がなければ何も出ません。パソコン版は ✦ の中でお知らせします。",
+      store_h: "インストール",
+      st1_t: "「Chrome に追加」を押す",
+      st1_p: "ストアのページで右上の「Chrome に追加」→「拡張機能を追加」を押します。",
+      st2_t: "ようこそページに従う",
+      st2_p: "マイクを許可してアイコンをツールバーに固定。1 分ほどです。",
+      ins_h: "インストール（本当にすぐ終わります）",
+      ins_lead: "まずお使いの機器を選んで、絵のとおりに進めてください。<b style=\"color:var(--red)\">赤い枠</b>が押す場所です 👇",
+      pb_mobile: "iPhone／Android",
+      pi_win: "Windows は 7 ステップです。",
+      pi_mac: "Mac は 8 ステップ。最後のステップで macOS に Chrome のマイク使用を許可します。",
+      pi_linux: "Linux は 7 ステップです。注意：<b>Google Chrome または Chromium</b> をお使いください。Firefox には対応していません。",
+      m2_t: "Finder でダブルクリックすると自動で展開されます",
+      m2_p: "まず <code>meeting-assistant.zip</code> を「ダウンロード」から「<b>書類</b>」にドラッグし、zip を<b>ダブルクリック</b>。隣に <code>meeting-assistant</code> フォルダができます。",
+      f_docs: "📁 書類", f_dbl: "ダブルクリック",
+      l2_t: "ここに展開する",
+      l2_p: "ファイルマネージャーで zip を<b>右クリック</b> →「<b>ここに展開</b>」。ターミナル派の方はこちらでも：<code class=\"wrap\">unzip meeting-assistant.zip -d ~/meeting-assistant</code>",
+      cx_here: "ここに展開", cx_trash: "ゴミ箱に移動",
+      m8_t: "macOS に Chrome のマイク使用を許可する",
+      m8_p: "初めて「記録を開始」を押すと、macOS が「<b>Chrome がマイクへのアクセスを求めています</b>」と表示します。「<b>許可</b>」を押してください。",
+      m8_w: "この表示が出なかった、または間違えて「許可しない」を押した？「<b>システム設定 → プライバシーとセキュリティ → マイク</b>」を開き、<b>Google Chrome</b> をオンにしてから、Chrome に戻ってもう一度「記録を開始」を押してください。",
+      md_t: "“Google Chrome” がマイクへのアクセスを求めています。", md_d: "PicoNotes が記録するには、あなたの声を聞く必要があります。", md_no: "許可しない", md_ok: "許可",
+      ms_path: "⚙️ システム設定 › プライバシーとセキュリティ › マイク",
+      pi_mobile: "スマホの Chrome には拡張機能を入れられないので、スマホでは<b>ウェブアプリ「PicoNotes for iPhone／Android」</b>を使います。インストールは不要です。会議の机にスマホを置けば、文字起こしがリアルタイムで表示され、誰が話しているかを自動で聞き分け、停止すると要約が自動で書き上がります。記録（最大 30 件）もキーも、あなたのスマホの中にだけ保存されます。",
+      p1_t: "スマホでこのアドレスを開く",
+      p1_p: "iPhone は <b>Safari</b>、Android は <b>Chrome</b> で。「コピー」を押してアドレスバーに貼り付けても OK。画面はスマホの言語に合わせて繁体字中国語・英語・日本語で表示されます。",
+      p2_t: "先にホーム画面に追加して、アプリのように開く",
+      p2_p: "<b>iPhone</b>：Safari 下部の「共有」ボタン →「<b>ホーム画面に追加</b>」。その後は<b>ホーム画面のアイコンから開いて</b>、下の設定をしてください。Safari とホーム画面のアプリはデータを別々に保存するので、先に追加しておけばキーの貼り付けは 1 回で済みます。<br><b>Android</b>：ページに「ホーム画面に追加」カードが出るので、タップするだけ。または Chrome 右上の <b>⋮</b> →「<b>ホーム画面に追加</b>」。",
+      sh_copy: "コピー", sh_book: "ブックマークに追加", sh_home: "ホーム画面に追加", sh_print: "プリント",
+      p3_t: "マイクを許可する",
+      p3_p: "初めて「記録を開始」を押すと、スマホがマイクを使ってよいか聞いてきます。「<b>許可</b>」を押してください。",
+      pd_t: "“github.io” がマイクの使用を求めています",
+      p4_t: "Groq のキーを貼り付ける",
+      p4_p: "設定でキー欄の横の「<b>貼り付け</b>」を押して <b>Groq API キー</b>を入れます（パソコン版と同じキーで OK。無料で取得する方法はページに書いてあります）。キーはスマホの中にだけ保存され、ほかの場所には送られません。",
+      pk_l: "Groq API キー", pk_paste: "📋 貼り付け", pk_save: "保存",
+      p5_t: "記録を始めて、聞き分けを見てみる",
+      p5_p: "「記録を開始」を押すと文字起こしがリアルタイムで表示され、声ごとに「話者 A・B・C」のラベルが付きます。<b>ラベルをタップ</b>すると名前に変更できます。すでにある名前を入力すると、2 人は同じ人としてまとめられます。実線のラベルは自信あり、破線に「?」が付いたラベルは自信なし、という意味です。「停止」を押すと要約が自動で作られ、ワンタップで全文コピーや Word 保存ができます。",
+      spk_a: "話者 A", spk_a_t: "では来週金曜までにスケジュールを確定しましょう。", spk_b_t: "はい、予算は私が更新します。", spk_c: "話者 C ?", spk_c_t: "こちらは問題ありません。",
+      up_mobile: "スマホ版は<b>自動で更新</b>されます。新しいバージョンが用意できると「新しいバージョン → 更新」という小さなカードが出るので、タップするだけ。ふだんは何も表示されません 🎉",
+      mu2_t: "新版をダウンロードして、フォルダごと入れ替える",
+      mu2_p: "下のボタンで最新版をダウンロードし、展開したら <b><code>meeting-assistant</code> フォルダごと</b>元の場所にドラッグして上書きします。置き換えるか聞かれたら「<b>置き換える</b>」を選んでください。",
+      mr_t: "“書類” には “meeting-assistant” という名前の項目がすでにあります。", mr_d: "移動中の項目で置き換えますか？", mr_stop: "中止", mr_rep: "置き換える",
+      s1_t: "インストールファイルを持ち帰る",
+      s1_p: "下のボタンを押して <code>meeting-assistant.zip</code>（約 6 MB）をダウンロードします。",
+      dl: "⬇ meeting-assistant.zip をダウンロード",
+      f_done: "ダウンロード完了", f_openf: "フォルダを開く",
+      s2_t: "zip を展開する",
+      s2_p: "ファイルを<b>右クリック</b> →「<b>すべて展開…</b>」。場所は「<b>ドキュメント</b>」フォルダを選びます。",
+      s2_w: "⚠️ 展開したフォルダがこのツールの家になります。あとで<b>削除したり移動したりしないで</b>ください。迷子になります。",
+      f_dl: "📁 ダウンロード",
+      cx_open: "開く", cx_ext: "すべて展開…", cx_copy: "コピー", cx_del: "削除",
+      s3_t: "Chrome の拡張機能ページを開く",
+      s3_p: "「コピー」を押して、Chrome の一番上のアドレスバーに貼り付け、<b>Enter</b> を押します。",
+      copy: "コピー", copied: "✓ コピーしました",
+      f_enter: "アドレスを貼り付けて Enter ⏎",
+      s4_t: "「デベロッパーモード」をオンにする",
+      s4_p: "名前は本格的ですが、ただのスイッチです 😎 右上のスイッチを<b>青</b>にすると、左上に新しいボタンがいくつか現れます。",
+      x_title: "拡張機能", x_dev: "デベロッパーモード", x_load: "パッケージ化されていない拡張機能を読み込む", x_pack: "拡張機能をパッケージ化", x_upd: "更新",
+      s5_t: "フォルダを Chrome に渡す",
+      s5_p: "「<b>パッケージ化されていない拡張機能を読み込む</b>」を押して、さっき展開したフォルダを選びます。開いたときに <b><code>manifest.json</code> が見える</b>階層で、「<b>フォルダーの選択</b>」を押してください。",
+      f_path: "📁 ドキュメント › meeting-assistant", f_select: "フォルダーの選択",
+      s6_t: "✦ を目立つところに固定する",
+      s6_p: "右上の <b>🧩 パズル</b>をクリック →「PicoNotes」を見つけて <b>📌</b> を押します。これで ✦ はいつもツールバーにいます。",
+      f_other: "ほかの拡張機能",
+      s7_t: "最後のひと息：ようこそページ",
+      s7_p: "ようこそページが自動で開きます。<b>マイクを許可</b> → <b>AI キーを貼り付け</b>（無料で取得する方法はページに書いてあります）。ステップが終わるごとにチェック ✅ が付きます。<i>ようこそページは今のところ中国語ですが、緑のチェックに従えば大丈夫です。</i>",
+      w_title: "PicoNotes へようこそ", w1: "① マイクの使用を許可", w2: "② AI サービスに接続", w3: "③ アイコンをツールバーに固定", w_go: "わかった、使い始める",
+      note: "💡 Chrome がときどき「デベロッパーモードの拡張機能を無効にする」と聞いてきます。<b>保持</b>を押すか、そのまま閉じてください。無効にはしないでくださいね。",
+      up_h: "新しいバージョンがノックしています 🎁",
+      up_lead: "✦ を開いてこのお知らせが出たら、3 ステップで更新できます。会議の記録も設定もそのまま残ります。",
+      u1_t: "「新しいバージョン」のお知らせを見つける",
+      u1_p: "お知らせをクリックすると、このページに戻ってきます。",
+      u_banner: "🎁 新しいバージョン 1.2.0 があります。更新方法はこちら",
+      u2_t: "新版をダウンロードして上書きする",
+      u2_p: "下のボタンで最新版をダウンロードします。<b>元のフォルダ</b>に展開し、置き換えるか聞かれたら「<b>宛先のファイルを置き換える</b>」を選んでください。",
+      dl2: "⬇ 最新の meeting-assistant.zip をダウンロード",
+      r_t: "ファイルの置き換えまたはスキップ", r_d: "宛先には同じ名前のファイルが 34 個あります", r_rep: "✓ 宛先のファイルを置き換える", r_skip: "↷ これらのファイルをスキップする",
+      u3_t: "↻ を押して再読み込み",
+      u3_p: "<code>chrome://extensions</code> を開き、「PicoNotes」のカードで <b>↻</b> を押せば更新完了です 🎉",
+      e_desc: "会議を自動で文字起こしし、AI で要約します…", e_det: "詳細", e_rm: "削除",
+      faq_h: "よくある質問",
+      q1: "Teams や Zoom でも使えますか？",
+      a1: "使えます！Google Meet・Teams・Zoom・Jitsi に対応していますが、<b>ウェブ版</b>、つまり Chrome の中で会議に参加してください。パソコンにインストールした Teams／Zoom アプリの音は聞こえません。",
+      q9: "BGM やエアコンの音も記録されてしまいますか？",
+      a9: "されません。ノイズ除去（RNNoise）と音声検出（Silero VAD）が先にあなたのパソコンやスマホの中で動き、本当に誰かが話している部分だけが文字起こしに送られます。「音楽が歌詞になっていた」ということは起きません。",
+      q6: "読み込み時に「Cannot load extension… desktop.ini」と出る？",
+      a6: "フォルダの選び間違いか、Windows がフォルダに隠しファイル <code>desktop.ini</code> を置いたのが原因です。「ドキュメント」に<b>新しい空のフォルダ</b>を作り、そこに zip を展開して、読み込むときは<b>開くとすぐ <code>manifest.json</code> が見える</b>階層を選んでください（「ダウンロード」や「デスクトップ」は選ばない）。それでもダメなら、エクスプローラー上部の「表示 → 表示 → 隠しファイル」で、そのフォルダの <code>desktop.ini</code> を削除してもう一度読み込んでください。",
+      q7: "パソコンが遅め（Surface Go など）ですが、どうすれば？",
+      a7: "いちばん重いのは会議そのものです。こうしてみてください：① Meet／Teams の<b>背景ぼかし・バーチャル背景・映像エフェクトをオフ</b>（効果大）；② 画面を見る必要がないときは<b>自分のカメラをオフ</b>；③ 会議中は<b>「全文を見る」を開きっぱなしにしない</b>、あとで見れば OK；④ 使っていない<b>タブを閉じる</b>；⑤ ノート PC は電源につなぎ、Windows の電源モードを「最適なパフォーマンス」に。",
+      q8: "Mac で自分の声が録れない？",
+      a8: "たいていは macOS がまだ Chrome にマイクを渡していないのが原因です。「<b>システム設定 → プライバシーとセキュリティ → マイク</b>」を開いて <b>Google Chrome</b> をオンにし、Chrome に戻ってもう一度「記録を開始」を押してください。初めての録音で「Chrome がマイクへのアクセスを求めています」と出たら「許可」を押してください。",
+      q2: "文字がなかなか出てこない？",
+      a2: "まず ✦ の中の 2 本の緑のバーを見てください。「自分」が動かない → 設定ページで「マイクをテスト」を押す。「相手」が動かない → 会議そのものに音がありません。また、話し終わってから文字が出るまで 3〜15 秒ほどかかります。少し待ってあげてください ⏳",
+      q10: "スマホ版の 🎤 と ✦ の小さなランプは何ですか？",
+      a10: "🎤 はマイク、✦ は Groq 接続の状態ランプです。緑なら正常。赤く点滅しているときは問題があるので、タップすると直し方をやさしい言葉で教えてくれます（マイクが許可されていない、キーの貼り間違い、など）。",
+      q11: "スマホ版はどうやって話している人を見分けるの？間違えることは？",
+      a11: "声紋（一人ひとりの声の特徴）で見分けます。すべてスマホの中で処理し、無料で、何もアップロードしません。最初は「話者 A・B・C」と表示され、ラベルをタップすれば名前に変えられます。すでにある名前を入力すると 2 つのラベルがひとつにまとまります。自信がないときは破線のラベルに「?」が付き、自信があるときは実線です。声がとても似ている人はたまに間違えることがありますが、名前を直せば OK です。",
+      q3: "英語や、言語が混ざっていても大丈夫？",
+      a3: "大丈夫です！日本語・中国語・英語・混ざっていても、話したとおりの言語で書き留めます。勝手に翻訳しません。簡体字中国語は自動で繁体字に変換されます。",
+      q4: "会議の内容は安全ですか？",
+      a4: "文字起こしと要約は、あなたのパソコンまたはスマホの中にだけ保存されます。ノイズ除去と音声検出は端末内で行い、認識のときは誰かが話している音声の部分だけを暗号化して AI サービスに送ります。詳しくは<a href=\"privacy.html?lang=ja\">プライバシーポリシー</a>をご覧ください。",
+      q5: "先にほかの人に伝えるべき？",
+      a5: "はい、ぜひ！記録を始める前に「この会議は記録します」とひと言伝えてください。マナーとして大切ですし、多くの地域では法律上も必要です。",
+      foot: "PicoNotes（小伐速記）・会議メモアシスタント",
+      privacy: "プライバシーポリシー",
+    };
+
+    const DICT = { en: EN, ja: JA };
+    const LANGS = ["zh", "en", "ja"];
+    const HTML_LANG = { zh: "zh-TW", en: "en", ja: "ja" };
 
     const $ = (id) => document.getElementById(id);
     const nodes = [...document.querySelectorAll("[data-t]")];
     const ZH = new Map(nodes.map((el) => [el, el.innerHTML])); // 原本的中文
     const zhTitle = document.title, descEl = document.querySelector('meta[name="description"]'), zhDesc = descEl.content;
     let lang = "zh";
+    const t = (k, zh) => (DICT[lang] && DICT[lang][k]) ?? zh;
 
     function setLang(l) {
+      if (!LANGS.includes(l)) l = "zh";
       lang = l;
-      for (const el of nodes) el.innerHTML = l === "en" ? (EN[el.dataset.t] ?? ZH.get(el)) : ZH.get(el);
-      document.documentElement.lang = l === "en" ? "en" : "zh-TW";
-      document.title = l === "en" ? EN.doc_title : zhTitle;
-      descEl.content = l === "en" ? EN.doc_desc : zhDesc;
+      const d = DICT[l];
+      for (const el of nodes) el.innerHTML = d ? (d[el.dataset.t] ?? ZH.get(el)) : ZH.get(el);
+      document.documentElement.lang = HTML_LANG[l];
+      document.title = d ? d.doc_title : zhTitle;
+      descEl.content = d ? d.doc_desc : zhDesc;
       document.querySelectorAll(".langbar button").forEach((b) => b.classList.toggle("on", b.dataset.lang === l));
-      document.querySelectorAll('a[href^="privacy.html"]').forEach((a) => (a.href = l === "en" ? "privacy.html?lang=en" : "privacy.html"));
+      document.querySelectorAll('a[href^="privacy.html"]').forEach((a) => (a.href = l === "zh" ? "privacy.html" : "privacy.html?lang=" + l));
       if (STORE_URL) {
-        $("mainBtn").textContent = l === "en" ? EN.cta_store : "＋ 加到 Chrome";
-        $("mainHint").textContent = l === "en" ? EN.cta_store_hint : "免費・從 Chrome 線上應用程式商店安裝，之後會自動更新";
+        $("mainBtn").textContent = t("cta_store", "＋ 加到 Chrome");
+        $("mainHint").textContent = t("cta_store_hint", "免費・從 Chrome 線上應用程式商店安裝，之後會自動更新");
       }
       try { localStorage.setItem("lang", l); } catch {}
     }
@@ -702,8 +940,8 @@
     document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
       try {
         await navigator.clipboard.writeText(b.dataset.copy);
-        b.textContent = lang === "en" ? EN.copied : "✓ 已複製";
-        setTimeout(() => (b.textContent = lang === "en" ? EN.copy : "複製"), 1500);
+        b.textContent = t("copied", "✓ 已複製");
+        setTimeout(() => (b.textContent = t("copy", "複製")), 1500);
       } catch {}
     }));
 
@@ -711,7 +949,8 @@
     let saved = null;
     try { saved = localStorage.getItem("lang"); } catch {}
     const q = new URLSearchParams(location.search).get("lang");
-    setLang(q === "en" || q === "zh" ? q : saved || (/^zh/i.test(navigator.language) ? "zh" : "en"));
+    const nav = String(navigator.language || "");
+    setLang(LANGS.includes(q) ? q : LANGS.includes(saved) ? saved : /^ja/i.test(nav) ? "ja" : /^zh/i.test(nav) ? "zh" : "en");
 
     // ── 平台：網址 ?plat= > 上次的選擇 > user agent ──
     const PLATS = ["win", "mac", "linux", "mobile"];

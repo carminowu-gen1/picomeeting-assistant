@@ -3,45 +3,53 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>隱私權政策｜會議摘要助理</title>
+  <title>隱私權政策｜小伐速記</title>
+  <link rel="icon" href="icons/icon48.png" type="image/png" />
+  <link rel="apple-touch-icon" href="icons/icon192.png" />
   <style>
     :root { --bg: #f6f7fb; --surface: #fff; --border: #e3e6ee; --text: #16181d; --text-2: #5f6673; --accent: #2f6df6; color-scheme: light; }
     @media (prefers-color-scheme: dark) { :root { --bg: #121418; --surface: #1b1e24; --border: #2d323b; --text: #eef0f4; --text-2: #a6adba; --accent: #5b8cff; color-scheme: dark; } }
-    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.8 -apple-system, "Segoe UI", "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", system-ui, sans-serif; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.8 -apple-system, "Segoe UI", "Microsoft JhengHei", "PingFang TC", "Hiragino Sans", "Noto Sans TC", "Noto Sans JP", system-ui, sans-serif; }
     main { max-width: 720px; margin: 0 auto; padding: 56px 16px 80px; }
     a { color: var(--accent); }
     h1 { font-size: 26px; } h2 { font-size: 19px; margin-top: 32px; }
     .muted { color: var(--text-2); font-size: 14px; }
+    .brand { display: flex; align-items: center; gap: 10px; margin: 8px 0 0; }
+    .brand img { width: 40px; height: 40px; border-radius: 11px; }
+    .brand b { font-size: 18px; } .brand small { color: var(--text-2); display: block; font-size: 13px; line-height: 1.3; }
     table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 12px; overflow: hidden; font-size: 15px; }
     th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
     th { color: var(--text-2); font-weight: 600; }
     .wrap { overflow-x: auto; }
     .langbar { position: absolute; top: 12px; right: 12px; display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 3px; box-shadow: 0 4px 14px rgba(0,0,0,.1); }
-    .langbar button { border: 0; background: none; color: var(--text-2); font: inherit; font-size: 13px; font-weight: 700; padding: 5px 12px; border-radius: 999px; cursor: pointer; }
+    .langbar button { border: 0; background: none; color: var(--text-2); font: inherit; font-size: 13px; font-weight: 700; padding: 5px 12px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
     .langbar button.on { background: var(--accent); color: #fff; }
+    @media (max-width: 420px) { .langbar button { padding: 5px 9px; font-size: 12px; } main { padding-top: 64px; } }
     [hidden] { display: none !important; }
   </style>
 </head>
 <body>
-  <div class="langbar" role="group" aria-label="Language"><button data-lang="zh" class="on">中文</button><button data-lang="en">EN</button></div>
+  <div class="langbar" role="group" aria-label="Language"><button data-lang="zh" class="on">中文</button><button data-lang="en">EN</button><button data-lang="ja">日本語</button></div>
 
   <main lang="zh-TW" data-block="zh">
-    <p><a href="./">← 回到會議摘要助理</a></p>
+    <p><a href="./">← 回到小伐速記</a></p>
+    <div class="brand"><img src="icons/icon128.png" alt="小伐速記 PicoNotes" /><div><b>小伐速記</b><small>PicoNotes・會議摘要助理</small></div></div>
     <h1>隱私權政策</h1>
-    <p class="muted">最後更新：2026 年 11 月 2 日</p>
-    <p>「會議摘要助理」（以下簡稱「本擴充功能」）是一個 Chrome 擴充功能，用途是記錄線上會議的逐字稿並產生摘要。本政策說明我們處理哪些資料，以及如何處理。</p>
+    <p class="muted">最後更新：2026 年 11 月 3 日</p>
+    <p>「小伐速記」（英文名 PicoNotes，以下簡稱「本軟體」）包含一個 Chrome 擴充功能和一個手機網頁版 App，用途是記錄會議的逐字稿並產生摘要。本政策說明我們處理哪些資料，以及如何處理。</p>
     <h2>我們處理的資料</h2>
     <div class="wrap"><table>
       <tr><th>資料</th><th>何時處理</th><th>用途</th></tr>
       <tr><td>會議分頁的聲音、你的麥克風聲音</td><td>只有在你按下「開始記錄」之後，到停止記錄或離開會議為止</td><td>轉成逐字稿</td></tr>
-      <tr><td>會議畫面上的參與者名稱、字幕文字</td><td>記錄期間</td><td>標示是誰在說話</td></tr>
+      <tr><td>會議畫面上的參與者名稱、字幕文字（擴充功能）</td><td>記錄期間</td><td>標示是誰在說話</td></tr>
+      <tr><td>說話者的聲音特徵（聲紋，手機版）</td><td>記錄期間</td><td>在你的手機上分辨說話者 A、B、C；不會離開手機</td></tr>
       <tr><td>逐字稿與摘要</td><td>記錄期間及之後</td><td>顯示、編輯、匯出</td></tr>
-      <tr><td>你填入的設定（名字、金鑰等）</td><td>你填寫時</td><td>讓本擴充功能運作</td></tr>
+      <tr><td>你填入的設定（名字、金鑰等）</td><td>你填寫時</td><td>讓本軟體運作</td></tr>
     </table></div>
     <h2>資料存放在哪裡</h2>
     <ul>
-      <li>逐字稿、摘要和設定都<b>只存在你電腦的 Chrome 裡</b>。你可以隨時在「全文」頁刪除會議記錄；移除本擴充功能時，這些資料會一併刪除。</li>
-      <li>音訊片段和逐字稿文字會透過加密連線（HTTPS）傳送到 <b>Groq</b>（groq.com），用來做語音辨識和產生摘要。如果你的組織有設定代理伺服器，資料會先經過組織的代理，再轉送到 Groq。Groq 如何處理資料，請參考 <a href="https://groq.com/privacy-policy/">Groq 隱私權政策</a>。</li>
+      <li>逐字稿、摘要和設定都<b>只存在你自己的裝置裡</b>（電腦的 Chrome，或手機的瀏覽器）。你可以隨時刪除會議記錄；移除擴充功能或清除網站資料時，這些資料會一併刪除。手機版最多保留 30 場記錄。</li>
+      <li>降噪（RNNoise）、語音偵測（Silero VAD）和說話者辨識都<b>在你的裝置上完成</b>。只有偵測到有人在說話的音訊片段，以及逐字稿文字，才會透過加密連線（HTTPS）傳送到 <b>Groq</b>（groq.com）做語音辨識和產生摘要。如果你的組織有設定代理伺服器，資料會先經過組織的代理，再轉送到 Groq。Groq 如何處理資料，請參考 <a href="https://groq.com/privacy-policy/">Groq 隱私權政策</a>。</li>
       <li>只有在你主動按下「存到 Google 文件」時，內容才會建立到你自己的 Google 雲端硬碟。</li>
     </ul>
     <h2>我們不會做的事</h2>
@@ -52,7 +60,7 @@
       <li>不會出售或分享你的資料給第三方（處理所需的 Groq 除外）</li>
       <li>不會把資料用於與會議記錄無關的用途</li>
     </ul>
-    <p class="muted">本擴充功能唯一會主動連線的其他網站，是每 12 小時向 GitHub 查詢一次是否有新版本（只傳送查詢，不包含任何會議資料）。</p>
+    <p class="muted">本軟體唯一會主動連線的其他網站，是向 GitHub 查詢是否有新版本（擴充功能每 12 小時一次；手機版在打開時檢查）。只傳送查詢，不包含任何會議資料。</p>
     <h2>你的責任</h2>
     <p>記錄會議前，請依照當地法規和公司規定，先告知所有與會者並取得同意。</p>
     <h2>聯絡我們</h2>
@@ -60,22 +68,24 @@
   </main>
 
   <main lang="en" data-block="en" hidden>
-    <p><a href="./?lang=en">← Back to PicoMeeting Assistant</a></p>
+    <p><a href="./?lang=en">← Back to PicoNotes</a></p>
+    <div class="brand"><img src="icons/icon128.png" alt="PicoNotes" /><div><b>PicoNotes</b><small>小伐速記 · Meeting notes assistant</small></div></div>
     <h1>Privacy Policy</h1>
-    <p class="muted">Last updated: November 2, 2026</p>
-    <p>PicoMeeting Assistant (“the extension”) is a Chrome extension that transcribes online meetings and generates summaries. This policy explains what data we handle and how.</p>
+    <p class="muted">Last updated: November 3, 2026</p>
+    <p>PicoNotes (小伐速記, “the software”) consists of a Chrome extension and a mobile web app that transcribe meetings and generate summaries. This policy explains what data we handle and how.</p>
     <h2>Data we handle</h2>
     <div class="wrap"><table>
       <tr><th>Data</th><th>When</th><th>Why</th></tr>
       <tr><td>Audio from the meeting tab and your microphone</td><td>Only after you press “Start recording”, until you stop or leave the meeting</td><td>To create the transcript</td></tr>
-      <tr><td>Participant names and caption text shown in the meeting</td><td>While recording</td><td>To label who is speaking</td></tr>
+      <tr><td>Participant names and caption text shown in the meeting (extension)</td><td>While recording</td><td>To label who is speaking</td></tr>
+      <tr><td>Voice characteristics of speakers (voiceprints, mobile app)</td><td>While recording</td><td>To tell Speaker A, B and C apart on your phone; they never leave the phone</td></tr>
       <tr><td>Transcripts and summaries</td><td>While recording and afterwards</td><td>To display, edit and export them</td></tr>
-      <tr><td>Settings you enter (name, API key, etc.)</td><td>When you enter them</td><td>To make the extension work</td></tr>
+      <tr><td>Settings you enter (name, API key, etc.)</td><td>When you enter them</td><td>To make the software work</td></tr>
     </table></div>
     <h2>Where your data is stored</h2>
     <ul>
-      <li>Transcripts, summaries and settings are stored <b>only in Chrome on your own computer</b>. You can delete any meeting from the full-text page at any time, and removing the extension deletes all of it.</li>
-      <li>Audio clips and transcript text are sent over an encrypted connection (HTTPS) to <b>Groq</b> (groq.com) for speech recognition and summarization. If your organization set up a proxy server, data passes through that proxy on its way to Groq. See the <a href="https://groq.com/privacy-policy/">Groq privacy policy</a> for how Groq handles data.</li>
+      <li>Transcripts, summaries and settings are stored <b>only on your own device</b> (Chrome on your computer, or the browser on your phone). You can delete any meeting at any time, and removing the extension or clearing the site's data deletes all of it. The mobile app keeps at most 30 meetings.</li>
+      <li>Noise reduction (RNNoise), voice detection (Silero VAD) and speaker identification all <b>run on your device</b>. Only audio segments where speech was detected, plus transcript text, are sent over an encrypted connection (HTTPS) to <b>Groq</b> (groq.com) for speech recognition and summarization. If your organization set up a proxy server, data passes through that proxy on its way to Groq. See the <a href="https://groq.com/privacy-policy/">Groq privacy policy</a> for how Groq handles data.</li>
       <li>Content is saved to your own Google Drive only when you explicitly click “Save to Google Docs”.</li>
     </ul>
     <h2>What we never do</h2>
@@ -86,18 +96,58 @@
       <li>Sell or share your data with third parties (other than Groq, which is needed for processing)</li>
       <li>Use your data for anything unrelated to meeting notes</li>
     </ul>
-    <p class="muted">The only other site the extension contacts on its own is GitHub, once every 12 hours, to check for a new version (the request contains no meeting data).</p>
+    <p class="muted">The only other site the software contacts on its own is GitHub, to check for a new version (the extension once every 12 hours; the mobile app when it opens). The request contains no meeting data.</p>
     <h2>Your responsibility</h2>
     <p>Before recording, tell everyone in the meeting and get their consent, as required by local law and your company's policies.</p>
     <h2>Contact</h2>
     <p>Questions about this policy? Leave a message on <a href="https://github.com/carminowu-gen1/picomeeting-assistant/issues">GitHub</a>.</p>
   </main>
 
+  <main lang="ja" data-block="ja" hidden>
+    <p><a href="./?lang=ja">← PicoNotes に戻る</a></p>
+    <div class="brand"><img src="icons/icon128.png" alt="PicoNotes" /><div><b>PicoNotes</b><small>小伐速記・会議メモアシスタント</small></div></div>
+    <h1>プライバシーポリシー</h1>
+    <p class="muted">最終更新：2026 年 11 月 3 日</p>
+    <p>PicoNotes（小伐速記、以下「本ソフトウェア」）は、Chrome 拡張機能とスマートフォン向けウェブアプリからなり、会議を文字起こしして要約を作成します。本ポリシーでは、どのようなデータをどのように扱うかを説明します。</p>
+    <h2>扱うデータ</h2>
+    <div class="wrap"><table>
+      <tr><th>データ</th><th>いつ</th><th>目的</th></tr>
+      <tr><td>会議タブの音声、あなたのマイクの音声</td><td>「記録を開始」を押してから、停止または会議から退出するまでの間だけ</td><td>文字起こしのため</td></tr>
+      <tr><td>会議画面に表示される参加者名・字幕のテキスト（拡張機能）</td><td>記録中</td><td>誰が話しているかを表示するため</td></tr>
+      <tr><td>話者の声の特徴（声紋、スマホ版）</td><td>記録中</td><td>スマホの中で話者 A・B・C を聞き分けるため。スマホの外には出ません</td></tr>
+      <tr><td>文字起こしと要約</td><td>記録中およびその後</td><td>表示・編集・書き出しのため</td></tr>
+      <tr><td>あなたが入力した設定（名前、API キーなど）</td><td>入力したとき</td><td>本ソフトウェアを動かすため</td></tr>
+    </table></div>
+    <h2>データの保存場所</h2>
+    <ul>
+      <li>文字起こし・要約・設定は<b>あなた自身の端末の中にだけ</b>保存されます（パソコンの Chrome、またはスマホのブラウザ）。会議の記録はいつでも削除できます。拡張機能を削除したり、サイトのデータを消去したりすると、これらのデータもすべて削除されます。スマホ版が保存する記録は最大 30 件です。</li>
+      <li>ノイズ除去（RNNoise）、音声検出（Silero VAD）、話者の識別はすべて<b>あなたの端末の中で行います</b>。話し声が検出された音声の区間と文字起こしのテキストだけが、暗号化された接続（HTTPS）で <b>Groq</b>（groq.com）に送られ、音声認識と要約の作成に使われます。組織でプロキシサーバーが設定されている場合、データはそのプロキシを経由して Groq に送られます。Groq でのデータの扱いについては <a href="https://groq.com/privacy-policy/">Groq のプライバシーポリシー</a>をご覧ください。</li>
+      <li>「Google ドキュメントに保存」をあなたが自分で押したときにだけ、内容があなた自身の Google ドライブに作成されます。</li>
+    </ul>
+    <h2>私たちがしないこと</h2>
+    <ul>
+      <li>「記録を開始」を押す前に録音すること（例外：詳細設定で「会議に参加したら自動で記録を開始」をオンにした場合、会議の字幕を自動で読み取ります。この設定は初期状態ではオフです）</li>
+      <li>閲覧履歴を収集したり、会議以外のページを読み取ったりすること</li>
+      <li>分析ツールやトラッキングツールを使うこと</li>
+      <li>あなたのデータを第三者に販売・共有すること（処理に必要な Groq を除く）</li>
+      <li>会議の記録と関係のない目的にデータを使うこと</li>
+    </ul>
+    <p class="muted">本ソフトウェアが自分から接続する唯一の他のサイトは GitHub で、新しいバージョンがあるかを確認するためです（拡張機能は 12 時間ごと、スマホ版は起動時）。送るのは確認のリクエストだけで、会議のデータは含まれません。</p>
+    <h2>あなたの責任</h2>
+    <p>会議を記録する前に、お住まいの地域の法令や会社の規則に従い、参加者全員に伝えて同意を得てください。</p>
+    <h2>お問い合わせ</h2>
+    <p>本ポリシーについてご質問があれば、<a href="https://github.com/carminowu-gen1/picomeeting-assistant/issues">GitHub</a> にメッセージをお寄せください。</p>
+  </main>
+
   <script>
+    const LANGS = ["zh", "en", "ja"];
+    const HTML_LANG = { zh: "zh-TW", en: "en", ja: "ja" };
+    const TITLE = { zh: "隱私權政策｜小伐速記", en: "Privacy Policy · PicoNotes", ja: "プライバシーポリシー · PicoNotes" };
     function setLang(l) {
+      if (!LANGS.includes(l)) l = "zh";
       document.querySelectorAll("[data-block]").forEach((m) => (m.hidden = m.dataset.block !== l));
-      document.documentElement.lang = l === "en" ? "en" : "zh-TW";
-      document.title = l === "en" ? "Privacy Policy · PicoMeeting Assistant" : "隱私權政策｜會議摘要助理";
+      document.documentElement.lang = HTML_LANG[l];
+      document.title = TITLE[l];
       document.querySelectorAll(".langbar button").forEach((b) => b.classList.toggle("on", b.dataset.lang === l));
       try { localStorage.setItem("lang", l); } catch {}
     }
@@ -105,7 +155,8 @@
     let saved = null;
     try { saved = localStorage.getItem("lang"); } catch {}
     const q = new URLSearchParams(location.search).get("lang");
-    setLang(q === "en" || q === "zh" ? q : saved || (/^zh/i.test(navigator.language) ? "zh" : "en"));
+    const nav = String(navigator.language || "");
+    setLang(LANGS.includes(q) ? q : LANGS.includes(saved) ? saved : /^ja/i.test(nav) ? "ja" : /^zh/i.test(nav) ? "zh" : "en");
   </script>
 </body>
 </html>
