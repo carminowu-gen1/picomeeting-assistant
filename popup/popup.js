@@ -24,6 +24,7 @@ function friendly(err) {
   if (/尚未完成設定|金鑰|API Key/i.test(e)) return "還沒完成設定，請按右上角 ⚙ 完成設定。";
   if (/存取碼/.test(e)) return "組織服務無法使用，請聯絡管理員。";
   if (/不能錄音|不是支援的會議頁面|尚未載入/.test(e)) return "這個頁面不能錄，請切到會議或影片的網頁再按開始。";
+  if (/分享系統音訊|取消了選擇|電腦的聲音/.test(e)) return e.replace(/^無法啟動語音辨識：/, "");
   if (/麥克風/.test(e)) return "無法使用麥克風，請在跳出的視窗按「允許」。";
   if (/額度|429/.test(e)) return "使用量暫時達到上限，請稍後再試。";
   return e.replace(/^無法啟動語音辨識：/, "").slice(0, 120);
@@ -49,7 +50,7 @@ async function refresh() {
     $("update").onclick = (e) => { e.preventDefault(); chrome.tabs.create({ url: state.update.url }); window.close(); };
   }
 
-  $("where").textContent = current ? `正在記錄 ${current.platformName || "會議"}` : info ? (info.platform === "web" ? `可以錄 ${info.platformName}` : `已連上 ${info.platformName}`) : "這個頁面不能錄";
+  $("where").textContent = current ? `正在記錄 ${current.platformName || "會議"}` : info ? (info.platform === "system" ? "錄整台電腦的聲音" : info.platform === "web" ? `可以錄 ${info.platformName}` : `已連上 ${info.platformName}`) : "這個頁面不能錄";
 
   // ── 主按鈕 ──
   const btn = $("mainBtn"), st = $("status");
@@ -64,7 +65,7 @@ async function refresh() {
     btn.disabled = false;
     btn.classList.add("stop");
     $("mainLabel").textContent = "停止記錄";
-    st.textContent = `記錄中 ${elapsed(current.startedAt)} · ${current.lineCount} 句 · ` + (current.platform === "web" ? "按停止就會產生摘要" : "離開會議會自動停止");
+    st.textContent = `記錄中 ${elapsed(current.startedAt)} · ${current.lineCount} 句 · ` + (current.platform === "web" || current.platform === "system" ? "按停止就會產生摘要" : "離開會議會自動停止");
     if (current.sttMode !== "captions" && current.stt === "on") {
       const fresh = current.levelsAt && Date.now() - current.levelsAt < 3000;
       $("meters").hidden = false;
@@ -76,7 +77,7 @@ async function refresh() {
     btn.disabled = !info;
     $("mainLabel").textContent = "開始記錄";
     if (lastStartError && info) { st.textContent = friendly(lastStartError.text); st.classList.add("err"); }
-    else st.textContent = !info ? "請切到會議或影片的網頁" : info.platform === "web" ? "會錄這個分頁的聲音和你的麥克風，按停止就產生摘要" : "離開會議時會自動停止並產生摘要";
+    else st.textContent = !info ? "請切到會議或影片的網頁" : info.platform === "system" ? "按開始後選「整個螢幕」，打開「分享系統音訊」" : info.platform === "web" ? "會錄這個分頁的聲音和你的麥克風，按停止就產生摘要" : "離開會議時會自動停止並產生摘要";
   }
 
   // ── 最近一場會議 ──
@@ -116,7 +117,7 @@ $("mainBtn").onclick = async () => {
   busy = true;
   $("mainBtn").disabled = true;
   $("mainLabel").innerHTML = `<span class="spin"></span>`;
-  const r = state.current ? await send({ type: "stop", tabId: state.tabId }) : await send({ type: "start", tabId: state.tabId });
+  const r = state.current ? await send({ type: "stop", tabId: state.current.tabId ?? state.tabId, meetingId: state.current.id }) : await send({ type: "start", tabId: state.tabId });
   busy = false;
   if (r?.error) toast(friendly(r.error), true);
   await refresh();

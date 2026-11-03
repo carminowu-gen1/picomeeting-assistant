@@ -6,7 +6,17 @@ import { startMicTest, levelPct, verifyGroqKey, saveSettings } from "../ui/setup
 const $ = (id) => document.getElementById(id);
 const FIELDS = ["apiKey", "myName", "model", "language", "autoFallback", "tokenSaver", "autoSummarize",
   "sttMode", "sttLanguage", "sttMicDeviceId", "sttSpeaker", "toTraditional", "sttMic",
-  "autoStart", "autoCaptions", "includeTranscript"];
+  "autoStart", "autoCaptions", "includeTranscript", "audioSource"];
+
+// 要錄哪裡的聲音：兩顆按鈕切換
+function showSrc(v) {
+  $("audioSource").value = v;
+  for (const b of $("srcSeg").querySelectorAll("button")) b.classList.toggle("active", b.dataset.src === v);
+  $("srcHelp").textContent = v === "system"
+    ? "LINE、Teams、Zoom 電腦版等任何 App 的聲音都錄得到。錄完按停止，或關掉錄音小視窗。"
+    : "錄你按開始時所在的網頁（Google Meet、Teams 網頁版、Jitsi、線上課程…）。";
+  $("sysGuide").hidden = v !== "system";
+}
 
 function toast(msg, isErr = false) {
   const t = $("toast");
@@ -38,6 +48,7 @@ async function loadModels() {
 }
 loadModels();
 document.getElementById("ver").textContent = chrome.runtime.getManifest().version;
+$("srcSeg").addEventListener("click", (e) => { const b = e.target.closest("button[data-src]"); if (b) { showSrc(b.dataset.src); scheduleSave(); } });
 FIELDS.forEach((f) => { const el = $(f); el.addEventListener(el.type === "checkbox" || el.tagName === "SELECT" ? "change" : "input", scheduleSave); });
 $("apiKey").addEventListener("change", () => setTimeout(loadModels, 1500));
 
@@ -102,6 +113,7 @@ $("diag").onclick = async () => {
   const s = { ...DEFAULT_SETTINGS, ...(settings || {}) };
   await loadMics();
   for (const f of FIELDS) { const el = $(f); if (el.type === "checkbox") el.checked = !!s[f]; else el.value = s[f] ?? ""; }
+  showSrc(s.audioSource === "system" ? "system" : "tab");
   bindThemeSeg($("themeSeg"), await applyTheme(s.theme));
   const c = await getConfig();
   $("keyField").hidden = !!c.proxyUrl;

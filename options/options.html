@@ -43,6 +43,22 @@
       </div>
 
       <div class="field">
+        <label>要錄哪裡的聲音</label>
+        <input type="hidden" id="audioSource" />
+        <div class="seg" id="srcSeg">
+          <button type="button" data-src="tab">🌐 這個網頁</button>
+          <button type="button" data-src="system">🖥 整台電腦</button>
+        </div>
+        <p class="help" id="srcHelp"></p>
+        <div class="sysguide" id="sysGuide" hidden>
+          <div class="sg-step"><span class="n">1</span><div>在小伐按「開始記錄」，會跳出 Chrome 的分享視窗</div></div>
+          <div class="sg-step"><span class="n">2</span><div>點上面的「<b>整個螢幕</b>」，再點一下螢幕畫面</div></div>
+          <div class="sg-step"><span class="n">3</span><div>把左下角「<b>分享系統音訊</b>」打開 <span class="sw-demo"><i></i></span>，按「分享」</div></div>
+          <p class="help">💡 建議戴耳機：聲音最乾淨。用喇叭也可以，重複的句子小伐會自動去掉。<br>只支援 Windows；Mac 大多錄不到系統聲音。</p>
+        </div>
+      </div>
+
+      <div class="field">
         <label>外觀</label>
         <div class="seg" id="themeSeg">
           <button data-theme="light">☀ 淺色</button>

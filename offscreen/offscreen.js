@@ -3,6 +3,34 @@
 //   mic 通道 = 你的麥克風 = 你自己
 // （service worker 不能用 getUserMedia / MediaRecorder，所以放在這裡）
 const sessions = new Map(); // tabId -> session
+// 同一份程式在兩個地方跑：offscreen 文件（錄分頁）／錄音小視窗 ?system=1（錄整台電腦）
+const IS_SYS = new URLSearchParams(location.search).has("system");
+if (IS_SYS) {
+  document.title = "小伐速記・錄音中";
+  document.body.style.cssText = "margin:0;font:15px/1.6 system-ui,'Microsoft JhengHei',sans-serif;background:#fff7f7;color:#222;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center";
+  document.body.insertAdjacentHTML("afterbegin", `<div style="padding:16px">
+    <div id="sysTitle" style="font-size:20px;font-weight:700;color:#e5484d">● 準備錄電腦的聲音</div>
+    <div id="sysMsg" style="margin-top:8px">請在跳出的視窗選「整個螢幕」，<br>並打開「<b>分享系統音訊</b>」，再按「分享」。</div>
+    <div style="margin-top:10px;font-size:13px;color:#666">錄完回小伐按「停止記錄」，或直接關掉這個視窗。<br>建議戴耳機，聲音最乾淨。</div></div>`);
+}
+const sysUi = (title, msg) => { if (!IS_SYS) return; const t = document.getElementById("sysTitle"), m = document.getElementById("sysMsg"); if (t) t.textContent = title; if (m) m.innerHTML = msg; };
+
+// 跳出 Chrome 的分享視窗，取得「整台電腦的聲音」
+function pickSystemAudio() {
+  return new Promise((res, rej) => {
+    chrome.desktopCapture.chooseDesktopMedia(["screen", "audio"], async (id, opts) => {
+      if (!id) return rej(new Error("你取消了選擇，沒有開始錄音。"));
+      if (!opts?.canRequestAudioTrack) return rej(new Error("沒有打開「分享系統音訊」，錄不到聲音。請再按一次開始，記得打開它。"));
+      try {
+        const src = { mandatory: { chromeMediaSource: "desktop", chromeMediaSourceId: id } };
+        const st = await navigator.mediaDevices.getUserMedia({ audio: src, video: src }); // 只要聲音，但 Chrome 規定要連畫面一起要
+        st.getVideoTracks().forEach((t) => { t.stop(); st.removeTrack(t); });
+        if (!st.getAudioTracks().length) throw new Error("沒有收到電腦的聲音（這台電腦可能不支援錄系統音訊）。");
+        res(st);
+      } catch (e) { rej(new Error(e.message || String(e))); }
+    });
+  });
+}
 
 // 音訊前處理 worker（dsp/dsp-worker.js，和手機版共用）：RNNoise 降噪 + Silero VAD 人聲偵測
 // 載入失敗就退回「看音量」判斷，功能照常
@@ -46,6 +74,9 @@ function isVoiced(ch, r) {
 
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   if (msg.target !== "offscreen") return;
+  if (msg.type === "stt:ping") { if (msg.system && IS_SYS) { reply({ ok: true }); return; } return; }
+  if (msg.type === "stt:start" && !!msg.system !== IS_SYS) return; // 不是給這一邊的
+  if (msg.type === "stt:status" && IS_SYS) return;                  // 只有 offscreen 文件回報（決定要不要關掉它）
   (async () => {
     if (msg.type === "stt:start") { await start(msg); reply({ ok: true }); }
     else if (msg.type === "stt:stop") { stop(msg.tabId); reply({ ok: true }); }
@@ -55,10 +86,15 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   return true;
 });
 
-async function start({ tabId, streamId, settings }) {
+async function start({ tabId, streamId, settings, system }) {
   if (sessions.has(tabId)) return;
   let tabStream;
-  try {
+  if (system) {
+    try { tabStream = await pickSystemAudio(); }
+    catch (e) { sysUi("✕ 沒有開始錄音", e.message); throw e; }
+    sysUi("● 正在錄電腦的聲音", "LINE、Teams、Zoom 電腦版的聲音都會記下來。");
+    tabStream.getAudioTracks()[0].onended = () => chrome.runtime.sendMessage({ type: "stt:sysEnded", tabId }); // 按了 Chrome 的「停止分享」
+  } else try {
     tabStream = await navigator.mediaDevices.getUserMedia({
       audio: { mandatory: { chromeMediaSource: "tab", chromeMediaSourceId: streamId } },
       video: false,
@@ -71,7 +107,9 @@ async function start({ tabId, streamId, settings }) {
   // offscreen 沒有使用者手勢，AudioContext 會停在 suspended，聲音不會接回喇叭
   try { await ctx.resume(); } catch {}
   ctx.onstatechange = () => { s.stats.ctxState = ctx.state; report(s); };
-  ctx.createMediaStreamSource(tabStream).connect(ctx.destination);
+  // 只有分頁音訊要接回喇叭（被擷取的分頁會變靜音）。
+  // 整台電腦的聲音本來就在播，絕對不能再播一次：會變成「錄到自己播的聲音」的迴授，越來越大聲。
+  if (!system) ctx.createMediaStreamSource(tabStream).connect(ctx.destination);
 
   s = { tabId, settings, ctx, stopped: false, channels: {}, prevText: "",
     stats: { chunks: 0, sent: 0, silent: 0, ok: 0, lastPeak: 0, mic: false, lastError: "", ctxState: ctx.state, byChannel: {}, dsp: "載入中" } };
@@ -89,7 +127,7 @@ async function start({ tabId, streamId, settings }) {
     chrome.runtime.sendMessage({ type: "stt:levels", tabId: s.tabId, levels, ctxState: ctx.state });
   }, 500);
   report(s);
-  notify(tabId, "ok", s.stats.mic ? "語音辨識已啟動：麥克風＝你，分頁聲音＝其他人" : "語音辨識已啟動（只有分頁聲音，收不到你自己）");
+  notify(tabId, "ok", s.stats.mic ? `語音辨識已啟動：麥克風＝你，${system ? "電腦" : "分頁"}聲音＝其他人` : `語音辨識已啟動（只有${system ? "電腦" : "分頁"}聲音，收不到你自己）`);
 }
 
 // 接上麥克風通道；未授權時回報 micDenied，background 會開授權視窗，授權後再呼叫一次

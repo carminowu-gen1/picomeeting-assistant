@@ -169,24 +169,30 @@ async function pageInfo(tab, inject = true) {
 async function startRecording(tabId) {
   const settings = await getSettings();
   const tab = await chrome.tabs.get(tabId).catch(() => null);
-  if (!tab || !recordable(tab.url)) throw new Error("這個頁面不能錄音：請切到會議或影片的網頁再按開始。");
-  const info = await pageInfo(tab);
+  const sys = settings.audioSource === "system"; // 錄整台電腦的聲音（LINE、Teams 電腦版…）
+  if (sys && [...active.values()].some((x) => x.source === "system")) throw new Error("已經在錄電腦的聲音了。");
+  if (!sys && (!tab || !recordable(tab.url))) throw new Error("這個頁面不能錄音：請切到會議或影片的網頁再按開始。");
+  const info = sys
+    ? { platform: "system", platformName: "電腦聲音", title: `會議 ${new Date().toLocaleString("zh-TW", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}` }
+    : await pageInfo(tab);
   if (!info.title) info.title = tab.title;
   const m = newMeeting(tabId, info);
-  m.url = tab.url;
-  // 一般網頁沒有字幕可抓：一律用語音辨識
-  const mode = info.platform === "web" ? "stt" : settings.sttMode || "stt";
+  m.url = sys ? "" : tab.url;
+  m.source = sys ? "system" : "tab";
+  // 一般網頁、整台電腦都沒有字幕可抓：一律用語音辨識
+  const mode = info.platform === "web" || sys ? "stt" : settings.sttMode || "stt";
   m.sttMode = mode;
   active.set(tabId, m);
   speakerLogs.set(tabId, []);
   const tell = (msg) => chrome.tabs.sendMessage(tabId, msg).catch(() => null); // 沒有 content script 也不影響錄音
-  if (mode !== "stt") await tell({ type: "start", autoCaptions: settings.autoCaptions, watchSpeakers: mode === "both", myName: settings.myName });
+  if (sys) { /* 不碰目前分頁 */ }
+  else if (mode !== "stt") await tell({ type: "start", autoCaptions: settings.autoCaptions, watchSpeakers: mode === "both", myName: settings.myName });
   else await tell({ type: "startSpeakerWatch", myName: settings.myName });
   if (mode !== "captions") {
     try { await startStt(tabId, settings); m.stt = "on"; }
     catch (e) {
       m.stt = "error"; m.sttError = e.message;
-      await stopStt(tabId); // 失敗也要把可能已開的串流放掉，否則下次會 "active stream"
+      await stopStt(tabId, sys ? 8000 : 0); // 失敗也要把可能已開的串流放掉，否則下次會 "active stream"；錄音小視窗留 8 秒讓人看到原因
       if (mode === "stt") { active.delete(tabId); await persistActive(); throw new Error("無法啟動語音辨識：" + e.message); }
     }
   }
@@ -202,13 +208,50 @@ async function ensureOffscreen() {
   if (has) return;
   await chrome.offscreen.createDocument({
     url: "offscreen/offscreen.html",
-    reasons: ["USER_MEDIA"],
+    reasons: ["USER_MEDIA"], // 整台電腦的聲音不在這裡錄（見 openSysWindow）
     justification: "擷取會議分頁音訊並轉成逐字稿",
   });
 }
 
+// 整台電腦的聲音：desktopCapture 的串流只能給「叫出選擇視窗的那個頁面」用，
+// 背景程式和 offscreen 都不行，所以開一個小視窗（同一份 offscreen.js）來選擇與錄音。
+let sysWinId = null;
+chrome.storage.session.get("sysWinId").then((r) => { if (sysWinId == null && r.sysWinId != null) sysWinId = r.sysWinId; });
+async function openSysWindow() {
+  if (sysWinId != null) { try { await chrome.windows.get(sysWinId); return; } catch { sysWinId = null; } }
+  const w = await chrome.windows.create({ url: chrome.runtime.getURL("offscreen/offscreen.html?system=1"), type: "popup", width: 380, height: 260, focused: true });
+  sysWinId = w.id;
+  await chrome.storage.session.set({ sysWinId });
+  for (let i = 0; i < 50; i++) { // 等頁面載入（最多 5 秒）
+    const ok = await chrome.runtime.sendMessage({ target: "offscreen", type: "stt:ping", system: true }).catch(() => null);
+    if (ok) return;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+}
+async function closeSysWindow() {
+  const id = sysWinId;
+  sysWinId = null;
+  await chrome.storage.session.set({ sysWinId: null });
+  if (id != null) await chrome.windows.remove(id).catch(() => {});
+}
+// 使用者直接關掉錄音小視窗 → 停止並產生摘要
+chrome.windows.onRemoved.addListener(async (id) => {
+  if (id !== sysWinId) return;
+  sysWinId = null;
+  await chrome.storage.session.set({ sysWinId: null });
+  await rehydrated;
+  for (const [t, m] of active) if (m.source === "system") stopRecording(t);
+});
+
 async function startStt(tabId, settings) {
   if (!settings.ready) throw new Error("尚未完成設定：請先在設定頁貼上 Groq 金鑰。");
+  if (settings.audioSource === "system") {
+    await openSysWindow();
+    const r = await chrome.runtime.sendMessage({ target: "offscreen", type: "stt:start", system: true, tabId, settings }).catch((e) => ({ error: e.message }));
+    if (!r) throw new Error("錄音視窗沒有回應，請再按一次開始");
+    if (r.error) throw new Error(r.error);
+    return;
+  }
   const step = async (name, fn) => { try { return await fn(); } catch (e) { throw new Error(`[${name}] ${e?.message || e}`); } };
   // 需要使用者剛在這個分頁按過擴充功能（popup 按「開始記錄」即符合）
   let streamId;
@@ -243,8 +286,13 @@ async function closeOffscreen() {
   try { if (await chrome.offscreen.hasDocument?.()) await chrome.offscreen.closeDocument(); } catch {}
 }
 
-async function stopStt(tabId) {
+async function stopStt(tabId, sysCloseDelay = 0) {
   try { await chrome.runtime.sendMessage({ target: "offscreen", type: "stt:stop", tabId }); } catch {}
+  const otherSys = () => [...active.entries()].some(([t, x]) => x.source === "system" && t !== tabId);
+  if (sysWinId != null && !otherSys()) {
+    if (sysCloseDelay) setTimeout(() => { if (![...active.values()].some((x) => x.source === "system")) closeSysWindow(); }, sysCloseDelay);
+    else await closeSysWindow();
+  }
   try {
     const st = await chrome.runtime.sendMessage({ target: "offscreen", type: "stt:status" });
     if (!st || !st.active?.length) await closeOffscreen();
@@ -350,11 +398,42 @@ function blobToDataUrl(blob) {
   });
 }
 
+// ── 回音去重：沒戴耳機時，對方的聲音從喇叭出來又被麥克風收到，同一句會出現兩次 ──
+// 規則：時間差 8 秒內、內容相似度 ≥ 0.6 → 留電腦／分頁那一份（音質較好、是對方本人），麥克風那份丟掉
+const ECHO_MS = 8000, ECHO_SIM = 0.6;
+function bigrams(s) {
+  const t = String(s || "").toLowerCase().replace(/[\s\p{P}]/gu, "");
+  const out = new Map();
+  for (let i = 0; i < t.length - 1; i++) { const g = t.slice(i, i + 2); out.set(g, (out.get(g) || 0) + 1); }
+  return { out, n: Math.max(0, t.length - 1) };
+}
+function similar(a, b) {
+  const A = bigrams(a), B = bigrams(b);
+  if (A.n < 2 || B.n < 2) return a.trim() === b.trim() && a.trim().length > 0 ? 1 : 0;
+  let hit = 0;
+  for (const [g, c] of A.out) hit += Math.min(c, B.out.get(g) || 0);
+  return (2 * hit) / (A.n + B.n);
+}
+function dropEcho(m, lines, channel) {
+  const near = (l) => m.lines.filter((x) => x.src === "stt" && Math.abs(x.t - l.t) < ECHO_MS);
+  if (channel === "mic") {
+    // 麥克風的句子：如果電腦／分頁那邊已經有一樣的 → 是回音，不要
+    return lines.filter((l) => !near(l).some((x) => !x.id.startsWith("stt-mic-") && similar(x.text, l.text) >= ECHO_SIM));
+  }
+  // 電腦／分頁的句子比較晚到：把先前麥克風收到的回音拿掉
+  for (const l of lines) {
+    const echo = near(l).filter((x) => x.id.startsWith("stt-mic-") && similar(x.text, l.text) >= ECHO_SIM);
+    if (echo.length) m.lines = m.lines.filter((x) => !echo.includes(x));
+  }
+  return lines;
+}
+
 // ── 來自 content script 的訊息 ────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   if (msg.target === "offscreen") return; // 給 offscreen 的訊息，這裡不處理
   // 字幕來自 content script（sender.tab）；語音辨識來自 offscreen（msg.tabId）
-  const tabId = sender.tab?.id ?? (/^stt:/.test(msg.type) ? msg.tabId : undefined);
+  const fromExt = sender.id === chrome.runtime.id && sender.url?.startsWith(chrome.runtime.getURL(""));
+  const tabId = /^stt:/.test(msg.type) && fromExt && msg.tabId != null ? msg.tabId : sender.tab?.id ?? (/^stt:/.test(msg.type) ? msg.tabId : undefined);
   (async () => {
     await rehydrated; // 確保 SW 重啟後 active 已復原再處理任何訊息
     if (msg.type === "caption" && tabId != null) {
@@ -402,9 +481,14 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         m.langCounts[msg.language] = (m.langCounts[msg.language] || 0) + lines.reduce((n, l) => n + l.text.length, 0);
       }
       if (settings.toTraditional !== false) lines.forEach((l) => { l.text = toTraditional(l.text); });
+      lines = dropEcho(m, lines, msg.channel === "mic" ? "mic" : "tab");
       lines.forEach((l, i) => m.lines.push({ id: `stt-${msg.channel || "tab"}-${msg.chunkStart}-${i}`, ...l, src: "stt" }));
       m.lines.sort((a, b) => a.t - b.t); // 語音段落可能晚到
       scheduleSave(m);
+      return;
+    }
+    if (msg.type === "stt:sysEnded" && tabId != null) {
+      if (active.has(tabId)) await stopRecording(tabId);
       return;
     }
     if (msg.type === "stt:micDenied" && tabId != null) {
@@ -458,13 +542,14 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     switch (msg.type) {
       case "getState": {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        const info = await pageInfo(tab);
-        const current = tab ? active.get(tab.id) : null;
+        const s0 = await getSettings();
+        const info = s0.audioSource === "system" ? { platform: "system", platformName: "電腦聲音" } : await pageInfo(tab);
+        const current = (tab ? active.get(tab.id) : null) || [...active.values()].find((x) => x.source === "system") || null;
         const { lastStartError } = await chrome.storage.session.get("lastStartError");
         checkForUpdate(); // 不等結果；下次打開 popup 就會看到
         const { update } = await chrome.storage.local.get("update");
         const s = await getSettings();
-        const settings = { ready: s.ready, sttMode: s.sttMode, autoSummarize: s.autoSummarize }; // 不把金鑰傳出去
+        const settings = { ready: s.ready, sttMode: s.sttMode, autoSummarize: s.autoSummarize, audioSource: s.audioSource }; // 不把金鑰傳出去
         // 只回最近一場（popup 只顯示這一場），不再把所有會議的逐字稿都傳過去
         // popup 只顯示狀態、句數和摘要：不傳整份逐字稿（錄音中它每 0.5 秒問一次）
         const lite = (m) => (m ? { ...m, lines: undefined, lineCount: m.lines.length } : null);
@@ -587,14 +672,14 @@ async function checkForUpdate(force = false) {
 }
 chrome.runtime.onStartup.addListener(() => checkForUpdate());
 
-chrome.tabs.onRemoved.addListener(async (tabId) => { await rehydrated; if (active.has(tabId)) stopRecording(tabId); });
+chrome.tabs.onRemoved.addListener(async (tabId) => { await rehydrated; if (active.has(tabId) && active.get(tabId).source !== "system") stopRecording(tabId); });
 
 // 會議分頁換到別的網址（例如離開後回到 Meet 首頁）→ 停止
 chrome.tabs.onUpdated.addListener(async (tabId, info) => {
   if (!info.url) return;
   await rehydrated;
   const m = active.get(tabId);
-  if (!m?.url) return;
+  if (!m?.url || m.source === "system") return;
   try {
     const a = new URL(m.url), b = new URL(info.url);
     if (a.host !== b.host || a.pathname !== b.pathname) stopRecording(tabId);
