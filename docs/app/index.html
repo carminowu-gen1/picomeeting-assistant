@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#2f6df6" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="會議摘要" />
+  <title>會議摘要助理</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icons/icon48.png" />
+  <link rel="apple-touch-icon" href="icons/icon128.png" />
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <!-- ── 第一次用：兩個步驟 ── -->
+  <section id="welcome" class="screen" hidden>
+    <div class="wrap">
+      <div class="hero">
+        <div class="logo">✦</div>
+        <h1>會議摘要助理</h1>
+        <p>把手機放在桌上，它會記下每個人說的話，<br>散會後自動整理成摘要。</p>
+      </div>
+      <div class="card step" id="w1">
+        <div class="num">1</div>
+        <div class="body">
+          <h2>允許使用麥克風</h2>
+          <p>按下按鈕，手機會問你要不要允許，請按「<b>允許</b>」，然後隨便說幾句話。</p>
+          <button class="btn primary" id="wMic">🎤 允許並測試</button>
+          <div class="bar"><div id="wMeter" class="fill"></div></div>
+          <p class="msg" id="wMicMsg"></p>
+        </div>
+      </div>
+      <div class="card step" id="w2">
+        <div class="num">2</div>
+        <div class="body">
+          <h2>連接 AI（免費）</h2>
+          <p>辨識和摘要用 Groq 的免費服務，需要一組「金鑰」，三步拿到：</p>
+          <ol class="howto">
+            <li><a class="btn sm" href="https://console.groq.com/keys" target="_blank" rel="noopener">打開 Groq 網站 ↗</a>，用 Google 帳號登入</li>
+            <li>按「<b>Create API Key</b>」→ 名稱隨便填 → 「<b>Submit</b>」</li>
+            <li>按「<b>Copy</b>」，回到這裡貼上</li>
+          </ol>
+          <div class="row"><input type="password" id="wKey" placeholder="貼在這裡（gsk_ 開頭）" autocomplete="off" /><button class="btn primary" id="wKeyBtn">確認</button></div>
+          <p class="msg" id="wKeyMsg"></p>
+          <p class="small muted">金鑰只存在這支手機裡，只會在辨識時直接送給 Groq。</p>
+        </div>
+      </div>
+      <button class="btn primary big" id="wDone" disabled>開始使用 →</button>
+      <p class="small muted center">小提醒：把這個網頁「加到主畫面」，以後就像 App 一樣一點就開。<br>iPhone：Safari 分享 ⎙ → 加入主畫面　Android：Chrome ⋮ → 加到主畫面</p>
+    </div>
+  </section>
+
+  <!-- ── 主畫面 ── -->
+  <section id="main" class="screen" hidden>
+    <header class="top">
+      <button class="icon" id="toHistory" title="過去的會議" aria-label="過去的會議">☰</button>
+      <input id="title" class="title" type="text" placeholder="會議標題（可以改）" />
+      <button class="icon" id="newBtn" title="新會議" aria-label="新會議" hidden>＋</button>
+      <button class="icon" id="toSettings" title="設定" aria-label="設定">⚙</button>
+    </header>
+
+    <div class="status">
+      <span id="badge" class="badge">準備好了</span>
+      <div class="bar"><div id="meter" class="fill"></div></div>
+      <span id="timer" class="timer">00:00</span>
+    </div>
+
+    <main id="lines" class="lines"></main>
+
+    <section id="summary" class="summary" hidden></section>
+
+    <footer class="bottom">
+      <div id="doneBar" class="actions" hidden>
+        <button class="btn" id="copyBtn">📋 複製全文</button>
+        <button class="btn" id="wordBtn">📄 存成 Word</button>
+      </div>
+      <button class="rec" id="recBtn"><span class="dot"></span><span id="recLabel">開始記錄</span></button>
+      <p id="hint" class="hint"></p>
+    </footer>
+  </section>
+
+  <!-- ── 過去的會議 ── -->
+  <section id="history" class="screen" hidden>
+    <header class="top"><button class="icon" id="histBack" aria-label="返回">←</button><h2 class="grow">過去的會議</h2></header>
+    <div id="histList" class="wrap list"></div>
+  </section>
+
+  <!-- ── 設定 ── -->
+  <section id="settings" class="screen" hidden>
+    <header class="top"><button class="icon" id="setBack" aria-label="返回">←</button><h2 class="grow">設定</h2></header>
+    <div class="wrap form">
+      <div class="card">
+        <label>Groq 金鑰<div class="row"><input type="password" id="sKey" autocomplete="off" /><button class="btn sm" id="sKeyCheck">檢查</button></div><span class="msg small" id="sKeyMsg"></span></label>
+      </div>
+      <div class="card">
+        <label>說話的語言<select id="sLang"><option value="auto">自動（中英夾雜也可以，照原文記）</option><option value="zh">固定中文</option><option value="en">固定英文</option><option value="ja">固定日文</option></select></label>
+        <label>摘要用的語言<select id="sSumLang"><option>繁體中文</option><option>简体中文</option><option>English</option><option>日本語</option></select></label>
+      </div>
+      <div class="card">
+        <label class="toggle"><span>簡體自動轉繁體</span><input type="checkbox" id="sS2T" /></label>
+        <label class="toggle"><span>大字模式</span><input type="checkbox" id="sBig" /></label>
+        <label class="toggle"><span>散會後自動產生摘要</span><input type="checkbox" id="sAuto" /></label>
+      </div>
+      <p class="small muted">聲紋模型：<span id="sModel">—</span><br>所有資料只存在這支手機裡。<a href="../privacy.html">隱私權政策</a>・版本 <span id="sVer"></span></p>
+    </div>
+  </section>
+
+  <div id="toast" class="toast"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

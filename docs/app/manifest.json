@@ -1,0 +1,16 @@
+{
+  "name": "會議摘要助理",
+  "short_name": "會議摘要",
+  "description": "把手機放在桌上，自動記錄會議逐字稿、分辨說話者，散會後產生摘要。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f7fb",
+  "theme_color": "#2f6df6",
+  "lang": "zh-TW",
+  "icons": [
+    { "src": "icons/icon48.png", "sizes": "48x48", "type": "image/png" },
+    { "src": "icons/icon128.png", "sizes": "128x128", "type": "image/png", "purpose": "any" }
+  ]
+}

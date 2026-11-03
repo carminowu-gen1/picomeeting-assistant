@@ -11,3 +11,7 @@ node_modules/
 _check.html
 _stub.js
 _preview.html
+
+# 手機版 App 本機測試檔
+docs/app/_test.html
+docs/app/_wav/

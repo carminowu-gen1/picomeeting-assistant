@@ -155,6 +155,23 @@
     .story h2 { margin: 0 0 8px; font-size: 20px; }
     .story p { margin: 0; font-size: 17px; line-height: 1.9; }
     @media (max-width: 760px) { .story { padding: 20px; } .story p { font-size: 16px; } }
+
+    /* ── 平台切換 ── */
+    .platbar { display: flex; flex-wrap: wrap; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 4px; margin: 0 0 18px; width: fit-content; max-width: 100%; box-shadow: 0 4px 14px rgba(0,0,0,.06); }
+    .platbar button { border: 0; background: none; color: var(--text-2); font: inherit; font-size: 14px; font-weight: 700; padding: 7px 14px; border-radius: 10px; cursor: pointer; white-space: nowrap; }
+    .platbar button.on { background: var(--accent); color: #fff; }
+    .intro { margin: 0 0 14px; color: var(--text-2); font-size: 15px; }
+    .step > * { min-width: 0; }
+    code.wrap { white-space: pre-wrap; word-break: break-all; display: inline-block; }
+    .dlg { border: 1px solid var(--border); border-radius: 12px; padding: 12px; background: var(--surface); box-shadow: 0 10px 28px rgba(0,0,0,.15); text-align: center; }
+    .dlg b { display: block; font-size: 13px; margin: 6px 0 4px; }
+    .dlg .btns { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
+    .dlg .btns span { flex: 1; max-width: 120px; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); white-space: nowrap; }
+    .dlg .btns span.p { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .sheet { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .sheet div { padding: 7px 12px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; gap: 8px; color: var(--text-2); }
+    .sheet div:first-child { border-top: 0; }
+    .sheet div.hl { color: var(--text); background: var(--accent-soft); }
   </style>
 </head>
 <body>
@@ -228,9 +245,17 @@
 
     <!-- ── 手動安裝 ── -->
     <section id="manual-only">
-      <h2 id="install" data-t="ins_h">安裝只要 7 步（真的很快）</h2>
-      <p class="lead" data-t="ins_lead">照著圖做就對了，<b style="color:var(--red)">紅框</b>就是要按的地方 👇</p>
-      <ol class="steps">
+      <h2 id="install" data-t="ins_h">安裝（真的很快）</h2>
+      <p class="lead" data-t="ins_lead">先選你的裝置，照著圖做就對了，<b style="color:var(--red)">紅框</b>就是要按的地方 👇</p>
+      <div class="platbar" id="platbar" role="group" aria-label="Platform">
+        <button data-plat="win">Windows</button><button data-plat="mac">Mac</button><button data-plat="linux">Linux</button><button data-plat="mobile" data-t="pb_mobile">iPhone／Android</button>
+      </div>
+
+      <p class="intro" data-os="win" data-t="pi_win">Windows 只要 7 步。</p>
+      <p class="intro" data-os="mac" data-t="pi_mac">Mac 一共 8 步，最後一步是讓 macOS 把麥克風交給 Chrome。</p>
+      <p class="intro" data-os="linux" data-t="pi_linux">Linux 一共 7 步。提醒：要用 <b>Google Chrome 或 Chromium</b>，Firefox 不支援。</p>
+
+      <ol class="steps" data-os="win mac linux">
 
         <li class="step">
           <div class="txt">
@@ -246,7 +271,39 @@
           </div>
         </li>
 
-        <li class="step">
+        <li class="step" data-os="mac">
+          <div class="txt">
+            <h3 data-t="m2_t">在 Finder 點兩下，它就自己打開了</h3>
+            <p data-t="m2_p">先把 <code>meeting-assistant.zip</code> 從「下載項目」拖到「<b>文件</b>」，再<b>點兩下</b> zip，旁邊就會多出一個 <code>meeting-assistant</code> 資料夾。</p>
+            <p data-t="s2_w">⚠️ 解壓縮出來的資料夾就是它的家，之後<b>別刪掉也別搬家</b>，不然它會迷路。</p>
+          </div>
+          <div class="fig" aria-hidden="true">
+            <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><div class="omni" data-t="f_docs">📁 文件</div></div>
+            <div class="files">
+              <span class="tag" style="left:14px;top:4px" data-t="f_dbl">點兩下</span>
+              <div class="file zip"><div class="ico hl">ZIP</div>meeting-assistant.zip</div>
+              <div class="muted" style="align-self:center;font-size:18px">→</div>
+              <div class="file dir"><div class="ico"></div>meeting-assistant</div>
+            </div>
+          </div>
+        </li>
+
+        <li class="step" data-os="linux">
+          <div class="txt">
+            <h3 data-t="l2_t">解壓縮到此處</h3>
+            <p data-t="l2_p">在檔案管理員對 zip <b>按右鍵</b> →「<b>解壓縮到此處</b>」。喜歡終端機的話也可以：<code class="wrap">unzip meeting-assistant.zip -d ~/會議摘要助理</code></p>
+            <p data-t="s2_w">⚠️ 解壓縮出來的資料夾就是它的家，之後<b>別刪掉也別搬家</b>，不然它會迷路。</p>
+          </div>
+          <div class="fig" aria-hidden="true">
+            <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><div class="omni" data-t="f_dl">📁 下載</div></div>
+            <div class="files">
+              <div class="file zip"><div class="ico">ZIP</div>meeting-assistant.zip</div>
+              <div class="ctx"><div data-t="cx_open">開啟</div><div class="hl" data-t="cx_here">解壓縮到此處</div><div data-t="cx_copy">複製</div><div data-t="cx_trash">移至垃圾桶</div></div>
+            </div>
+          </div>
+        </li>
+
+        <li class="step" data-os="win">
           <div class="txt">
             <h3 data-t="s2_t">打開壓縮包</h3>
             <p data-t="s2_p">在檔案上<b>按右鍵</b> →「<b>全部解壓縮…</b>」，位置選「<b>文件</b>」資料夾。</p>
@@ -338,20 +395,102 @@
             </div>
           </div>
         </li>
+
+        <li class="step" data-os="mac">
+          <div class="txt">
+            <h3 data-t="m8_t">讓 macOS 把麥克風交給 Chrome</h3>
+            <p data-t="m8_p">第一次按「開始記錄」時，macOS 會跳出「<b>Chrome 想要使用麥克風</b>」，請按「<b>允許</b>」。</p>
+            <p data-t="m8_w">沒看到這個視窗、或不小心按了「不允許」？打開「<b>系統設定 → 隱私權與安全性 → 麥克風</b>」，把 <b>Google Chrome</b> 的開關打開，再回 Chrome 重新按一次「開始記錄」。</p>
+          </div>
+          <div class="fig" aria-hidden="true">
+            <div class="fig-body" style="display:flex;flex-direction:column;gap:10px">
+              <div class="dlg"><span style="font-size:22px">🎙️</span><b data-t="md_t">「Google Chrome」想要取用麥克風。</b><div class="muted" data-t="md_d">會議摘要助理需要聽到你的聲音才能記錄。</div><div class="btns"><span data-t="md_no">不允許</span><span class="p hl" data-t="md_ok">允許</span></div></div>
+              <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
+                <div style="background:var(--surface-2);padding:5px 10px" class="muted" data-t="ms_path">⚙️ 系統設定 › 隱私權與安全性 › 麥克風</div>
+                <div class="between" style="padding:7px 10px"><div class="row"><span class="ic" style="width:20px;text-align:center">🌐</span>Google Chrome</div><span class="toggle on hl"></span></div>
+              </div>
+            </div>
+          </div>
+        </li>
       </ol>
-      <div class="note" data-t="note">💡 Chrome 偶爾會跳出「停用開發人員模式擴充功能」的提醒，請按<b>保留</b>或直接關掉，千萬別按停用。</div>
+      <div class="note" data-os="win mac linux" data-t="note">💡 Chrome 偶爾會跳出「停用開發人員模式擴充功能」的提醒，請按<b>保留</b>或直接關掉，千萬別按停用。</div>
+
+      <!-- 手機 -->
+      <div data-os="mobile">
+        <p class="intro" data-t="pi_mobile">手機的 Chrome 裝不了擴充功能，所以手機改用<b>網頁版 App</b>，不用安裝任何東西。把手機放在會議桌上錄實體會議，或放在電腦旁邊當錄音筆都行；它會自動分辨不同的說話者。</p>
+        <ol class="steps">
+          <li class="step">
+            <div class="txt">
+              <h3 data-t="p1_t">用手機打開這個網址</h3>
+              <p data-t="p1_p">iPhone 用 <b>Safari</b>，Android 用 <b>Chrome</b>。按「複製」再貼到網址列也可以。</p>
+              <div class="copy"><a href="https://carminowu-gen1.github.io/picomeeting-assistant/app/" style="word-break:break-all">carminowu-gen1.github.io/picomeeting-assistant/app/</a> <button class="btn ghost" data-copy="https://carminowu-gen1.github.io/picomeeting-assistant/app/" data-t="copy">複製</button></div>
+            </div>
+            <div class="fig" aria-hidden="true">
+              <div class="win-bar"><div class="omni hl"><b>…github.io/picomeeting-assistant/app/</b></div></div>
+              <div class="fig-body" style="display:grid;place-items:center;padding:18px 12px">
+                <div class="pop" style="box-shadow:none"><div class="hd"><span class="logo sm">✦</span><span data-t="pop_name">會議摘要助理</span></div><div class="big" data-t="pop_start">● 開始記錄</div><div class="meter"><span>A</span><div class="bar"><i style="width:70%"></i></div></div><div class="meter"><span>B</span><div class="bar"><i style="width:40%"></i></div></div></div>
+              </div>
+            </div>
+          </li>
+          <li class="step">
+            <div class="txt">
+              <h3 data-t="p2_t">允許麥克風</h3>
+              <p data-t="p2_p">第一次按「開始記錄」時手機會問要不要用麥克風，按「<b>允許</b>」。</p>
+            </div>
+            <div class="fig" aria-hidden="true">
+              <div class="fig-body" style="display:grid;place-items:center;padding:18px 12px">
+                <div class="dlg" style="width:min(240px,100%)"><span style="font-size:22px">🎙️</span><b data-t="pd_t">「github.io」想要使用麥克風</b><div class="btns"><span data-t="md_no">不允許</span><span class="p hl" data-t="md_ok">允許</span></div></div>
+              </div>
+            </div>
+          </li>
+          <li class="step">
+            <div class="txt">
+              <h3 data-t="p3_t">貼上 Groq 金鑰</h3>
+              <p data-t="p3_p">在設定裡貼上你的 <b>Groq API 金鑰</b>（跟電腦版用同一把就好，頁面上有免費申請教學）。</p>
+            </div>
+            <div class="fig" aria-hidden="true">
+              <div class="fig-body" style="display:flex;flex-direction:column;gap:8px">
+                <div class="muted" data-t="pk_l">Groq API 金鑰</div>
+                <div class="hl" style="border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">gsk_••••••••••••••••••••</div>
+                <div style="text-align:center"><span class="mbtn" style="background:var(--accent);color:#fff;border-color:var(--accent)" data-t="pk_save">儲存</span></div>
+              </div>
+            </div>
+          </li>
+          <li class="step">
+            <div class="txt">
+              <h3 data-t="p4_t">加到主畫面，之後像 App 一樣打開</h3>
+              <p data-t="p4_p"><b>iPhone</b>：按 Safari 下方的「分享」按鈕 → 「<b>加入主畫面</b>」。<br><b>Android</b>：按 Chrome 右上角的 <b>⋮</b> → 「<b>加到主畫面</b>」。</p>
+            </div>
+            <div class="fig" aria-hidden="true">
+              <div class="fig-body" style="display:grid;place-items:center;padding:14px 12px">
+                <div class="sheet" style="width:min(240px,100%)"><div><span data-t="sh_copy">拷貝</span><span>📋</span></div><div><span data-t="sh_book">加入書籤</span><span>📖</span></div><div class="hl"><span data-t="sh_home">加入主畫面</span><span>➕</span></div><div><span data-t="sh_print">列印</span><span>🖨️</span></div></div>
+              </div>
+            </div>
+          </li>
+        </ol>
+        <div class="note" data-t="p_note">🚧 手機版正在開發中，網址開不了就表示還沒上線，再等等 🙏</div>
+      </div>
 
       <!-- ── 更新 ── -->
       <h2 id="update" data-t="up_h">新版本來敲門了 🎁</h2>
-      <p class="lead" data-t="up_lead">打開 ✦ 看到這個提醒時，三步就能升級。會議記錄和設定都會乖乖留著。</p>
-      <ol class="steps">
+      <p class="lead" data-os="win mac linux" data-t="up_lead">打開 ✦ 看到這個提醒時，三步就能升級。會議記錄和設定都會乖乖留著。</p>
+      <p class="lead" data-os="mobile" data-t="up_mobile">手機版<b>不用更新</b>：每次重新打開網址（或主畫面上的圖示），拿到的就是最新版 🎉</p>
+      <ol class="steps" data-os="win mac linux">
         <li class="step">
           <div class="txt"><h3 data-t="u1_t">看到「有新版本」提醒</h3><p data-t="u1_p">點一下提醒，就會帶你回到這一頁。</p></div>
           <div class="fig" aria-hidden="true" style="display:grid;place-items:center;padding:16px;background:var(--surface-2)">
             <div class="pop"><div class="hd"><span class="logo sm">✦</span><span data-t="pop_name">會議摘要助理</span></div><div class="upd hl" data-t="u_banner">🎁 有新版本 1.0.1，點這裡看怎麼更新</div><div class="big" data-t="pop_start">● 開始記錄</div></div>
           </div>
         </li>
-        <li class="step">
+        <li class="step" data-os="mac linux">
+          <div class="txt"><h3 data-t="mu2_t">下載新版，整個資料夾換掉</h3><p data-t="mu2_p">按下面的按鈕下載最新版，解壓縮後把<b>整個 <code>meeting-assistant</code> 資料夾</b>拖去原本的位置蓋掉舊的；問要不要取代時選「<b>取代</b>」。</p><p><a class="btn ghost dl" href="#"><span data-t="dl2">⬇ 下載最新版 meeting-assistant.zip</span><span class="ver" hidden></span></a></p></div>
+          <div class="fig" aria-hidden="true">
+            <div class="fig-body" style="display:grid;place-items:center">
+              <div class="dlg" style="width:min(260px,100%)"><span style="font-size:22px">📁</span><b data-t="mr_t">「文件」裡已經有名為「meeting-assistant」的項目。</b><div class="muted" data-t="mr_d">要用正在搬移的項目取代它嗎？</div><div class="btns"><span data-t="mr_stop">停止</span><span class="p hl" data-t="mr_rep">取代</span></div></div>
+            </div>
+          </div>
+        </li>
+        <li class="step" data-os="win">
           <div class="txt"><h3 data-t="u2_t">下載新版，蓋掉舊的</h3><p data-t="u2_p">按下面的按鈕下載最新版。解壓縮到<b>原本的資料夾</b>，問要不要取代時選「<b>取代目的地中的檔案</b>」。</p><p><a class="btn ghost dl" href="#"><span data-t="dl2">⬇ 下載最新版 meeting-assistant.zip</span><span class="ver" hidden></span></a></p></div>
           <div class="fig" aria-hidden="true">
             <div class="fig-body">
@@ -383,6 +522,7 @@
     <details><summary data-t="q1">Teams、Zoom 也能用嗎？</summary><p data-t="a1">可以！不過要用<b>網頁版</b>，也就是在 Chrome 裡開會。電腦上安裝的 Teams／Zoom 應用程式，它聽不到。</p></details>
     <details><summary data-t="q6">載入時出現「Cannot load extension… desktop.ini」？</summary><p data-t="a6">這是選錯資料夾，或 Windows 在資料夾裡放了隱藏檔 <code>desktop.ini</code>。在「文件」裡<b>新建一個空資料夾</b>，把 zip 解壓縮到裡面，載入時選<b>打開就看得到 <code>manifest.json</code></b> 的那一層（不要選「下載」或「桌面」）。還是不行的話：檔案總管上方「檢視 → 顯示 → 隱藏的項目」，把那個資料夾裡的 <code>desktop.ini</code> 刪掉再載入一次。</p></details>
     <details><summary data-t="q7">電腦比較慢（例如 Surface Go）怎麼辦？</summary><p data-t="a7">最吃效能的其實是會議本身。試試這幾招：① 在 Meet／Teams 裡<b>關掉背景模糊、虛擬背景和視訊特效</b>（最有感）；② 不需要看畫面時<b>關掉自己的視訊</b>；③ 會議中<b>不用一直開著「查看全文」</b>，會後再看就好；④ 開會時<b>關掉其他不用的分頁</b>；⑤ 筆電插著電源，Windows 電源模式選「最佳效能」。</p></details>
+    <details><summary data-t="q8">Mac 錄不到我的聲音？</summary><p data-t="a8">多半是 macOS 還沒把麥克風交給 Chrome。打開「<b>系統設定 → 隱私權與安全性 → 麥克風</b>」，把 <b>Google Chrome</b> 的開關打開，再回 Chrome 重新按「開始記錄」。第一次錄音時如果跳出「Chrome 想要使用麥克風」，記得按「允許」。</p></details>
     <details><summary data-t="q2">逐字稿怎麼一直沒出現？</summary><p data-t="a2">先看 ✦ 裡的兩條綠色音量條：「我」不跳 → 到設定頁按「測試麥克風」；「對方」不跳 → 會議本身沒有聲音。另外，說完話大約 3～15 秒文字才會出現，給它一點時間 ⏳</p></details>
     <details><summary data-t="q3">英文、中英夾雜也行嗎？</summary><p data-t="a3">行！它會照原文記錄，不會擅自翻譯；簡體中文會自動轉成繁體。</p></details>
     <details><summary data-t="q4">會議內容安全嗎？</summary><p data-t="a4">逐字稿和摘要只存在你自己的電腦裡。辨識時，聲音會加密傳給 AI 處理。詳見<a href="privacy.html">隱私權政策</a>。</p></details>
@@ -431,8 +571,40 @@
       st1_p: "On the store page, click “Add to Chrome”, then “Add extension”.",
       st2_t: "Follow the welcome page",
       st2_p: "Allow the microphone and pin the icon — about a minute.",
-      ins_h: "Install in 7 steps (really, it's quick)",
-      ins_lead: "Just follow the pictures — the <b style=\"color:var(--red)\">red box</b> is what you click 👇",
+      ins_h: "Install (really, it's quick)",
+      ins_lead: "Pick your device, then follow the pictures — the <b style=\"color:var(--red)\">red box</b> is what you click 👇",
+      pb_mobile: "iPhone / Android",
+      pi_win: "On Windows it's 7 steps.",
+      pi_mac: "On a Mac it's 8 steps — the last one lets macOS hand the microphone to Chrome.",
+      pi_linux: "On Linux it's 7 steps. Heads-up: use <b>Google Chrome or Chromium</b> — Firefox isn't supported.",
+      m2_t: "Double-click it in Finder and it unpacks itself",
+      m2_p: "First drag <code>meeting-assistant.zip</code> from Downloads into <b>Documents</b>, then <b>double-click</b> the zip — a <code>meeting-assistant</code> folder appears next to it.",
+      f_docs: "📁 Documents", f_dbl: "Double-click",
+      l2_t: "Extract here",
+      l2_p: "In your file manager, <b>right-click</b> the zip → “<b>Extract Here</b>”. Terminal fans can do it this way instead: <code class=\"wrap\">unzip meeting-assistant.zip -d ~/meeting-assistant</code>",
+      cx_here: "Extract Here", cx_trash: "Move to Trash",
+      m8_t: "Let macOS hand the microphone to Chrome",
+      m8_p: "The first time you press “Start recording”, macOS asks “<b>Chrome would like to access the microphone</b>” — click “<b>Allow</b>”.",
+      m8_w: "Didn't see that dialog, or clicked “Don't Allow” by mistake? Open <b>System Settings → Privacy &amp; Security → Microphone</b>, switch on <b>Google Chrome</b>, then go back to Chrome and press “Start recording” again.",
+      md_t: "“Google Chrome” would like to access the microphone.", md_d: "PicoMeeting Assistant needs to hear you to take notes.", md_no: "Don't Allow", md_ok: "Allow",
+      ms_path: "⚙️ System Settings › Privacy & Security › Microphone",
+      pi_mobile: "Chrome on a phone can't install extensions, so on mobile you use the <b>web app</b> instead — nothing to install. Put the phone on the table to record an in-person meeting, or next to your computer as a voice recorder; it tells the different speakers apart automatically.",
+      p1_t: "Open this address on your phone",
+      p1_p: "Use <b>Safari</b> on iPhone or <b>Chrome</b> on Android. You can also tap “Copy” and paste it into the address bar.",
+      p2_t: "Allow the microphone",
+      p2_p: "The first time you press “Start recording”, your phone asks to use the microphone — tap “<b>Allow</b>”.",
+      pd_t: "“github.io” would like to use the microphone",
+      p3_t: "Paste your Groq key",
+      p3_p: "In Settings, paste your <b>Groq API key</b> (the same one you use on the computer is fine — there's a free how-to on the page).",
+      pk_l: "Groq API key", pk_save: "Save",
+      p4_t: "Add to Home Screen and open it like an app",
+      p4_p: "<b>iPhone</b>: tap Safari's “Share” button at the bottom → “<b>Add to Home Screen</b>”.<br><b>Android</b>: tap <b>⋮</b> at the top right of Chrome → “<b>Add to Home screen</b>”.",
+      sh_copy: "Copy", sh_book: "Add Bookmark", sh_home: "Add to Home Screen", sh_print: "Print",
+      p_note: "🚧 The mobile version is still being built — if the address doesn't open, it isn't live yet. Hang tight 🙏",
+      up_mobile: "On mobile there's <b>nothing to update</b>: every time you reopen the address (or the icon on your Home Screen) you get the latest version 🎉",
+      mu2_t: "Download it and swap the whole folder",
+      mu2_p: "Click the button below to download the latest version. Unpack it, then drag the <b>whole <code>meeting-assistant</code> folder</b> over the old one; when asked, choose “<b>Replace</b>”.",
+      mr_t: "An item named “meeting-assistant” already exists in Documents.", mr_d: "Do you want to replace it with the one you're moving?", mr_stop: "Stop", mr_rep: "Replace",
       s1_t: "Bring the installer home",
       s1_p: "Click the button below to download <code>meeting-assistant.zip</code>.",
       dl: "⬇ Download meeting-assistant.zip",
@@ -478,6 +650,8 @@
       a6: "You picked the wrong folder, or Windows dropped a hidden <code>desktop.ini</code> file into it. Create a <b>new empty folder</b> in Documents, extract the zip into it, and when loading choose the folder where you <b>see <code>manifest.json</code> right away</b> (not Downloads or Desktop). Still stuck? In File Explorer choose “View → Show → Hidden items”, delete <code>desktop.ini</code> from that folder, and load again.",
       q7: "My computer is on the slow side (e.g. Surface Go) — any tips?",
       a7: "The meeting itself is the heaviest part. Try: ① turn off <b>background blur, virtual backgrounds and video effects</b> in Meet/Teams (the biggest win); ② <b>turn off your camera</b> when you don't need it; ③ <b>don't keep “Full text” open</b> during the meeting — check it afterwards; ④ <b>close tabs</b> you're not using; ⑤ keep the laptop plugged in and set Windows power mode to “Best performance”.",
+      q8: "My Mac isn't picking up my voice?",
+      a8: "Most likely macOS hasn't handed the microphone to Chrome yet. Open <b>System Settings → Privacy &amp; Security → Microphone</b>, switch on <b>Google Chrome</b>, then go back to Chrome and press “Start recording” again. If “Chrome would like to access the microphone” pops up the first time you record, click “Allow”.",
       q2: "Why isn't any text showing up?",
       a2: "Check the two green bars in ✦: if “Me” isn't moving, open Settings and click “Test microphone”; if “Others” isn't moving, the meeting itself has no sound. Also, text appears about 3–15 seconds after someone speaks — give it a moment ⏳",
       q3: "English? A mix of languages?",
@@ -540,6 +714,28 @@
     try { saved = localStorage.getItem("lang"); } catch {}
     const q = new URLSearchParams(location.search).get("lang");
     setLang(q === "en" || q === "zh" ? q : saved || (/^zh/i.test(navigator.language) ? "zh" : "en"));
+
+    // ── 平台：網址 ?plat= > 上次的選擇 > user agent ──
+    const PLATS = ["win", "mac", "linux", "mobile"];
+    const osNodes = [...document.querySelectorAll("[data-os]")];
+    function detectPlat() {
+      const ua = navigator.userAgent;
+      if (/iPhone|iPad|iPod|Android/i.test(ua) || (/Mac/i.test(ua) && navigator.maxTouchPoints > 1)) return "mobile";
+      if (/Mac/i.test(ua)) return "mac";
+      if (/Linux|X11|CrOS/i.test(ua)) return "linux";
+      return "win";
+    }
+    function setPlat(p) {
+      if (!PLATS.includes(p)) p = "win";
+      for (const el of osNodes) el.hidden = !el.dataset.os.split(/\s+/).includes(p);
+      document.querySelectorAll("#platbar button").forEach((b) => { b.classList.toggle("on", b.dataset.plat === p); b.setAttribute("aria-pressed", b.dataset.plat === p); });
+      try { localStorage.setItem("plat", p); } catch {}
+    }
+    document.querySelectorAll("#platbar button").forEach((b) => b.addEventListener("click", () => setPlat(b.dataset.plat)));
+    let savedPlat = null;
+    try { savedPlat = localStorage.getItem("plat"); } catch {}
+    const qp = new URLSearchParams(location.search).get("plat");
+    setPlat(PLATS.includes(qp) ? qp : PLATS.includes(savedPlat) ? savedPlat : detectPlat());
   </script>
 </body>
 </html>
