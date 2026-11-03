@@ -10,7 +10,7 @@ import { buildDocx } from "./lib/docx.js";
 import { t, detectLang, setLang, applyI18n } from "./i18n.js";
 import { setLabelFn } from "./diarize.js";
 
-const VERSION = "1.2.0";
+const VERSION = "1.2.1";
 const GROQ = "https://api.groq.com";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -339,7 +339,7 @@ $("histList").addEventListener("click", (e) => {
   const it = e.target.closest(".item"); if (it) openMeeting(it.dataset.id);
 });
 function fillSettings() {
-  $("sKey").value = settings.apiKey; $("sLang").value = settings.sttLanguage; $("sSumLang").value = sumLang(); $("sUiLang").value = settings.uiLang || "auto";
+  $("sKey").value = settings.apiKey; $("sLang").value = settings.sttLanguage; $("sSumLang").value = settings.language || ""; $("sUiLang").value = settings.uiLang || "auto";
   $("sS2T").checked = settings.toTraditional; $("sBig").checked = settings.bigText; $("sAuto").checked = settings.autoSummarize !== false;
   $("sVer").textContent = VERSION;
 }
