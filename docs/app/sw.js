@@ -1,5 +1,5 @@
 // Service worker：把 App 本身、onnxruntime 和聲紋模型存在手機裡，第二次打開不用再下載
-const CACHE = "pm-app-v4";
+const CACHE = "pm-app-v5";
 const CORE = ["./", "./index.html", "./app.css", "./app.js", "./audio.js", "./worklet.js", "./diarize.js", "./filters.js", "./store.js", "./embed-worker.js",
   "./manifest.json", "./icons/icon48.png", "./icons/icon128.png",
   "./lib/groq.js", "./lib/compact.js", "./lib/s2t.js", "./lib/format.js", "./lib/docx.js",

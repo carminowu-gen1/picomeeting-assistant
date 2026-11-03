@@ -6,6 +6,8 @@ const MAX_MS = 9000;        // 一直有聲音時的上限
 const PAUSE_MS = 600;       // 靜音多久算一句講完
 const MIN_VOICE_MS = 500;   // 一段裡「有人在說話」不到這麼久就當雜音不送
 const PREROLL_S = 0.5;      // 說話前保留的前置音
+const SOFT_AGC_TARGET = 0.08; // 軟體增益的目標音量（RMS）
+const SOFT_AGC_MAX = 12;      // 最多放大幾倍
 
 export class Recorder {
   constructor({ onChunk, onLevel, onError } = {}) {
@@ -23,6 +25,11 @@ export class Recorder {
     this.stream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: false, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
     });
+    // 瀏覽器有沒有真的開自動增益（AGC）？沒有的話就自己做軟體增益，放桌子中間遠一點也收得到
+    const st = this.stream.getAudioTracks()[0]?.getSettings?.() || {};
+    this.browserAgc = st.autoGainControl === true;
+    this.softAgc = !this.browserAgc;
+    this.gain = 1;
     this.ctx = new AudioContext();
     await this.ctx.resume();
     await this.ctx.audioWorklet.addModule(new URL("./worklet.js", import.meta.url));
@@ -64,11 +71,17 @@ export class Recorder {
 
     let sum = 0;
     for (let i = 0; i < n; i++) sum += x[i] * x[i];
-    const r = Math.sqrt(sum / n);
+    let r = Math.sqrt(sum / n);
+    const rawVoiced = this.isVoiced(r);
+    if (this.softAgc) {
+      // 軟體 AGC：有人說話時把音量慢慢拉到目標大小（上限 12 倍），安靜時不動，避免把雜音放大
+      if (rawVoiced) { const want = Math.min(SOFT_AGC_MAX, Math.max(1, SOFT_AGC_TARGET / r)); this.gain += (want - this.gain) * (want < this.gain ? 0.5 : 0.08); }
+      if (this.gain > 1.001) { for (let i = 0; i < n; i++) { const v = x[i] * this.gain; x[i] = v > 1 ? 1 : v < -1 ? -1 : v; } r = Math.min(1, r * this.gain); }
+    }
     this.level = r;
     if (r > this.peak) this.peak = r;
     const frameMs = (n / sr) * 1000;
-    const voiced = this.isVoiced(r);
+    const voiced = rawVoiced;
     if (voiced) { this.hadVoice = true; this.lastVoiceAt = now; this.voicedMs += frameMs; }
     this.onLevel?.(r, voiced);
 

@@ -10,6 +10,8 @@ const MIN_MS = 2500;        // 太短的段落辨識不準
 const MAX_MS = 9000;        // 一直有聲音時的上限（越短字越快出來；太短會把一句話切斷）
 const PAUSE_MS = 600;       // 靜音多久算一句講完
 const MIN_VOICE_MS = 500;   // 一段裡「有人在說話」累積不到這麼久，就當成雜音不送（Whisper 聽到雜音會編出 YouTube 開場白）
+const SOFT_AGC_TARGET = 0.08; // 瀏覽器沒開自動增益時，軟體增益的目標音量（RMS）
+const SOFT_AGC_MAX = 12;      // 最多放大幾倍
 
 // 「有人在說話」= 音量明顯高於這個通道的背景雜音（自動估計），而且至少 0.008
 function isVoiced(ch, r) {
@@ -79,7 +81,10 @@ async function addMic(s) {
     s.channels.mic = makeChannel(s, "mic", micStream);
     s.stats.mic = true;
     const tr = micStream.getAudioTracks()[0];
-    s.stats.micInfo = tr ? { label: tr.label, muted: tr.muted, enabled: tr.enabled, state: tr.readyState } : null;
+    // 瀏覽器有沒有真的開自動增益（AGC）？沒有的話麥克風通道自己做軟體增益（Mac／Linux／某些裝置會忽略這個要求）
+    const agc = tr?.getSettings?.().autoGainControl === true;
+    s.channels.mic.softAgc = !agc;
+    s.stats.micInfo = tr ? { label: tr.label, muted: tr.muted, enabled: tr.enabled, state: tr.readyState, agc: agc ? "browser" : "software" } : null;
     if (tr) tr.onmute = tr.onunmute = () => { s.stats.micInfo = { label: tr.label, muted: tr.muted, enabled: tr.enabled, state: tr.readyState }; report(s); };
     report(s);
     notify(s.tabId, "ok", "麥克風已接上：麥克風＝你，分頁聲音＝其他人");
@@ -95,7 +100,7 @@ const TARGET_SR = 16000;
 
 function makeChannel(s, name, stream) {
   const track = stream.getAudioTracks()[0];
-  const ch = { name, stream, track, level: 0, peak: 0, chunks: [], samples: 0, startedAt: 0, hadVoice: false, lastVoiceAt: 0, voicedMs: 0, carry: 0, f32: null };
+  const ch = { name, stream, track, level: 0, peak: 0, chunks: [], samples: 0, startedAt: 0, hadVoice: false, lastVoiceAt: 0, voicedMs: 0, carry: 0, f32: null, softAgc: false, gain: 1 };
   const processor = new MediaStreamTrackProcessor({ track });
   ch.reader = processor.readable.getReader();
   (async () => {
@@ -146,11 +151,17 @@ function ingest(s, ch, frame) {
   // 音量（RMS）
   let sum = 0;
   for (let i = 0; i < n; i++) sum += x[i] * x[i];
-  const r = Math.sqrt(sum / n);
+  let r = Math.sqrt(sum / n);
+  const voiced = isVoiced(ch, r); // 用原始音量判斷，免得把放大後的雜音當成說話
+  if (ch.softAgc) {
+    // 軟體 AGC：有人說話時把音量慢慢拉到目標大小，安靜時不動；變小要快（避免爆音）、變大要慢
+    if (voiced) { const want = Math.min(SOFT_AGC_MAX, Math.max(1, SOFT_AGC_TARGET / r)); ch.gain += (want - ch.gain) * (want < ch.gain ? 0.5 : 0.08); }
+    if (ch.gain > 1.001) { for (let i = 0; i < n; i++) { const v = x[i] * ch.gain; x[i] = v > 1 ? 1 : v < -1 ? -1 : v; } r = Math.min(1, r * ch.gain); }
+  }
   ch.level = r;
   if (r > ch.peak) ch.peak = r;
   const frameMs = (n / sr) * 1000;
-  if (isVoiced(ch, r)) { ch.hadVoice = true; ch.lastVoiceAt = now; ch.voicedMs += frameMs; }
+  if (voiced) { ch.hadVoice = true; ch.lastVoiceAt = now; ch.voicedMs += frameMs; }
 
   // 降到 16 kHz：每 step 個原始樣本平均成一個（48k → 3:1；其他取樣率用小數步進）
   const step = sr / TARGET_SR;

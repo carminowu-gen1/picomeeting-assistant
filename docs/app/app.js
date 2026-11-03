@@ -8,7 +8,7 @@ import { toTraditional, looksSimplified } from "./lib/s2t.js";
 import { meetingToPlainText, fmtTime } from "./lib/format.js";
 import { buildDocx } from "./lib/docx.js";
 
-const VERSION = "1.0.3";
+const VERSION = "1.0.4";
 const GROQ = "https://api.groq.com";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -235,6 +235,7 @@ async function startRecording() {
   recording = true;
   $("recBtn").disabled = false;
   setLight("mic", "ok");
+  $("sAgc").textContent = rec.browserAgc ? "瀏覽器內建（AGC 已生效）" : "瀏覽器沒開，改用軟體增益（遠處小聲會自動放大）";
   setStatus("聆聽中", "rec");
   renderLines(); updateButtons();
   clearInterval(timerId); timerId = setInterval(tick, 1000);
