@@ -94,3 +94,9 @@ input[type="text"], input[type="password"], select { width: 100%; padding: 12px 
 .toast { position: fixed; left: 50%; bottom: calc(120px + env(safe-area-inset-bottom)); transform: translateX(-50%); max-width: 90%; padding: 12px 18px; border-radius: 14px; background: var(--text); color: var(--bg); font-size: .9em; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 9; box-shadow: var(--shadow); }
 .toast.show { opacity: 1; } .toast.error { background: var(--danger); color: #fff; }
 .note { background: var(--warn-soft); color: var(--warn); border-radius: 12px; padding: 10px 14px; font-size: .9em; display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+
+/* ── 放到桌面提示 ── */
+.install { margin: 6px 14px 4px; background: var(--surface); border-radius: 18px; padding: 12px 14px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 10px; border: 2px solid var(--accent-soft); }
+.install .ic { font-size: 30px; line-height: 1; }
+.install b { display: block; }
+.install .icon.sm { width: 32px; height: 32px; font-size: 16px; }

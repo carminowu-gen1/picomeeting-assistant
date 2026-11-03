@@ -8,7 +8,7 @@ import { toTraditional, looksSimplified } from "./lib/s2t.js";
 import { meetingToPlainText, fmtTime } from "./lib/format.js";
 import { buildDocx } from "./lib/docx.js";
 
-const VERSION = "1.0.0";
+const VERSION = "1.0.1";
 const GROQ = "https://api.groq.com";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -350,7 +350,7 @@ $("wKeyBtn").onclick = async () => {
   catch (e) { keyOk = false; msg.textContent = "✗ " + friendly(e); msg.className = "msg err"; }
   welcomeCheck();
 };
-$("wDone").onclick = () => { settings = store.saveSettings({ setupDone: true }); newMeeting(); show("main"); startWorker().catch(() => {}); };
+$("wDone").onclick = () => { settings = store.saveSettings({ setupDone: true }); newMeeting(); show("main"); startWorker().catch(() => {}); offerInstall(); };
 
 /* ───────── 按鈕 ───────── */
 $("recBtn").onclick = () => (recording ? stopRecording() : startRecording());
@@ -364,6 +364,23 @@ $("toSettings").onclick = () => { fillSettings(); show("settings"); };
 $("setBack").onclick = () => { readSettings(); show("main"); if (!settings.apiKey) toast("還沒有 Groq 金鑰，無法辨識", true); };
 window.addEventListener("beforeunload", (e) => { if (recording) { e.preventDefault(); e.returnValue = ""; } });
 
+/* ───────── 放到手機桌面 ───────── */
+// Android Chrome 會丟 beforeinstallprompt，可以真的跳出安裝；iPhone Safari 沒有 API，只能教她按分享
+let installEvt = null;
+const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+function offerInstall() {
+  if (isStandalone() || localStorage.getItem("pm:installDismissed")) return;
+  const box = $("install");
+  if (installEvt) { $("installHow").textContent = "按「安裝」，手機桌面就會多一個「會議摘要」圖示"; $("installBtn").hidden = false; box.hidden = false; }
+  else if (isIOS()) { $("installHow").textContent = "按 Safari 下面的「分享」⎙ → 往下找「加入主畫面」→ 右上角「新增」"; $("installBtn").hidden = true; box.hidden = false; }
+  else if (/Android/i.test(navigator.userAgent)) { $("installHow").textContent = "按瀏覽器右上角「⋮」→「加到主畫面」或「安裝應用程式」"; $("installBtn").hidden = true; box.hidden = false; }
+}
+window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e; if (!$("main").hidden) offerInstall(); });
+window.addEventListener("appinstalled", () => { $("install").hidden = true; toast("已放到桌面，下次從桌面打開就好"); });
+$("installBtn").onclick = async () => { if (!installEvt) return; installEvt.prompt(); const { outcome } = await installEvt.userChoice; installEvt = null; if (outcome === "accepted") $("install").hidden = true; };
+$("installClose").onclick = () => { $("install").hidden = true; localStorage.setItem("pm:installDismissed", "1"); };
+
 /* ───────── 啟動 ───────── */
 applyBig();
 if ("serviceWorker" in navigator) navigator.serviceWorker.register(new URL("./sw.js", import.meta.url)).catch(() => {});
@@ -373,4 +390,5 @@ else {
   if (last && !store.loadMeeting(last.id)?.endedAt) openMeeting(last.id); else newMeeting();
   show("main");
   startWorker().catch(() => {});
+  setTimeout(offerInstall, 800); // beforeinstallprompt 通常在載入後才來，晚一點再問
 }

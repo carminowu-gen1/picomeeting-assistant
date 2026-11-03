@@ -48,7 +48,7 @@
         </div>
       </div>
       <button class="btn primary big" id="wDone" disabled>開始使用 →</button>
-      <p class="small muted center">小提醒：把這個網頁「加到主畫面」，以後就像 App 一樣一點就開。<br>iPhone：Safari 分享 ⎙ → 加入主畫面　Android：Chrome ⋮ → 加到主畫面</p>
+      <p class="small muted center">下一步會教你把它放到手機桌面，以後就像 App 一樣一點就開。</p>
     </div>
   </section>
 
@@ -65,6 +65,17 @@
       <span id="badge" class="badge">準備好了</span>
       <div class="bar"><div id="meter" class="fill"></div></div>
       <span id="timer" class="timer">00:00</span>
+    </div>
+
+    <!-- 放到手機桌面的提示（Android：一鍵安裝；iPhone：教學） -->
+    <div id="install" class="install" hidden>
+      <div class="ic">📲</div>
+      <div class="grow">
+        <b>放到手機桌面，下次一點就開</b>
+        <div id="installHow" class="small muted"></div>
+      </div>
+      <button class="btn primary sm" id="installBtn">安裝</button>
+      <button class="icon sm" id="installClose" aria-label="關閉">✕</button>
     </div>
 
     <main id="lines" class="lines"></main>
