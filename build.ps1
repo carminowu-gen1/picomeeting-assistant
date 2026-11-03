@@ -32,7 +32,7 @@ if ($ProxyUrl -and $ProxyUrl -notmatch '^https://') { throw "-ProxyUrl 必須是
 # 1. 複製擴充功能需要的檔案（說明文件、部署檔不打包）
 if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
 New-Item -ItemType Directory -Force $stage | Out-Null
-$include = "manifest.json", "background.js", "config.json", "icons", "content", "lib", "offscreen", "options", "perm", "popup", "live", "ui", "welcome"
+$include = "manifest.json", "background.js", "config.json", "icons", "content", "lib", "offscreen", "dsp", "options", "perm", "popup", "live", "ui", "welcome"
 foreach ($i in $include) { Copy-Item (Join-Path $root $i) (Join-Path $stage $i) -Recurse }
 
 # 2. 寫入部署設定

@@ -4,6 +4,30 @@
 // （service worker 不能用 getUserMedia / MediaRecorder，所以放在這裡）
 const sessions = new Map(); // tabId -> session
 
+// 音訊前處理 worker（dsp/dsp-worker.js，和手機版共用）：RNNoise 降噪 + Silero VAD 人聲偵測
+// 載入失敗就退回「看音量」判斷，功能照常
+const dsp = { worker: null, ready: false, denoise: false, vad: false, chans: new Map() }; // chans: "tabId:name" → ch
+const BATCH_SAMPLES = 4800; // 每 0.1 秒（48 kHz）送一次給 worker，不要每 10 ms 一則訊息
+const SPEECH_P = 0.5;       // VAD 機率高於這個才算有人在說話
+function startDsp() {
+  if (dsp.worker) return dsp.readyP;
+  dsp.readyP = new Promise((res) => {
+    try {
+      const w = new Worker(chrome.runtime.getURL("dsp/dsp-worker.js"));
+      dsp.worker = w;
+      w.onmessage = (e) => {
+        const d = e.data;
+        if (d.type === "ready") { dsp.ready = true; dsp.denoise = d.denoise; dsp.vad = d.vad; res(); }
+        else if (d.type === "out") { const ch = dsp.chans.get(d.ch); if (ch) consume(ch.s, ch, d.pcm, d.speech, d.level); }
+      };
+      w.onerror = () => { dsp.worker = null; dsp.ready = false; res(); };
+      w.postMessage({ type: "init" });
+      setTimeout(res, 15000); // 載入太久也先開始（之後 ready 了會自動切換）
+    } catch { dsp.worker = null; res(); }
+  });
+  return dsp.readyP;
+}
+
 // 依停頓切段：講完一句（靜音 PAUSE_MS）就切，最長 MAX_MS。
 // 多語模式下 Whisper 每段只判斷一種語言，切在句子邊界才不會把同段裡的另一種語言翻過去。
 const MIN_MS = 2500;        // 太短的段落辨識不準
@@ -50,8 +74,10 @@ async function start({ tabId, streamId, settings }) {
   ctx.createMediaStreamSource(tabStream).connect(ctx.destination);
 
   s = { tabId, settings, ctx, stopped: false, channels: {}, prevText: "",
-    stats: { chunks: 0, sent: 0, silent: 0, ok: 0, lastPeak: 0, mic: false, lastError: "", ctxState: ctx.state, byChannel: {} } };
+    stats: { chunks: 0, sent: 0, silent: 0, ok: 0, lastPeak: 0, mic: false, lastError: "", ctxState: ctx.state, byChannel: {}, dsp: "載入中" } };
   sessions.set(tabId, s);
+  await startDsp();
+  s.stats.dsp = dsp.ready ? `${dsp.denoise ? "降噪✓" : "降噪✗"} ${dsp.vad ? "人聲偵測✓" : "人聲偵測✗"}` : "未載入（用音量判斷）";
 
   s.channels.tab = makeChannel(s, "tab", tabStream);
 
@@ -100,7 +126,10 @@ const TARGET_SR = 16000;
 
 function makeChannel(s, name, stream) {
   const track = stream.getAudioTracks()[0];
-  const ch = { name, stream, track, level: 0, peak: 0, chunks: [], samples: 0, startedAt: 0, hadVoice: false, lastVoiceAt: 0, voicedMs: 0, carry: 0, f32: null, softAgc: false, gain: 1 };
+  const ch = { s, name, key: `${s.tabId}:${name}`, stream, track, level: 0, peak: 0, chunks: [], samples: 0, startedAt: 0, hadVoice: false, lastVoiceAt: 0, voicedMs: 0, carry: 0, f32: null, softAgc: false, gain: 1,
+    lastSpeech: false, batch: new Float32Array(BATCH_SAMPLES), batchN: 0, batchSr: 0 };
+  dsp.chans.set(ch.key, ch);
+  dsp.worker?.postMessage({ type: "reset", ch: ch.key });
   const processor = new MediaStreamTrackProcessor({ track });
   ch.reader = processor.readable.getReader();
   (async () => {
@@ -140,30 +169,37 @@ function monoFloat(frame, ch) {
   return out;
 }
 
+// 收到一個 frame（通常 10 ms）：軟體增益 → 湊滿 0.1 秒丟給 DSP worker；worker 不在就自己降到 16 kHz
 function ingest(s, ch, frame) {
   const sr = frame.sampleRate || 48000;
   const x = monoFloat(frame, ch);
   const n = x.length;
   if (!n) return;
-  const now = Date.now();
-  if (!ch.startedAt) { ch.startedAt = now; ch.peak = 0; ch.hadVoice = false; ch.lastVoiceAt = now; ch.voicedMs = 0; }
 
   // 音量（RMS）
   let sum = 0;
   for (let i = 0; i < n; i++) sum += x[i] * x[i];
   let r = Math.sqrt(sum / n);
-  const voiced = isVoiced(ch, r); // 用原始音量判斷，免得把放大後的雜音當成說話
+  const voiced = dsp.vad ? ch.lastSpeech : isVoiced(ch, r); // 用原始音量／上一塊的 VAD 判斷，免得把放大後的雜音當成說話
   if (ch.softAgc) {
     // 軟體 AGC：有人說話時把音量慢慢拉到目標大小，安靜時不動；變小要快（避免爆音）、變大要慢
-    if (voiced) { const want = Math.min(SOFT_AGC_MAX, Math.max(1, SOFT_AGC_TARGET / r)); ch.gain += (want - ch.gain) * (want < ch.gain ? 0.5 : 0.08); }
+    if (voiced && r > 0) { const want = Math.min(SOFT_AGC_MAX, Math.max(1, SOFT_AGC_TARGET / r)); ch.gain += (want - ch.gain) * (want < ch.gain ? 0.5 : 0.08); }
     if (ch.gain > 1.001) { for (let i = 0; i < n; i++) { const v = x[i] * ch.gain; x[i] = v > 1 ? 1 : v < -1 ? -1 : v; } r = Math.min(1, r * ch.gain); }
   }
-  ch.level = r;
-  if (r > ch.peak) ch.peak = r;
-  const frameMs = (n / sr) * 1000;
-  if (voiced) { ch.hadVoice = true; ch.lastVoiceAt = now; ch.voicedMs += frameMs; }
 
-  // 降到 16 kHz：每 step 個原始樣本平均成一個（48k → 3:1；其他取樣率用小數步進）
+  if (dsp.ready) {
+    if (ch.batchSr && ch.batchSr !== sr) { ch.batchN = 0; } // 取樣率變了就重來
+    ch.batchSr = sr;
+    let i = 0;
+    while (i < n) {
+      const take = Math.min(BATCH_SAMPLES - ch.batchN, n - i);
+      ch.batch.set(x.subarray(i, i + take), ch.batchN); ch.batchN += take; i += take;
+      if (ch.batchN === BATCH_SAMPLES) { const out = ch.batch; ch.batch = new Float32Array(BATCH_SAMPLES); ch.batchN = 0; dsp.worker.postMessage({ type: "process", ch: ch.key, sr, x: out }, [out.buffer]); }
+    }
+    return;
+  }
+
+  // 備案：降到 16 kHz：每 step 個原始樣本平均成一個（48k → 3:1；其他取樣率用小數步進）
   const step = sr / TARGET_SR;
   const outN = Math.floor((n + ch.carry) / step);
   const pcm = new Int16Array(outN);
@@ -177,8 +213,21 @@ function ingest(s, ch, frame) {
     pos += step;
   }
   ch.carry = n - pos;
+  consume(s, ch, pcm, -1, r);
+}
+
+// 16 kHz 的樣本 + 人聲機率（-1 = 沒有 VAD，用音量判斷）→ 切段
+function consume(s, ch, pcm, speech, level) {
+  if (s.stopped || !pcm.length) return;
+  const now = Date.now();
+  if (!ch.startedAt) { ch.startedAt = now; ch.peak = 0; ch.hadVoice = false; ch.lastVoiceAt = now; ch.voicedMs = 0; }
+  const voiced = speech >= 0 ? speech >= SPEECH_P : isVoiced(ch, level);
+  ch.lastSpeech = voiced;
+  ch.level = level;
+  if (level > ch.peak) ch.peak = level;
+  if (voiced) { ch.hadVoice = true; ch.lastVoiceAt = now; ch.voicedMs += (pcm.length / TARGET_SR) * 1000; }
   ch.chunks.push(pcm);
-  ch.samples += outN;
+  ch.samples += pcm.length;
 
   // 還沒有人說話：只保留最後 0.5 秒當前置音，前面的靜音丟掉（檔案小、也少給 Whisper 編故事的空間）
   if (!ch.hadVoice) {
@@ -320,6 +369,8 @@ function stop(tabId) {
   for (const ch of Object.values(s.channels)) {
     try { ch.reader?.cancel(); } catch {}
     ch.stream.getTracks().forEach((t) => t.stop());
+    dsp.chans.delete(ch.key);
+    dsp.worker?.postMessage({ type: "reset", ch: ch.key });
   }
   s.ctx.close().catch(() => {});
   sessions.delete(tabId);

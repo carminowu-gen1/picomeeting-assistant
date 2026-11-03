@@ -8,7 +8,7 @@ import { toTraditional, looksSimplified } from "./lib/s2t.js";
 import { meetingToPlainText, fmtTime } from "./lib/format.js";
 import { buildDocx } from "./lib/docx.js";
 
-const VERSION = "1.0.4";
+const VERSION = "1.1.0";
 const GROQ = "https://api.groq.com";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -222,6 +222,7 @@ async function startRecording() {
       onChunk: (c) => { pending++; queue = queue.then(() => handleChunk(c)).catch((e) => console.warn(e)).finally(() => { pending--; setStatus(recording ? (pending ? "辨識中…" : "聆聽中") : pending ? "整理最後幾句…" : "已結束", recording ? "rec" : "busy"); }); },
       onLevel: (r, voiced) => { const f = $("meter"); f.style.width = Math.min(100, r * 400) + "%"; f.classList.toggle("off", !voiced); },
       onError: (e) => toast("錄音錯誤：" + friendly(e), true),
+      onDsp: (d) => { $("sDsp").textContent = d.ready ? `${d.denoise ? "降噪 ✓" : "降噪 ✗"}　${d.vad ? "人聲偵測 ✓（音樂、雜音不會送去辨識）" : "人聲偵測 ✗（改用音量判斷）"}` : "載入失敗，改用音量判斷"; },
     });
     await rec.start();
   } catch (e) {
