@@ -4,11 +4,11 @@ import { Diarizer } from "./diarize.js";
 import { filterSegments } from "./filters.js";
 import * as store from "./store.js";
 import { summarizeTranscript } from "./lib/groq.js";
-import { toTraditional, looksSimplified } from "./lib/s2t.js";
+import { toTraditional } from "./lib/s2t.js";
 import { meetingToPlainText, fmtTime } from "./lib/format.js";
 import { buildDocx } from "./lib/docx.js";
 
-const VERSION = "1.1.0";
+const VERSION = "1.1.1";
 const GROQ = "https://api.groq.com";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -70,13 +70,18 @@ async function embed(pcm) {
 }
 
 /* ───────── 語音辨識 ───────── */
-async function transcribe(wav) {
+// 「說話的語言」設定 → 允許的語言；auto 時 Whisper 偶爾會把含糊的中文聽成俄文、韓文之類，
+// 偵測到不在清單裡的語言就用第一個語言（中文）重新辨識一次
+const LANG_SETS = { auto: ["zh", "en"], "auto-ja": ["zh", "en", "ja"], "auto-all": null };
+function allowedLangs() { const v = settings.sttLanguage || "auto"; return v in LANG_SETS ? LANG_SETS[v] : [v]; }
+async function transcribe(wav, forceLang) {
   const fd = new FormData();
   fd.append("file", wav, "chunk.wav");
   fd.append("model", "whisper-large-v3");
   fd.append("response_format", "verbose_json");
   fd.append("temperature", "0");
-  if (settings.sttLanguage && settings.sttLanguage !== "auto") fd.append("language", settings.sttLanguage);
+  const fixed = forceLang || (settings.sttLanguage && !settings.sttLanguage.startsWith("auto") ? settings.sttLanguage : "");
+  if (fixed) fd.append("language", fixed);
   let r;
   for (let attempt = 0; ; attempt++) {
     r = await fetch(`${GROQ}/openai/v1/audio/transcriptions`, { method: "POST", headers: hdr(), body: fd });
@@ -85,21 +90,26 @@ async function transcribe(wav) {
   }
   if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 100)}`);
   const j = await r.json();
-  return j.segments || (j.text ? [{ start: 0, end: 0, text: j.text }] : []);
+  return { segments: j.segments || (j.text ? [{ start: 0, end: 0, text: j.text }] : []), language: j.language || fixed || "" };
 }
 
 // 一段錄音：辨識 → 過濾 → 每句算聲紋 → 歸到說話者 → 加到逐字稿
 async function handleChunk({ wav, pcm, startedAt }) {
   if (!meeting) return;
   let segs;
-  try { segs = await transcribe(wav); setLight("groq", "ok"); } catch (e) { toast("辨識失敗：" + friendly(e), true); setLight("groq", "bad", "Groq 剛才回錯誤：" + friendly(e)); return; }
+  try {
+    let r = await transcribe(wav);
+    const allow = allowedLangs();
+    if (allow && r.language && !allow.includes(r.language)) r = await transcribe(wav, allow[0]); // 聽成不相干的語言 → 用中文再辨識一次
+    segs = r.segments; setLight("groq", "ok");
+  } catch (e) { toast("辨識失敗：" + friendly(e), true); setLight("groq", "bad", "Groq 剛才回錯誤：" + friendly(e)); return; }
   const { kept } = filterSegments(segs);
   if (!kept.length) return;
   // 整段的聲紋（當句子太短時的備援）
   let chunkEmb = null;
   for (const g of kept) {
     let text = g.text;
-    if (settings.toTraditional && looksSimplified(text)) text = toTraditional(text);
+    if (settings.toTraditional) text = toTraditional(text); // 一律轉（只有一個簡體字也要轉）
     const a = Math.max(0, Math.floor(g.start * 16000)), b = Math.min(pcm.length, Math.ceil(g.end * 16000));
     let emb = null, conf = "low";
     if (b - a >= 16000) emb = await embed(pcm.subarray(a, b));
