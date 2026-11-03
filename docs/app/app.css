@@ -100,3 +100,13 @@ input[type="text"], input[type="password"], select { width: 100%; padding: 12px 
 .install .ic { font-size: 30px; line-height: 1; }
 .install b { display: block; }
 .install .icon.sm { width: 32px; height: 32px; font-size: 16px; }
+
+/* ── 燈號 ── */
+.lights { display: flex; gap: 8px; padding: 0 16px 6px; }
+.light { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px 4px 8px; border-radius: 999px; border: 0; background: var(--surface); color: var(--text-2); font: inherit; font-size: .8em; font-weight: 700; box-shadow: var(--shadow); cursor: pointer; }
+.led { width: 10px; height: 10px; border-radius: 50%; background: var(--text-3); }
+.light[data-state="ok"] .led { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+.light[data-state="bad"] .led { background: var(--danger); box-shadow: 0 0 6px var(--danger); animation: blink 1s infinite; }
+.light[data-state="bad"] { color: var(--danger); }
+.light[data-state="wait"] .led { animation: blink 1.2s infinite; }
+@keyframes blink { 50% { opacity: .35; } }

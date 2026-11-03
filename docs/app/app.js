@@ -8,7 +8,7 @@ import { toTraditional, looksSimplified } from "./lib/s2t.js";
 import { meetingToPlainText, fmtTime } from "./lib/format.js";
 import { buildDocx } from "./lib/docx.js";
 
-const VERSION = "1.0.2";
+const VERSION = "1.0.3";
 const GROQ = "https://api.groq.com";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -92,7 +92,7 @@ async function transcribe(wav) {
 async function handleChunk({ wav, pcm, startedAt }) {
   if (!meeting) return;
   let segs;
-  try { segs = await transcribe(wav); } catch (e) { toast("辨識失敗：" + friendly(e), true); return; }
+  try { segs = await transcribe(wav); setLight("groq", "ok"); } catch (e) { toast("辨識失敗：" + friendly(e), true); setLight("groq", "bad", "Groq 剛才回錯誤：" + friendly(e)); return; }
   const { kept } = filterSegments(segs);
   if (!kept.length) return;
   // 整段的聲紋（當句子太短時的備援）
@@ -226,12 +226,15 @@ async function startRecording() {
     await rec.start();
   } catch (e) {
     $("recBtn").disabled = false;
-    toast(/NotAllowed|Permission/i.test(e.name + e.message) ? "沒有麥克風權限：請到手機設定允許這個網站使用麥克風" : "無法開始錄音：" + friendly(e), true);
+    const denied = /NotAllowed|Permission/i.test(e.name + e.message);
+    toast(denied ? "沒有麥克風權限：請到手機設定允許這個網站使用麥克風" : "無法開始錄音：" + friendly(e), true);
+    if (denied) setLight("mic", "bad", "麥克風權限被關掉了：到手機「設定」找這個瀏覽器（或網站設定），把麥克風改成允許");
     return;
   }
   startWorker().catch(() => toast("聲紋模型載入失敗，仍會記錄但無法分辨說話者", true));
   recording = true;
   $("recBtn").disabled = false;
+  setLight("mic", "ok");
   setStatus("聆聽中", "rec");
   renderLines(); updateButtons();
   clearInterval(timerId); timerId = setInterval(tick, 1000);
@@ -354,7 +357,7 @@ $("wPaste").onclick = async () => {
   try { const t = (await navigator.clipboard.readText()).trim(); if (t) { $("wKey").value = t; $("wKeyBtn").click(); } else toast("剪貼簿是空的，先去 Groq 按 Copy", true); }
   catch { toast("瀏覽器不讓我讀剪貼簿，請長按輸入框選「貼上」", true); }
 };
-$("wDone").onclick = () => { settings = store.saveSettings({ setupDone: true }); newMeeting(); show("main"); startWorker().catch(() => {}); offerInstall(); };
+$("wDone").onclick = () => { settings = store.saveSettings({ setupDone: true }); newMeeting(); show("main"); startWorker().catch(() => {}); offerInstall(); checkLights(); };
 
 /* ───────── 按鈕 ───────── */
 $("recBtn").onclick = () => (recording ? stopRecording() : startRecording());
@@ -365,8 +368,37 @@ $("title").addEventListener("change", () => { if (meeting) { meeting.title = $("
 $("toHistory").onclick = () => { renderHistory(); show("history"); };
 $("histBack").onclick = () => show("main");
 $("toSettings").onclick = () => { fillSettings(); show("settings"); };
-$("setBack").onclick = () => { readSettings(); show("main"); if (!settings.apiKey) toast("還沒有 Groq 金鑰，無法辨識", true); };
+$("setBack").onclick = () => { readSettings(); show("main"); if (!settings.apiKey) toast("還沒有 Groq 金鑰，無法辨識", true); checkGroq(); };
 window.addEventListener("beforeunload", (e) => { if (recording) { e.preventDefault(); e.returnValue = ""; } });
+
+/* ───────── 燈號：麥克風權限、Groq 連線 ───────── */
+const lightMsg = { mic: "", groq: "" };
+function setLight(which, state, msg = "") { $(which === "mic" ? "lMic" : "lGroq").dataset.state = state; lightMsg[which] = msg; }
+async function checkMic() {
+  if (recording) { setLight("mic", "ok"); return; }
+  setLight("mic", "wait");
+  try {
+    const p = await navigator.permissions?.query({ name: "microphone" });
+    if (p?.state === "granted") { setLight("mic", "ok"); return; }
+    if (p?.state === "denied") { setLight("mic", "bad", "麥克風權限被關掉了：到手機「設定」找這個瀏覽器（或網站設定），把麥克風改成允許"); return; }
+  } catch {}
+  // Safari 沒有 permissions API：實際打開一下麥克風再馬上關掉
+  try { const st = await navigator.mediaDevices.getUserMedia({ audio: true }); st.getTracks().forEach((t) => t.stop()); setLight("mic", "ok"); }
+  catch (e) { setLight("mic", "bad", /NotAllowed|Permission/i.test(e.name + e.message) ? "沒有麥克風權限：按一下這裡會再問一次；還是不行就到手機「設定」裡允許" : "找不到麥克風：" + friendly(e)); }
+}
+async function checkGroq() {
+  setLight("groq", "wait");
+  if (!settings.apiKey) { setLight("groq", "bad", "還沒有 Groq 金鑰：到右上角 ⚙ 設定貼上"); return; }
+  if (!navigator.onLine) { setLight("groq", "bad", "沒有網路"); return; }
+  try { await checkKey(settings.apiKey); setLight("groq", "ok"); }
+  catch (e) { setLight("groq", "bad", /401/.test(e.message) ? "Groq 金鑰失效了：到右上角 ⚙ 重新貼一組" : "連不上 Groq：" + friendly(e)); }
+}
+function checkLights() { if ($("main").hidden) return; checkMic(); checkGroq(); }
+$("lMic").onclick = async () => { await checkMic(); toast(lightMsg.mic || "麥克風正常"); };
+$("lGroq").onclick = async () => { await checkGroq(); toast(lightMsg.groq || "Groq 連線正常"); };
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkLights(); });
+window.addEventListener("online", checkLights); window.addEventListener("offline", () => setLight("groq", "bad", "沒有網路"));
+setInterval(() => { if (document.visibilityState === "visible" && !recording) checkGroq(); }, 5 * 60 * 1000);
 
 /* ───────── 放到手機桌面 ───────── */
 // Android Chrome 會丟 beforeinstallprompt，可以真的跳出安裝；iPhone Safari 沒有 API，只能教她按分享
@@ -405,4 +437,5 @@ if (!settings.setupDone || !settings.apiKey) {
   show("main");
   startWorker().catch(() => {});
   setTimeout(offerInstall, 800); // beforeinstallprompt 通常在載入後才來，晚一點再問
+  checkLights();
 }
