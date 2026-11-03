@@ -1,5 +1,5 @@
 // Service worker：集中管理錄製狀態、逐字稿儲存、摘要與匯出
-import { summarizeTranscript } from "./lib/groq.js";
+import { summarizeTranscript, listModels } from "./lib/groq.js";
 import { buildDocx } from "./lib/docx.js";
 import { exportToGoogleDoc, googleStatus, googleConnect, googleDisconnect } from "./lib/gdocs.js";
 import { DEFAULT_SETTINGS, meetingToMarkdown, meetingToPlainText } from "./lib/format.js";
@@ -466,6 +466,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       case "listMeetings":
         return reply({ meetings: [...[...active.values()].map(metaOf), ...(await listMeetings()).filter((x) => ![...active.values()].some((a) => a.id === x.id))] });
       case "summarize": return reply({ summary: await summarize(msg.meetingId) });
+      case "listModels": { const s = await getSettings(); return reply({ models: s.ready ? await listModels(s) : [] }); }
       case "export": return reply(await exportMeeting(msg.meetingId, msg.target));
       case "googleStatus": return reply(await googleStatus());
       case "googleConnect": return reply(await googleConnect());

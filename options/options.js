@@ -27,7 +27,18 @@ function scheduleSave() {
     $("saved").textContent = "✓ 已自動儲存";
   }, 400);
 }
+// 模型清單從 Groq 即時抓（舊模型下架就不會再出現）
+async function loadModels() {
+  const r = await chrome.runtime.sendMessage({ type: "listModels" }).catch(() => null);
+  const sel = $("model"), cur = sel.value;
+  for (const o of [...sel.options].slice(1)) o.remove();
+  for (const id of r?.models || []) { const o = document.createElement("option"); o.value = id; o.textContent = id; sel.appendChild(o); }
+  if (cur && [...sel.options].some((o) => o.value === cur)) sel.value = cur; else sel.value = "auto";
+  $("modelHint").textContent = r?.models?.length ? `Groq 目前提供 ${r.models.length} 個聊天模型；「自動」會挑其中最適合的，模型下架時自動換` : "連上 Groq 後才會列出模型（請先填金鑰）";
+}
+loadModels();
 FIELDS.forEach((f) => { const el = $(f); el.addEventListener(el.type === "checkbox" || el.tagName === "SELECT" ? "change" : "input", scheduleSave); });
+$("apiKey").addEventListener("change", () => setTimeout(loadModels, 1500));
 
 // ── 金鑰 ──
 $("checkKey").onclick = async () => {

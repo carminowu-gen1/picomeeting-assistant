@@ -11,15 +11,40 @@ const JSON_SHAPE = `{
   "open_questions": ["尚未解決、需要後續追蹤的問題"]
 }`;
 
-// 備援順序：由大到小；Groq 的速率限制是每個模型各自計算，換模型通常就能避開 429
+// 模型不寫死：先向 Groq 問 /models 有哪些，再依偏好順序挑「現在存在」的（Groq 會不定期下架舊模型）
+// 偏好順序：由大到小；Groq 的速率限制是每個模型各自計算，換模型通常就能避開 429
 export const FALLBACK_MODELS = [
-  "llama-3.3-70b-versatile",
   "openai/gpt-oss-120b",
+  "llama-3.3-70b-versatile",
+  "qwen/qwen3-32b",
+  "moonshotai/kimi-k2-instruct",
   "openai/gpt-oss-20b",
   "llama-3.1-8b-instant",
 ];
-// 分段筆記用的便宜模型（省大模型額度）
-const CHEAP_MODEL = "llama-3.1-8b-instant";
+// 分段筆記／翻譯用的便宜模型偏好
+export const CHEAP_MODELS = ["openai/gpt-oss-20b", "llama-3.1-8b-instant", "qwen/qwen3-32b", "openai/gpt-oss-120b"];
+// 不是聊天模型的都排除
+const NOT_CHAT = /whisper|tts|guard|embed|compound|vision|orpheus|playai|safeguard|allam/i;
+let modelCache = { at: 0, ids: null };
+/** 向 Groq 取得目前可用的聊天模型 id（快取 1 小時；失敗就用上次的或空陣列） */
+export async function listModels(settings) {
+  if (modelCache.ids && Date.now() - modelCache.at < 3600e3) return modelCache.ids;
+  try {
+    const r = await fetch(`${settings.apiBase}/openai/v1/models`, { headers: settings.apiHeaders });
+    if (!r.ok) throw new Error(String(r.status));
+    const ids = ((await r.json()).data || []).map((m) => m.id).filter((id) => id && !NOT_CHAT.test(id));
+    if (ids.length) modelCache = { at: Date.now(), ids };
+    return ids;
+  } catch { return modelCache.ids || []; }
+}
+/** 依偏好順序挑可用的模型；清單抓不到就直接用偏好順序 */
+export function pickModels(ids, pref) {
+  const avail = new Set(ids);
+  const chain = pref.filter((m) => m && avail.has(m));
+  for (const id of ids) if (!chain.includes(id)) chain.push(id); // 其餘可用的排後面當備援
+  return chain.length ? chain : pref.filter(Boolean);
+}
+export async function cheapModel(settings) { return pickModels(await listModels(settings), CHEAP_MODELS)[0]; }
 // 逐字稿超過這個字元數就改用「分段筆記 → 彙整」
 const CHUNK_THRESHOLD = 16000;
 const CHUNK_SIZE = 9000;
@@ -28,12 +53,17 @@ const CHUNK_SIZE = 9000;
 class RetryableError extends Error {}
 
 export async function summarizeTranscript(meeting, settings) {
-  const first = settings.model || FALLBACK_MODELS[0];
-  const chain = settings.autoFallback === false ? [first] : [first, ...FALLBACK_MODELS.filter((m) => m !== first)];
+  const ids = await listModels(settings);
+  const avail = new Set(ids);
+  // 使用者指定的模型若已下架就忽略（自動換成偏好清單裡現存的第一個）
+  const wanted = settings.model && settings.model !== "auto" && (!ids.length || avail.has(settings.model)) ? settings.model : "";
+  const first = wanted || pickModels(ids, FALLBACK_MODELS)[0];
+  const chain = settings.autoFallback === false && wanted ? [wanted] : pickModels(ids, [first, ...FALLBACK_MODELS]).slice(0, 6);
+  const cheap = pickModels(ids, CHEAP_MODELS)[0];
   const errors = [];
   for (const model of chain) {
     try {
-      const result = await summarizeWith(meeting, settings, model);
+      const result = await summarizeWith(meeting, settings, model, cheap);
       return { ...result, model, fallbackFrom: model !== first ? first : undefined };
     } catch (e) {
       errors.push(`${model}：${e.message}`);
@@ -43,7 +73,7 @@ export async function summarizeTranscript(meeting, settings) {
   throw new Error(chain.length > 1 ? "所有模型都失敗：\n" + errors.join("\n") : errors[0]);
 }
 
-async function summarizeWith(meeting, settings, model) {
+async function summarizeWith(meeting, settings, model, cheap) {
   const saver = settings.tokenSaver !== false;
   const lang = settings.language || "繁體中文";
   const usage = { prompt: 0, completion: 0, calls: 0 };
@@ -69,7 +99,7 @@ async function summarizeWith(meeting, settings, model) {
       ] };
       let r;
       try {
-        r = await chat(settings, settings.autoFallback === false ? model : CHEAP_MODEL, body, true);
+        r = await chat(settings, settings.autoFallback === false ? model : cheap, body, true);
       } catch (e) {
         if (!(e instanceof RetryableError)) throw e;
         r = await chat(settings, model, body, true); // 便宜模型失敗就用目前模型再試這段

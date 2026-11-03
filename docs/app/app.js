@@ -3,14 +3,14 @@ import { Recorder } from "./audio.js";
 import { Diarizer } from "./diarize.js";
 import { filterSegments } from "./filters.js";
 import * as store from "./store.js";
-import { summarizeTranscript } from "./lib/groq.js";
+import { summarizeTranscript, listModels, pickModels, CHEAP_MODELS } from "./lib/groq.js";
 import { toTraditional } from "./lib/s2t.js";
 import { meetingToPlainText, fmtTime, setLocale } from "./lib/format.js";
 import { buildDocx } from "./lib/docx.js";
 import { t, detectLang, setLang, applyI18n } from "./i18n.js";
 import { setLabelFn } from "./diarize.js";
 
-const VERSION = "1.3.0";
+const VERSION = "1.3.1";
 const GROQ = "https://api.groq.com";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -297,16 +297,20 @@ async function runTranslate() {
   if (!todo.length) return;
   trBusy = true;
   try {
-    const body = {
-      model: "llama-3.1-8b-instant", temperature: 0, response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: `You translate meeting transcript lines into ${target}. Keep numbers, names and meaning; do not add anything. If a line is already in ${target}, return it unchanged. Output JSON: {"t": [string, ...]} with exactly one item per input line, same order.` },
-        { role: "user", content: JSON.stringify(todo.map(({ l }) => l.text)) },
-      ],
-    };
-    const r = await fetch(`${GROQ}/openai/v1/chat/completions`, { method: "POST", headers: { "content-type": "application/json", ...hdr() }, body: JSON.stringify(body) });
-    if (!r.ok) throw new Error(`${r.status}`);
-    const out = JSON.parse((await r.json()).choices?.[0]?.message?.content || "{}").t || [];
+    const api = { apiBase: GROQ, apiHeaders: hdr() };
+    const models = pickModels(await listModels(api), CHEAP_MODELS).slice(0, 4); // 現有的便宜模型，壞了換下一個
+    const messages = [
+      { role: "system", content: `You translate meeting transcript lines into ${target}. Keep numbers, names and meaning; do not add anything. If a line is already in ${target}, return it unchanged. Output JSON: {"t": [string, ...]} with exactly one item per input line, same order.` },
+      { role: "user", content: JSON.stringify(todo.map(({ l }) => l.text)) },
+    ];
+    let out = null, lastErr = "";
+    for (const model of models) {
+      const r = await fetch(`${GROQ}/openai/v1/chat/completions`, { method: "POST", headers: { "content-type": "application/json", ...hdr() }, body: JSON.stringify({ model, temperature: 0, response_format: { type: "json_object" }, messages }) });
+      if (r.ok) { out = JSON.parse((await r.json()).choices?.[0]?.message?.content || "{}").t || []; break; }
+      lastErr = `${r.status} ${(await r.text()).slice(0, 80)}`;
+      if (r.status === 401 || r.status === 403) break;
+    }
+    if (!out) throw new Error(lastErr || "no model");
     todo.forEach(({ l, i }, k) => {
       let txt = typeof out[k] === "string" ? out[k].trim() : "";
       if (settings.toTraditional && target === "繁體中文") txt = toTraditional(txt);

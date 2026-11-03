@@ -59,15 +59,14 @@
       <div class="grid2">
         <div class="field">
           <label for="language">摘要語言</label>
-          <select id="language"><option>繁體中文</option><option>简体中文</option><option>English</option><option>日本語</option></select>
+          <select id="language"><option>繁體中文</option><option>English</option><option>日本語</option></select>
         </div>
         <div class="field">
           <label for="model">AI 模型</label>
           <select id="model">
-            <option value="llama-3.3-70b-versatile">Llama 3.3 70B（建議）</option>
-            <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
-            <option value="llama-3.1-8b-instant">Llama 3.1 8B（最快）</option>
+            <option value="auto">自動（建議：依 Groq 目前有的模型挑）</option>
           </select>
+          <div class="hint" id="modelHint">其他選項會在連上 Groq 後列出</div>
         </div>
       </div>
       <label class="toggle"><div><b>會議結束自動產生摘要</b></div><span class="switch"><input type="checkbox" id="autoSummarize" /><span></span></span></label>

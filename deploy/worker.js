@@ -13,7 +13,8 @@ const ALLOWED_PATHS = new Set([
   "/openai/v1/models",
 ]);
 // 只允許這個擴充功能用到的模型，且限制輸出長度：存取碼外流時，別人也拿不去做其他昂貴的事
-const CHAT_MODELS = new Set(["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.1-8b-instant"]);
+// 聊天模型不寫死（Groq 會換模型）：只擋明顯不是聊天用的（whisper、tts…）和奇怪的字串
+const CHAT_OK = (id) => typeof id === "string" && id.length < 80 && /^[\w.\/-]+$/.test(id) && !/whisper|tts|guard|embed|compound|vision|orpheus|playai|safeguard/i.test(id);
 const STT_MODELS = new Set(["whisper-large-v3"]);
 const MAX_TOKENS = 4096;
 const MAX_BODY = 25 * 1024 * 1024; // Groq 語音檔上限也是 25 MB
@@ -73,7 +74,7 @@ export default {
     if (url.pathname === "/openai/v1/chat/completions") {
       let j;
       try { j = await req.json(); } catch { return json(req, { error: { message: "invalid json" } }, 400); }
-      if (!CHAT_MODELS.has(j.model)) return json(req, { error: { message: "model not allowed" } }, 400);
+      if (!CHAT_OK(j.model)) return json(req, { error: { message: "model not allowed" } }, 400);
       j.max_tokens = Math.min(Number(j.max_tokens) || MAX_TOKENS, MAX_TOKENS);
       delete j.max_completion_tokens;
       body = JSON.stringify(j);
