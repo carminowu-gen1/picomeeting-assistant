@@ -13,7 +13,32 @@ export function getSettings() {
 export function saveSettings(patch) {
   const s = { ...getSettings(), ...patch };
   localStorage.setItem(KEY_SETTINGS, JSON.stringify(s));
+  idbPut(s).catch(() => {});
   return s;
+}
+
+// 多存一份在 IndexedDB：localStorage 被清掉時（某些瀏覽器會）還能把設定找回來
+const DB = "pm", STORE_NAME = "kv";
+function idb() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(DB, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(STORE_NAME);
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+function idbPut(s) {
+  return idb().then((db) => new Promise((res, rej) => { const t = db.transaction(STORE_NAME, "readwrite"); t.objectStore(STORE_NAME).put(s, "settings"); t.oncomplete = res; t.onerror = () => rej(t.error); }));
+}
+function idbGet() {
+  return idb().then((db) => new Promise((res, rej) => { const r = db.transaction(STORE_NAME).objectStore(STORE_NAME).get("settings"); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }));
+}
+/** 啟動時呼叫：localStorage 沒有金鑰但 IndexedDB 有 → 還原；並請瀏覽器永久保留資料 */
+export async function restoreSettings() {
+  try { await navigator.storage?.persist?.(); } catch {}
+  const cur = getSettings();
+  if (cur.apiKey) return cur;
+  try { const b = await idbGet(); if (b?.apiKey) { localStorage.setItem(KEY_SETTINGS, JSON.stringify({ ...cur, ...b })); return getSettings(); } } catch {}
+  return cur;
 }
 
 export function listMeetings() {

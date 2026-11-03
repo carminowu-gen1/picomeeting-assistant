@@ -8,7 +8,7 @@ import { toTraditional, looksSimplified } from "./lib/s2t.js";
 import { meetingToPlainText, fmtTime } from "./lib/format.js";
 import { buildDocx } from "./lib/docx.js";
 
-const VERSION = "1.0.1";
+const VERSION = "1.0.2";
 const GROQ = "https://api.groq.com";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -350,6 +350,10 @@ $("wKeyBtn").onclick = async () => {
   catch (e) { keyOk = false; msg.textContent = "✗ " + friendly(e); msg.className = "msg err"; }
   welcomeCheck();
 };
+$("wPaste").onclick = async () => {
+  try { const t = (await navigator.clipboard.readText()).trim(); if (t) { $("wKey").value = t; $("wKeyBtn").click(); } else toast("剪貼簿是空的，先去 Groq 按 Copy", true); }
+  catch { toast("瀏覽器不讓我讀剪貼簿，請長按輸入框選「貼上」", true); }
+};
 $("wDone").onclick = () => { settings = store.saveSettings({ setupDone: true }); newMeeting(); show("main"); startWorker().catch(() => {}); offerInstall(); };
 
 /* ───────── 按鈕 ───────── */
@@ -372,20 +376,30 @@ const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.p
 function offerInstall() {
   if (isStandalone() || localStorage.getItem("pm:installDismissed")) return;
   const box = $("install");
-  if (installEvt) { $("installHow").textContent = "按「安裝」，手機桌面就會多一個「會議摘要」圖示"; $("installBtn").hidden = false; box.hidden = false; }
-  else if (isIOS()) { $("installHow").textContent = "按 Safari 下面的「分享」⎙ → 往下找「加入主畫面」→ 右上角「新增」"; $("installBtn").hidden = true; box.hidden = false; }
+  if (installEvt) { $("installHow").textContent = "按「安裝」，手機桌面就會多一個「會議摘要」圖示"; $("installBtn").textContent = "安裝"; $("installBtn").hidden = false; box.hidden = false; }
+  else if (isIOS()) {
+    // Safari 和桌面 App 分開存資料：先把金鑰複製起來，從桌面打開時按「貼上」就好
+    $("installHow").textContent = "按 Safari 下面的「分享」⎙ → 「加入主畫面」→「新增」。第一次從桌面打開要再貼一次金鑰，先按「複製金鑰」。";
+    $("installBtn").textContent = "複製金鑰"; $("installBtn").hidden = false; box.hidden = false;
+  }
   else if (/Android/i.test(navigator.userAgent)) { $("installHow").textContent = "按瀏覽器右上角「⋮」→「加到主畫面」或「安裝應用程式」"; $("installBtn").hidden = true; box.hidden = false; }
 }
 window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e; if (!$("main").hidden) offerInstall(); });
 window.addEventListener("appinstalled", () => { $("install").hidden = true; toast("已放到桌面，下次從桌面打開就好"); });
-$("installBtn").onclick = async () => { if (!installEvt) return; installEvt.prompt(); const { outcome } = await installEvt.userChoice; installEvt = null; if (outcome === "accepted") $("install").hidden = true; };
+$("installBtn").onclick = async () => {
+  if (!installEvt) { try { await navigator.clipboard.writeText(settings.apiKey); toast("金鑰已複製，從桌面打開後按「貼上」"); } catch { toast("複製失敗，請到設定頁長按金鑰複製", true); } return; }
+  installEvt.prompt(); const { outcome } = await installEvt.userChoice; installEvt = null; if (outcome === "accepted") $("install").hidden = true; };
 $("installClose").onclick = () => { $("install").hidden = true; localStorage.setItem("pm:installDismissed", "1"); };
 
 /* ───────── 啟動 ───────── */
 applyBig();
 if ("serviceWorker" in navigator) navigator.serviceWorker.register(new URL("./sw.js", import.meta.url)).catch(() => {});
-if (!settings.setupDone || !settings.apiKey) show("welcome");
-else {
+settings = await store.restoreSettings(); // localStorage 被清掉時從 IndexedDB 找回金鑰
+if (!settings.setupDone || !settings.apiKey) {
+  // iPhone 的 Safari 和桌面 App 分開存資料：在 Safari 裡就先教她放到桌面，從桌面打開再設定
+  if (isIOS() && !isStandalone()) { $("w0").hidden = false; $("w1").querySelector(".num").textContent = "2"; $("w2").querySelector(".num").textContent = "3"; $("wFoot").hidden = true; }
+  show("welcome");
+} else {
   const last = store.listMeetings()[0];
   if (last && !store.loadMeeting(last.id)?.endedAt) openMeeting(last.id); else newMeeting();
   show("main");
