@@ -8,7 +8,7 @@ import { toTraditional } from "./lib/s2t.js";
 import { meetingToPlainText, fmtTime } from "./lib/format.js";
 import { buildDocx } from "./lib/docx.js";
 
-const VERSION = "1.1.1";
+const VERSION = "1.1.2";
 const GROQ = "https://api.groq.com";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -437,7 +437,16 @@ $("installClose").onclick = () => { $("install").hidden = true; localStorage.set
 
 /* ───────── 啟動 ───────── */
 applyBig();
-if ("serviceWorker" in navigator) navigator.serviceWorker.register(new URL("./sw.js", import.meta.url)).catch(() => {});
+if ("serviceWorker" in navigator) {
+  // 新版推上去後：service worker 會換新 → 只跳一張「有新版本」卡，按「更新」才重載（錄音中不打擾）
+  let hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadController) $("update").hidden = false; hadController = true; });
+  navigator.serviceWorker.register(new URL("./sw.js", import.meta.url), { updateViaCache: "none" }).then((reg) => {
+    reg.update().catch(() => {});
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !recording) reg.update().catch(() => {}); }); // 每次切回來都看一下有沒有新版
+  }).catch(() => {});
+}
+$("updateBtn").onclick = () => { if (recording) { toast("錄音中先不更新，結束會議後再按", true); return; } location.reload(); };
 settings = await store.restoreSettings(); // localStorage 被清掉時從 IndexedDB 找回金鑰
 if (!settings.setupDone || !settings.apiKey) {
   // iPhone 的 Safari 和桌面 App 分開存資料：在 Safari 裡就先教她放到桌面，從桌面打開再設定
