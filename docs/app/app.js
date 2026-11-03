@@ -10,7 +10,7 @@ import { buildDocx } from "./lib/docx.js";
 import { t, detectLang, setLang, applyI18n } from "./i18n.js";
 import { setLabelFn } from "./diarize.js";
 
-const VERSION = "1.2.1";
+const VERSION = "1.2.2";
 const GROQ = "https://api.groq.com";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -171,7 +171,7 @@ function renderLines() {
   if (!meeting?.lines.length) {
     box.innerHTML = recording
       ? `<div class="empty"><div class="ill">👂</div><h3>${t("empty_listen_h")}</h3>${t("empty_listen_p")}</div>`
-      : `<div class="empty"><div class="ill">✦</div><h3>${t("empty_h")}</h3><div class="steps"><div><span>📱</span>${t("empty_1")}</div><div><span>🎙️</span>${t("empty_2")}</div><div><span>📝</span>${t("empty_3")}</div></div></div>`;
+      : `<div class="empty"><div class="ill"><img src="icons/icon192.png" alt="" /></div><h3>${t("empty_h")}</h3><div class="steps"><div><span>📱</span>${t("empty_1")}</div><div><span>🎙️</span>${t("empty_2")}</div><div><span>📝</span>${t("empty_3")}</div></div></div>`;
     return;
   }
   box.innerHTML = meeting.lines.map((l, i) => `<div class="line">${lineHtml(l, i)}</div>`).join("");
