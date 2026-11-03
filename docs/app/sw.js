@@ -1,9 +1,9 @@
 // Service worker：
 //   App 本身（小檔案）：有網路就拿最新的，沒網路才用快取 → 推新版後手機重開就是新版
 //   onnxruntime、模型（大檔案、改版才會換網址）：有快取就直接用，第二次打開不用再下載
-const CACHE = "pm-app-v8";
-const SHELL = ["./", "./index.html", "./app.css", "./app.js", "./audio.js", "./worklet.js", "./diarize.js", "./filters.js", "./store.js", "./embed-worker.js", "./dsp-worker.js",
-  "./manifest.json", "./icons/icon48.png", "./icons/icon128.png",
+const CACHE = "pm-app-v10";
+const SHELL = ["./", "./index.html", "./app.css", "./app.js", "./audio.js", "./worklet.js", "./diarize.js", "./filters.js", "./store.js", "./embed-worker.js", "./dsp-worker.js", "./i18n.js",
+  "./manifest.json", "./icons/icon48.png", "./icons/icon128.png", "./icons/icon192.png",
   "./lib/groq.js", "./lib/compact.js", "./lib/s2t.js", "./lib/format.js", "./lib/docx.js"];
 const BIG = ["./vendor/ort.min.js", "./vendor/ort-wasm-simd-threaded.mjs", "./vendor/ort-wasm-simd-threaded.wasm", "./vendor/rnnoise.js", "./model/silero_vad.onnx"];
 const isBig = (p) => /\/(vendor|model)\//.test(p);

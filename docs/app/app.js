@@ -5,10 +5,12 @@ import { filterSegments } from "./filters.js";
 import * as store from "./store.js";
 import { summarizeTranscript } from "./lib/groq.js";
 import { toTraditional } from "./lib/s2t.js";
-import { meetingToPlainText, fmtTime } from "./lib/format.js";
+import { meetingToPlainText, fmtTime, setLocale } from "./lib/format.js";
 import { buildDocx } from "./lib/docx.js";
+import { t, detectLang, setLang, applyI18n } from "./i18n.js";
+import { setLabelFn } from "./diarize.js";
 
-const VERSION = "1.1.2";
+const VERSION = "1.2.0";
 const GROQ = "https://api.groq.com";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -30,9 +32,9 @@ function show(id) { for (const s of document.querySelectorAll(".screen")) s.hidd
 function hdr() { return { authorization: "Bearer " + settings.apiKey }; }
 function friendly(e) {
   const m = e?.message || String(e);
-  if (/401|invalid api key|invalid_api_key/i.test(m)) return "Groq 金鑰不對，請到設定重新貼上";
-  if (/429|rate limit/i.test(m)) return "Groq 免費額度暫時用完，等一下會自動再試";
-  if (/failed to fetch|network/i.test(m)) return "連不上網路";
+  if (/401|invalid api key|invalid_api_key/i.test(m)) return t("e_key");
+  if (/429|rate limit/i.test(m)) return t("e_rate");
+  if (/failed to fetch|network/i.test(m)) return t("e_net");
   return m.length > 120 ? m.slice(0, 120) + "…" : m;
 }
 async function checkKey(key) {
@@ -46,6 +48,16 @@ function scheduleSave() {
   saveTimer = setTimeout(() => { if (meeting) { meeting.diar = diar.toJSON(); store.saveMeeting(meeting); } }, 1500);
 }
 function applyBig() { document.body.classList.toggle("big", !!settings.bigText); }
+// 介面語言：跟著手機（設定可指定）。日期、匯出標題、說話者標籤一起換
+function applyLang() {
+  setLang(detectLang(settings.uiLang));
+  setLabelFn((letter) => t("speaker", { x: letter }));
+  setLocale(t("locale"), { summary: t("sum_h"), points: t("sum_points"), decisions: t("sum_decisions"), todo: t("sum_todo"), owner: t("sum_owner"), due: t("sum_due"), open: t("x_open"), transcript: t("x_transcript"), sep: t("locale") === "en-US" ? ": " : "：" });
+  applyI18n();
+  diar.relabel();
+  for (const l of meeting?.lines || []) l.speaker = diar.get(l.speakerId)?.label || l.speaker;
+}
+const sumLang = () => settings.language || t("sumLang");
 
 /* ───────── 聲紋 worker ───────── */
 let worker = null, workerReady = null, reqId = 0;
@@ -56,8 +68,8 @@ function startWorker() {
   worker.onmessage = (e) => { const w = waiting.get(e.data.id); if (w) { waiting.delete(e.data.id); w(e.data); } };
   worker.onerror = (e) => console.warn("worker", e.message);
   workerReady = call("init", { modelUrl: new URL("./model/campplus.onnx", import.meta.url).href })
-    .then((r) => { if (!r.ok) throw new Error(r.error); $("sModel").textContent = `已載入（${Math.round(r.ms)} ms）`; return true; })
-    .catch((e) => { $("sModel").textContent = "載入失敗：" + e.message; workerReady = null; throw e; });
+    .then((r) => { if (!r.ok) throw new Error(r.error); $("sModel").textContent = t("vp_loaded", { ms: Math.round(r.ms) }); return true; })
+    .catch((e) => { $("sModel").textContent = t("vp_err") + e.message; workerReady = null; throw e; });
   return workerReady;
 }
 function call(type, data) {
@@ -102,7 +114,7 @@ async function handleChunk({ wav, pcm, startedAt }) {
     const allow = allowedLangs();
     if (allow && r.language && !allow.includes(r.language)) r = await transcribe(wav, allow[0]); // 聽成不相干的語言 → 用中文再辨識一次
     segs = r.segments; setLight("groq", "ok");
-  } catch (e) { toast("辨識失敗：" + friendly(e), true); setLight("groq", "bad", "Groq 剛才回錯誤：" + friendly(e)); return; }
+  } catch (e) { toast(t("stt_fail") + friendly(e), true); setLight("groq", "bad", t("groq_err") + friendly(e)); return; }
   const { kept } = filterSegments(segs);
   if (!kept.length) return;
   // 整段的聲紋（當句子太短時的備援）
@@ -140,7 +152,7 @@ function chipFor(line) {
   const c = diar.get(line.speakerId);
   const color = c?.color || "#888";
   const mark = line.confidence === "high" ? "" : line.confidence === "medium" ? "" : " ?";
-  return `<button class="chip ${line.confidence}" style="--c:${color}" data-id="${esc(line.speakerId)}" title="點一下改名字">${esc(c?.label || line.speaker)}${mark}</button>`;
+  return `<button class="chip ${line.confidence}" style="--c:${color}" data-id="${esc(line.speakerId)}" title="${t("chip_title")}">${esc(c?.label || line.speaker)}${mark}</button>`;
 }
 function lineHtml(line, i) {
   return `<div class="lh">${chipFor(line)}<span class="t">${fmtTime(line.t)}</span></div><div class="tx" contenteditable="true" data-i="${i}">${esc(line.text)}</div>`;
@@ -158,8 +170,8 @@ function renderLines() {
   const box = $("lines");
   if (!meeting?.lines.length) {
     box.innerHTML = recording
-      ? `<div class="empty"><div class="ill">👂</div><h3>正在聽…</h3>有人說話後，文字會一句一句出現在這裡</div>`
-      : `<div class="empty"><div class="ill">✦</div><h3>開會就交給它記</h3><div class="steps"><div><span>📱</span>把手機放桌上</div><div><span>🎙️</span>按下面「開始記錄」</div><div><span>📝</span>散會自動整理摘要</div></div></div>`;
+      ? `<div class="empty"><div class="ill">👂</div><h3>${t("empty_listen_h")}</h3>${t("empty_listen_p")}</div>`
+      : `<div class="empty"><div class="ill">✦</div><h3>${t("empty_h")}</h3><div class="steps"><div><span>📱</span>${t("empty_1")}</div><div><span>🎙️</span>${t("empty_2")}</div><div><span>📝</span>${t("empty_3")}</div></div></div>`;
     return;
   }
   box.innerHTML = meeting.lines.map((l, i) => `<div class="line">${lineHtml(l, i)}</div>`).join("");
@@ -176,7 +188,7 @@ $("lines").addEventListener("click", (e) => {
   if (!chip || !chip.dataset.id) return;
   const c = diar.get(chip.dataset.id);
   if (!c) return;
-  const name = prompt(`這位是誰？\n（輸入已經有的名字，就會把兩個人合併成同一人）`, c.named ? c.label : "");
+  const name = prompt(t("who"), c.named ? c.label : "");
   if (name === null) return;
   const nm = name.trim();
   if (!nm) return;
@@ -208,46 +220,46 @@ function updateButtons() {
   $("doneBar").hidden = recording || !has;          // 散會後才出現「複製」「存成 Word」
   $("newBtn").hidden = recording || !has;
   $("recBtn").className = "rec" + (recording ? " stop" : "");
-  $("recLabel").textContent = recording ? "結束會議" : has ? "繼續記錄" : "開始記錄";
+  $("recLabel").textContent = recording ? t("rec_stop") : has ? t("rec_cont") : t("rec_start");
   $("title").value = meeting?.title || "";
-  setHint(recording ? "把手機放在桌子中間、螢幕保持開著。點說話者的名字可以改。" : has ? "要開下一場會，按右上角的 ＋" : "");
+  setHint(recording ? t("hint_rec") : has ? t("hint_done") : "");
 }
 
 /* ───────── 錄音流程 ───────── */
 function newMeeting() {
-  meeting = { id: Date.now().toString(36), title: `會議 ${new Date().toLocaleDateString("zh-TW")}`, platformName: "現場錄音", startedAt: 0, endedAt: 0, lines: [], summary: null, diar: null };
+  meeting = { id: Date.now().toString(36), title: t("meeting_title", { d: new Date().toLocaleDateString(t("locale")) }), platformName: t("platform"), startedAt: 0, endedAt: 0, lines: [], summary: null, diar: null };
   diar = new Diarizer();
   $("summary").hidden = true; $("summary").innerHTML = "";
   $("timer").textContent = "00:00";
-  renderLines(); updateButtons(); setStatus("準備好了");
+  renderLines(); updateButtons(); setStatus(t("ready"));
 }
 async function startRecording() {
-  if (!settings.apiKey) { toast("請先到設定貼上 Groq 金鑰", true); show("settings"); return; }
+  if (!settings.apiKey) { toast(t("need_key"), true); show("settings"); return; }
   if (!meeting || meeting.summary) newMeeting();
   if (!meeting.startedAt) meeting.startedAt = Date.now();
   meeting.endedAt = 0;
   $("recBtn").disabled = true;
   try {
     rec = new Recorder({
-      onChunk: (c) => { pending++; queue = queue.then(() => handleChunk(c)).catch((e) => console.warn(e)).finally(() => { pending--; setStatus(recording ? (pending ? "辨識中…" : "聆聽中") : pending ? "整理最後幾句…" : "已結束", recording ? "rec" : "busy"); }); },
+      onChunk: (c) => { pending++; queue = queue.then(() => handleChunk(c)).catch((e) => console.warn(e)).finally(() => { pending--; setStatus(recording ? (pending ? t("recognizing") : t("listening")) : pending ? t("finishing") : t("ended"), recording ? "rec" : "busy"); }); },
       onLevel: (r, voiced) => { const f = $("meter"); f.style.width = Math.min(100, r * 400) + "%"; f.classList.toggle("off", !voiced); },
-      onError: (e) => toast("錄音錯誤：" + friendly(e), true),
-      onDsp: (d) => { $("sDsp").textContent = d.ready ? `${d.denoise ? "降噪 ✓" : "降噪 ✗"}　${d.vad ? "人聲偵測 ✓（音樂、雜音不會送去辨識）" : "人聲偵測 ✗（改用音量判斷）"}` : "載入失敗，改用音量判斷"; },
+      onError: (e) => toast(t("rec_err") + friendly(e), true),
+      onDsp: (d) => { $("sDsp").textContent = d.ready ? `${d.denoise ? t("dsp_dn_ok") : t("dsp_dn_no")}　${d.vad ? t("dsp_vad_ok") : t("dsp_vad_no")}` : t("dsp_fail"); },
     });
     await rec.start();
   } catch (e) {
     $("recBtn").disabled = false;
     const denied = /NotAllowed|Permission/i.test(e.name + e.message);
-    toast(denied ? "沒有麥克風權限：請到手機設定允許這個網站使用麥克風" : "無法開始錄音：" + friendly(e), true);
-    if (denied) setLight("mic", "bad", "麥克風權限被關掉了：到手機「設定」找這個瀏覽器（或網站設定），把麥克風改成允許");
+    toast(denied ? t("mic_denied_start") : t("cant_start") + friendly(e), true);
+    if (denied) setLight("mic", "bad", t("mic_off"));
     return;
   }
-  startWorker().catch(() => toast("聲紋模型載入失敗，仍會記錄但無法分辨說話者", true));
+  startWorker().catch(() => toast(t("vp_fail"), true));
   recording = true;
   $("recBtn").disabled = false;
   setLight("mic", "ok");
-  $("sAgc").textContent = rec.browserAgc ? "瀏覽器內建（AGC 已生效）" : "瀏覽器沒開，改用軟體增益（遠處小聲會自動放大）";
-  setStatus("聆聽中", "rec");
+  $("sAgc").textContent = rec.browserAgc ? t("agc_browser") : t("agc_soft");
+  setStatus(t("listening"), "rec");
   renderLines(); updateButtons();
   clearInterval(timerId); timerId = setInterval(tick, 1000);
   try { wakeLock = await navigator.wakeLock?.request("screen"); } catch {}
@@ -262,9 +274,9 @@ async function stopRecording() {
   clearInterval(timerId);
   meeting.endedAt = Date.now(); tick();
   try { await wakeLock?.release(); } catch {} wakeLock = null;
-  setStatus(pending ? "整理最後幾句…" : "已結束", "busy");
+  setStatus(pending ? t("finishing") : t("ended"), "busy");
   await queue;
-  setStatus("已結束", "done");
+  setStatus(t("ended"), "done");
   $("recBtn").disabled = false;
   updateButtons();
   meeting.diar = diar.toJSON(); store.saveMeeting(meeting);
@@ -275,28 +287,28 @@ document.addEventListener("visibilitychange", async () => { if (recording && doc
 /* ───────── 摘要／匯出 ───────── */
 function summaryHtml(s) {
   const list = (t, items) => items?.length ? `<h3>${t}</h3><ul>${items.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "";
-  return `<h3>會議摘要</h3><p>${esc(s.summary)}</p>` + list("重點整理", s.key_points) + list("決議事項", s.decisions)
-    + list("待辦事項", s.action_items?.map((a) => `${a.task}${a.owner ? `（負責：${a.owner}）` : ""}${a.due ? `，期限：${a.due}` : ""}`))
-    + list("後續追蹤", s.open_questions) + (s.model ? `<p class="small muted">由 ${esc(s.model)} 產生</p>` : "");
+  return `<h3>${t("sum_h")}</h3><p>${esc(s.summary)}</p>` + list(t("sum_points"), s.key_points) + list(t("sum_decisions"), s.decisions)
+    + list(t("sum_todo"), s.action_items?.map((a) => `${a.task}${a.owner ? t("sum_owner", { x: a.owner }) : ""}${a.due ? t("sum_due", { x: a.due }) : ""}`))
+    + list(t("sum_open"), s.open_questions) + (s.model ? `<p class="small muted">${esc(t("sum_by", { m: s.model }))}</p>` : "");
 }
 async function summarize() {
   if (!meeting?.lines.length) return;
   const box = $("summary");
-  box.hidden = false; box.innerHTML = `<div class="wait"><span class="spin"></span> AI 正在整理摘要…</div>`;
+  box.hidden = false; box.innerHTML = `<div class="wait"><span class="spin"></span> ${t("sum_wait")}</div>`;
   try {
-    const s = await summarizeTranscript(meeting, { apiBase: GROQ, apiHeaders: hdr(), model: settings.model, autoFallback: settings.autoFallback, tokenSaver: settings.tokenSaver, language: settings.language, toTraditional: settings.toTraditional });
+    const s = await summarizeTranscript(meeting, { apiBase: GROQ, apiHeaders: hdr(), model: settings.model, autoFallback: settings.autoFallback, tokenSaver: settings.tokenSaver, language: sumLang(), toTraditional: settings.toTraditional });
     meeting.summary = s; store.saveMeeting(meeting);
     box.innerHTML = summaryHtml(s);
-    toast("摘要完成");
+    toast(t("sum_done"));
   } catch (e) {
-    box.innerHTML = `<div class="note"><span>摘要失敗：${esc(friendly(e))}</span><button class="btn sm" id="retrySum">再試一次</button></div>`;
+    box.innerHTML = `<div class="note"><span>${t("sum_fail")}${esc(friendly(e))}</span><button class="btn sm" id="retrySum">${t("retry")}</button></div>`;
     $("retrySum").onclick = summarize;
   }
 }
 async function copyAll() {
   const text = meetingToPlainText(meeting, { includeTranscript: true });
-  try { await navigator.clipboard.writeText(text); toast("已複製，可以貼到 LINE 或 Email"); }
-  catch { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); toast("已複製"); }
+  try { await navigator.clipboard.writeText(text); toast(t("copied")); }
+  catch { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); toast(t("copied2")); }
 }
 async function exportWord() {
   const blob = buildDocx(meeting, { includeTranscript: true });
@@ -312,31 +324,33 @@ function openMeeting(id) {
   const m = store.loadMeeting(id);
   if (!m) return;
   meeting = m; diar = new Diarizer(m.diar);
-  renderLines(); updateButtons(); tick(); setStatus(m.endedAt ? "已結束" : "準備好了", m.endedAt ? "done" : "");
+  renderLines(); updateButtons(); tick(); setStatus(m.endedAt ? t("ended") : t("ready"), m.endedAt ? "done" : "");
   $("summary").hidden = !m.summary; if (m.summary) $("summary").innerHTML = summaryHtml(m.summary);
   show("main");
 }
 function renderHistory() {
   const idx = store.listMeetings();
-  $("histList").innerHTML = idx.length ? idx.map((x) => `<div class="item" data-id="${x.id}"><div><b>${esc(x.title)}</b><small>${fmtTime(x.startedAt)}・${x.lines} 句${x.hasSummary ? "・有摘要" : ""}</small></div><button class="icon del" data-id="${x.id}" title="刪除">🗑</button></div>`).join("")
-    : `<div class="empty">還沒有會議紀錄</div>`;
+  $("histList").innerHTML = idx.length ? idx.map((x) => `<div class="item" data-id="${x.id}"><div><b>${esc(x.title)}</b><small>${fmtTime(x.startedAt)}・${t("hist_lines", { n: x.lines })}${x.hasSummary ? t("hist_sum") : ""}</small></div><button class="icon del" data-id="${x.id}" title="${t("del")}">🗑</button></div>`).join("")
+    : `<div class="empty">${t("hist_empty")}</div>`;
 }
 $("histList").addEventListener("click", (e) => {
   const del = e.target.closest(".del");
-  if (del) { if (confirm("刪除這場會議？")) { store.removeMeeting(del.dataset.id); if (meeting?.id === del.dataset.id) newMeeting(); renderHistory(); } return; }
+  if (del) { if (confirm(t("del_q"))) { store.removeMeeting(del.dataset.id); if (meeting?.id === del.dataset.id) newMeeting(); renderHistory(); } return; }
   const it = e.target.closest(".item"); if (it) openMeeting(it.dataset.id);
 });
 function fillSettings() {
-  $("sKey").value = settings.apiKey; $("sLang").value = settings.sttLanguage; $("sSumLang").value = settings.language;
+  $("sKey").value = settings.apiKey; $("sLang").value = settings.sttLanguage; $("sSumLang").value = sumLang(); $("sUiLang").value = settings.uiLang || "auto";
   $("sS2T").checked = settings.toTraditional; $("sBig").checked = settings.bigText; $("sAuto").checked = settings.autoSummarize !== false;
   $("sVer").textContent = VERSION;
 }
 function readSettings() {
-  settings = store.saveSettings({ apiKey: $("sKey").value.trim(), sttLanguage: $("sLang").value, language: $("sSumLang").value, toTraditional: $("sS2T").checked, bigText: $("sBig").checked, autoSummarize: $("sAuto").checked });
+  const uiChanged = ($("sUiLang").value || "auto") !== (settings.uiLang || "auto");
+  settings = store.saveSettings({ apiKey: $("sKey").value.trim(), sttLanguage: $("sLang").value, language: $("sSumLang").value, uiLang: $("sUiLang").value, toTraditional: $("sS2T").checked, bigText: $("sBig").checked, autoSummarize: $("sAuto").checked });
   applyBig();
+  if (uiChanged) { applyLang(); fillSettings(); renderLines(); updateButtons(); }
 }
-for (const id of ["sKey", "sLang", "sSumLang", "sS2T", "sBig", "sAuto"]) $(id).addEventListener("change", readSettings);
-$("sKeyCheck").onclick = async () => { const m = $("sKeyMsg"); m.textContent = "檢查中…"; m.className = "msg small"; try { await checkKey($("sKey").value.trim()); m.textContent = "✓ 金鑰可以用"; m.className = "msg small ok"; } catch (e) { m.textContent = "✗ " + friendly(e); m.className = "msg small err"; } };
+for (const id of ["sKey", "sLang", "sSumLang", "sUiLang", "sS2T", "sBig", "sAuto"]) $(id).addEventListener("change", readSettings);
+$("sKeyCheck").onclick = async () => { const m = $("sKeyMsg"); m.textContent = t("checking"); m.className = "msg small"; try { await checkKey($("sKey").value.trim()); m.textContent = t("key_ok"); m.className = "msg small ok"; } catch (e) { m.textContent = "✗ " + friendly(e); m.className = "msg small err"; } };
 
 /* ───────── 歡迎頁 ───────── */
 let micOk = false, keyOk = false;
@@ -348,26 +362,26 @@ $("wMic").onclick = async () => {
     const ctx = new AudioContext(); await ctx.resume();
     const an = ctx.createAnalyser(); an.fftSize = 512; ctx.createMediaStreamSource(stream).connect(an);
     const buf = new Float32Array(an.fftSize); let peak = 0; const t0 = Date.now();
-    msg.textContent = "請說幾句話…"; msg.className = "msg";
+    msg.textContent = t("w_say"); msg.className = "msg";
     await new Promise((done) => { const f = () => { an.getFloatTimeDomainData(buf); let s = 0; for (const v of buf) s += v * v; const r = Math.sqrt(s / buf.length); peak = Math.max(peak, r); $("wMeter").style.width = Math.min(100, r * 400) + "%"; if (Date.now() - t0 < 4000 && peak < 0.05) requestAnimationFrame(f); else done(); }; f(); });
     stream.getTracks().forEach((t) => t.stop()); ctx.close();
     micOk = peak > 0.005;
-    msg.textContent = micOk ? "✓ 聽到你的聲音了" : "沒聽到聲音，請再試一次（靠近一點說話）"; msg.className = "msg " + (micOk ? "ok" : "err");
+    msg.textContent = micOk ? t("w_heard") : t("w_notheard"); msg.className = "msg " + (micOk ? "ok" : "err");
     $("w1").classList.toggle("ok", micOk);
-  } catch (e) { msg.textContent = "沒有取得麥克風權限：請在手機的瀏覽器設定裡允許"; msg.className = "msg err"; }
+  } catch (e) { msg.textContent = t("w_micdenied"); msg.className = "msg err"; }
   welcomeCheck();
 };
 $("wKeyBtn").onclick = async () => {
   const key = $("wKey").value.trim(), msg = $("wKeyMsg");
-  if (!key) { msg.textContent = "還沒貼上"; msg.className = "msg err"; return; }
-  msg.textContent = "檢查中…"; msg.className = "msg";
-  try { await checkKey(key); settings = store.saveSettings({ apiKey: key }); keyOk = true; msg.textContent = "✓ 連上了"; msg.className = "msg ok"; $("w2").classList.add("ok"); }
+  if (!key) { msg.textContent = t("w_nokey"); msg.className = "msg err"; return; }
+  msg.textContent = t("checking"); msg.className = "msg";
+  try { await checkKey(key); settings = store.saveSettings({ apiKey: key }); keyOk = true; msg.textContent = t("w_connected"); msg.className = "msg ok"; $("w2").classList.add("ok"); }
   catch (e) { keyOk = false; msg.textContent = "✗ " + friendly(e); msg.className = "msg err"; }
   welcomeCheck();
 };
 $("wPaste").onclick = async () => {
-  try { const t = (await navigator.clipboard.readText()).trim(); if (t) { $("wKey").value = t; $("wKeyBtn").click(); } else toast("剪貼簿是空的，先去 Groq 按 Copy", true); }
-  catch { toast("瀏覽器不讓我讀剪貼簿，請長按輸入框選「貼上」", true); }
+  try { const t = (await navigator.clipboard.readText()).trim(); if (t) { $("wKey").value = t; $("wKeyBtn").click(); } else toast(t("clip_empty"), true); }
+  catch { toast(t("clip_denied"), true); }
 };
 $("wDone").onclick = () => { settings = store.saveSettings({ setupDone: true }); newMeeting(); show("main"); startWorker().catch(() => {}); offerInstall(); checkLights(); };
 
@@ -380,7 +394,7 @@ $("title").addEventListener("change", () => { if (meeting) { meeting.title = $("
 $("toHistory").onclick = () => { renderHistory(); show("history"); };
 $("histBack").onclick = () => show("main");
 $("toSettings").onclick = () => { fillSettings(); show("settings"); };
-$("setBack").onclick = () => { readSettings(); show("main"); if (!settings.apiKey) toast("還沒有 Groq 金鑰，無法辨識", true); checkGroq(); };
+$("setBack").onclick = () => { readSettings(); show("main"); if (!settings.apiKey) toast(t("no_key_yet"), true); checkGroq(); };
 window.addEventListener("beforeunload", (e) => { if (recording) { e.preventDefault(); e.returnValue = ""; } });
 
 /* ───────── 燈號：麥克風權限、Groq 連線 ───────── */
@@ -392,24 +406,24 @@ async function checkMic() {
   try {
     const p = await navigator.permissions?.query({ name: "microphone" });
     if (p?.state === "granted") { setLight("mic", "ok"); return; }
-    if (p?.state === "denied") { setLight("mic", "bad", "麥克風權限被關掉了：到手機「設定」找這個瀏覽器（或網站設定），把麥克風改成允許"); return; }
+    if (p?.state === "denied") { setLight("mic", "bad", t("mic_off")); return; }
   } catch {}
   // Safari 沒有 permissions API：實際打開一下麥克風再馬上關掉
   try { const st = await navigator.mediaDevices.getUserMedia({ audio: true }); st.getTracks().forEach((t) => t.stop()); setLight("mic", "ok"); }
-  catch (e) { setLight("mic", "bad", /NotAllowed|Permission/i.test(e.name + e.message) ? "沒有麥克風權限：按一下這裡會再問一次；還是不行就到手機「設定」裡允許" : "找不到麥克風：" + friendly(e)); }
+  catch (e) { setLight("mic", "bad", /NotAllowed|Permission/i.test(e.name + e.message) ? t("mic_retry") : t("mic_none") + friendly(e)); }
 }
 async function checkGroq() {
   setLight("groq", "wait");
-  if (!settings.apiKey) { setLight("groq", "bad", "還沒有 Groq 金鑰：到右上角 ⚙ 設定貼上"); return; }
-  if (!navigator.onLine) { setLight("groq", "bad", "沒有網路"); return; }
+  if (!settings.apiKey) { setLight("groq", "bad", t("groq_nokey")); return; }
+  if (!navigator.onLine) { setLight("groq", "bad", t("offline")); return; }
   try { await checkKey(settings.apiKey); setLight("groq", "ok"); }
-  catch (e) { setLight("groq", "bad", /401/.test(e.message) ? "Groq 金鑰失效了：到右上角 ⚙ 重新貼一組" : "連不上 Groq：" + friendly(e)); }
+  catch (e) { setLight("groq", "bad", /401/.test(e.message) ? t("groq_401") : t("groq_down") + friendly(e)); }
 }
 function checkLights() { if ($("main").hidden) return; checkMic(); checkGroq(); }
-$("lMic").onclick = async () => { await checkMic(); toast(lightMsg.mic || "麥克風正常"); };
-$("lGroq").onclick = async () => { await checkGroq(); toast(lightMsg.groq || "Groq 連線正常"); };
+$("lMic").onclick = async () => { await checkMic(); toast(lightMsg.mic || t("mic_ok")); };
+$("lGroq").onclick = async () => { await checkGroq(); toast(lightMsg.groq || t("groq_ok")); };
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkLights(); });
-window.addEventListener("online", checkLights); window.addEventListener("offline", () => setLight("groq", "bad", "沒有網路"));
+window.addEventListener("online", checkLights); window.addEventListener("offline", () => setLight("groq", "bad", t("offline")));
 setInterval(() => { if (document.visibilityState === "visible" && !recording) checkGroq(); }, 5 * 60 * 1000);
 
 /* ───────── 放到手機桌面 ───────── */
@@ -420,18 +434,18 @@ const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.p
 function offerInstall() {
   if (isStandalone() || localStorage.getItem("pm:installDismissed")) return;
   const box = $("install");
-  if (installEvt) { $("installHow").textContent = "按「安裝」，手機桌面就會多一個「會議摘要」圖示"; $("installBtn").textContent = "安裝"; $("installBtn").hidden = false; box.hidden = false; }
+  if (installEvt) { $("installHow").textContent = t("inst_android"); $("installBtn").textContent = t("inst_install"); $("installBtn").hidden = false; box.hidden = false; }
   else if (isIOS()) {
     // Safari 和桌面 App 分開存資料：先把金鑰複製起來，從桌面打開時按「貼上」就好
-    $("installHow").textContent = "按 Safari 下面的「分享」⎙ → 「加入主畫面」→「新增」。第一次從桌面打開要再貼一次金鑰，先按「複製金鑰」。";
-    $("installBtn").textContent = "複製金鑰"; $("installBtn").hidden = false; box.hidden = false;
+    $("installHow").textContent = t("inst_ios");
+    $("installBtn").textContent = t("inst_copykey"); $("installBtn").hidden = false; box.hidden = false;
   }
-  else if (/Android/i.test(navigator.userAgent)) { $("installHow").textContent = "按瀏覽器右上角「⋮」→「加到主畫面」或「安裝應用程式」"; $("installBtn").hidden = true; box.hidden = false; }
+  else if (/Android/i.test(navigator.userAgent)) { $("installHow").textContent = t("inst_other"); $("installBtn").hidden = true; box.hidden = false; }
 }
 window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e; if (!$("main").hidden) offerInstall(); });
-window.addEventListener("appinstalled", () => { $("install").hidden = true; toast("已放到桌面，下次從桌面打開就好"); });
+window.addEventListener("appinstalled", () => { $("install").hidden = true; toast(t("inst_done")); });
 $("installBtn").onclick = async () => {
-  if (!installEvt) { try { await navigator.clipboard.writeText(settings.apiKey); toast("金鑰已複製，從桌面打開後按「貼上」"); } catch { toast("複製失敗，請到設定頁長按金鑰複製", true); } return; }
+  if (!installEvt) { try { await navigator.clipboard.writeText(settings.apiKey); toast(t("key_copied")); } catch { toast(t("key_copyfail"), true); } return; }
   installEvt.prompt(); const { outcome } = await installEvt.userChoice; installEvt = null; if (outcome === "accepted") $("install").hidden = true; };
 $("installClose").onclick = () => { $("install").hidden = true; localStorage.setItem("pm:installDismissed", "1"); };
 
@@ -446,8 +460,9 @@ if ("serviceWorker" in navigator) {
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !recording) reg.update().catch(() => {}); }); // 每次切回來都看一下有沒有新版
   }).catch(() => {});
 }
-$("updateBtn").onclick = () => { if (recording) { toast("錄音中先不更新，結束會議後再按", true); return; } location.reload(); };
+$("updateBtn").onclick = () => { if (recording) { toast(t("upd_rec"), true); return; } location.reload(); };
 settings = await store.restoreSettings(); // localStorage 被清掉時從 IndexedDB 找回金鑰
+applyLang();
 if (!settings.setupDone || !settings.apiKey) {
   // iPhone 的 Safari 和桌面 App 分開存資料：在 Safari 裡就先教她放到桌面，從桌面打開再設定
   if (isIOS() && !isStandalone()) { $("w0").hidden = false; $("w1").querySelector(".num").textContent = "2"; $("w2").querySelector(".num").textContent = "3"; $("wFoot").hidden = true; }

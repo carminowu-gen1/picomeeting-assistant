@@ -18,11 +18,15 @@ export const DEFAULT_SETTINGS = {
   theme: "auto", // auto | light | dark
 };
 
-export const fmtTime = (t) => new Date(t).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
-export const fmtDate = (t) => new Date(t).toLocaleString("zh-TW", { dateStyle: "medium", timeStyle: "short" });
+// 手機版：介面語言切換時由 app.js 設定 locale 與標題文字
+export let LOCALE = "zh-TW";
+export let LABELS = { summary: "會議摘要", points: "重點整理", decisions: "決議事項", todo: "待辦事項", owner: "（負責：{x}）", due: "，期限：{x}", open: "後續追蹤 / 未決問題", transcript: "會議逐字稿", sep: "：" };
+export function setLocale(locale, labels) { LOCALE = locale; if (labels) LABELS = { ...LABELS, ...labels }; }
+export const fmtTime = (t) => new Date(t).toLocaleTimeString(LOCALE, { hour: "2-digit", minute: "2-digit" });
+export const fmtDate = (t) => new Date(t).toLocaleString(LOCALE, { dateStyle: "medium", timeStyle: "short" });
 
 export function transcriptText(m) {
-  return m.lines.map((l) => `[${fmtTime(l.t)}] ${l.speaker}：${l.text}`).join("\n");
+  return m.lines.map((l) => `[${fmtTime(l.t)}] ${l.speaker}${LABELS.sep}${l.text}`).join("\n");
 }
 
 // 把會議轉成統一的「段落清單」，Word / Google Docs / Markdown 都從這裡產生
@@ -34,27 +38,27 @@ export function meetingToBlocks(m, settings) {
   b.push({ style: "meta", text: `${m.platformName || ""}　${fmtDate(m.startedAt)}${m.endedAt ? " – " + fmtTime(m.endedAt) : ""}` });
 
   if (s) {
-    b.push({ style: "h1", text: "會議摘要" });
+    b.push({ style: "h1", text: LABELS.summary });
     b.push({ style: "p", text: s.summary });
     const section = (title, items) => {
       if (!items?.length) return;
       b.push({ style: "h1", text: title });
       items.forEach((x) => b.push({ style: "bullet", text: x }));
     };
-    section("重點整理", s.key_points);
-    section("決議事項", s.decisions);
+    section(LABELS.points, s.key_points);
+    section(LABELS.decisions, s.decisions);
     if (s.action_items?.length) {
-      b.push({ style: "h1", text: "待辦事項" });
+      b.push({ style: "h1", text: LABELS.todo });
       s.action_items.forEach((a) =>
-        b.push({ style: "bullet", text: `${a.task}${a.owner ? `（負責：${a.owner}）` : ""}${a.due ? `，期限：${a.due}` : ""}` })
+        b.push({ style: "bullet", text: `${a.task}${a.owner ? LABELS.owner.replace("{x}", a.owner) : ""}${a.due ? LABELS.due.replace("{x}", a.due) : ""}` })
       );
     }
-    section("後續追蹤 / 未決問題", s.open_questions);
+    section(LABELS.open, s.open_questions);
   }
 
   if (settings.includeTranscript !== false && m.lines.length) {
-    b.push({ style: "h1", text: "會議逐字稿" });
-    m.lines.forEach((l) => b.push({ style: "p", text: `[${fmtTime(l.t)}] ${l.speaker}：${l.text}` }));
+    b.push({ style: "h1", text: LABELS.transcript });
+    m.lines.forEach((l) => b.push({ style: "p", text: `[${fmtTime(l.t)}] ${l.speaker}${LABELS.sep}${l.text}` }));
   }
   return b;
 }

@@ -3,7 +3,7 @@ const KEY_SETTINGS = "pm:settings", KEY_INDEX = "pm:index", MAX = 30;
 const mkey = (id) => `pm:m:${id}`;
 
 export const DEFAULTS = {
-  apiKey: "", model: "llama-3.3-70b-versatile", language: "繁體中文", sttLanguage: "auto", toTraditional: true,
+  apiKey: "", model: "llama-3.3-70b-versatile", language: "", uiLang: "auto", sttLanguage: "auto", toTraditional: true, // language 空 = 跟著介面語言
   autoFallback: true, tokenSaver: true, bigText: false, theme: "auto", setupDone: false,
 };
 

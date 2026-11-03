@@ -7,6 +7,9 @@ const LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 
 const dot = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
 
+export let labelFor = (letter) => `說話者 ${letter}`; // app.js 依介面語言覆寫
+export function setLabelFn(fn) { labelFor = fn; }
+
 export class Diarizer {
   constructor(data) {
     this.clusters = []; // { id, label, named, centroid: Float32Array, n, color }
@@ -40,11 +43,14 @@ export class Diarizer {
 
   create() {
     const i = this.clusters.length;
-    const c = { id: `s${Date.now().toString(36)}${i}`, label: `說話者 ${LETTERS[i % LETTERS.length]}`, named: false, centroid: null, n: 0, color: PALETTE[i % PALETTE.length] };
+    const letter = LETTERS[i % LETTERS.length];
+    const c = { id: `s${Date.now().toString(36)}${i}`, letter, label: labelFor(letter), named: false, centroid: null, n: 0, color: PALETTE[i % PALETTE.length] };
     this.clusters.push(c);
     return c;
   }
   get(id) { return this.clusters.find((c) => c.id === id); }
+  /** 介面語言換了：沒取名字的群標籤跟著換 */
+  relabel() { for (const c of this.clusters) if (!c.named && c.letter) c.label = labelFor(c.letter); }
   rename(id, name) { const c = this.get(id); if (c) { c.label = name; c.named = true; } }
   /** 把 b 併進 a（使用者說「這兩個其實是同一個人」）*/
   merge(aId, bId) {

@@ -35,7 +35,8 @@ input[type="text"], input[type="password"], select { width: 100%; padding: 12px 
 /* ── 歡迎 ── */
 .hero { text-align: center; padding: calc(24px + env(safe-area-inset-top)) 8px 8px; }
 .hero p { color: var(--text-2); margin: 6px 0 0; }
-.logo { display: inline-grid; place-items: center; width: 72px; height: 72px; border-radius: 22px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; font-size: 36px; margin-bottom: 10px; box-shadow: 0 10px 28px rgba(47, 109, 246, .35); }
+.logo { display: block; width: 72px; height: 72px; border-radius: 20px; margin: 0 auto 10px; box-shadow: 0 10px 28px rgba(47, 109, 246, .35); }
+.hero .sub { margin: 0 0 4px; font-weight: 700; color: var(--accent); }
 .step { flex-direction: row; gap: 14px; }
 .step .num { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--surface-2); color: var(--text-2); display: grid; place-items: center; font-weight: 800; }
 .step.ok .num { background: var(--ok); color: #fff; font-size: 0; } .step.ok .num::after { content: "✓"; font-size: 18px; }

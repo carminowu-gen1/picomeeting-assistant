@@ -1,9 +1,11 @@
 {
   "manifest_version": 3,
-  "content_security_policy": { "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'" },
-  "name": "會議摘要助理",
-  "description": "自動記錄 Google Meet / Teams / Zoom / Jitsi 的會議逐字稿，用 Groq AI 產生摘要與重點，匯出到 Google Docs 或 Word。",
-  "version": "1.1.0",
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
+  "name": "小伐速記 PicoNotes",
+  "description": "會議摘要助理：開會時自動記錄逐字稿，會後 AI 整理摘要、重點與待辦，一鍵匯出 Word。",
+  "version": "1.2.0",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -11,15 +13,25 @@
   },
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "會議摘要助理"
+    "default_title": "小伐速記"
   },
   "options_page": "options/options.html",
   "background": {
     "service_worker": "background.js",
     "type": "module"
   },
-  "permissions": ["storage", "activeTab", "downloads", "identity", "sidePanel", "tabCapture", "offscreen"],
-  "side_panel": { "default_path": "live/live.html" },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "downloads",
+    "identity",
+    "sidePanel",
+    "tabCapture",
+    "offscreen"
+  ],
+  "side_panel": {
+    "default_path": "live/live.html"
+  },
   "host_permissions": [
     "https://meet.google.com/*",
     "https://*.teams.microsoft.com/*",
@@ -42,13 +54,17 @@
         "https://meet.jit.si/*",
         "https://*.jitsi.net/*"
       ],
-      "js": ["content/capture.js"],
+      "js": [
+        "content/capture.js"
+      ],
       "run_at": "document_idle",
       "all_frames": false
     }
   ],
   "oauth2": {
     "client_id": "YOUR_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com",
-    "scopes": ["https://www.googleapis.com/auth/drive.file"]
+    "scopes": [
+      "https://www.googleapis.com/auth/drive.file"
+    ]
   }
 }
