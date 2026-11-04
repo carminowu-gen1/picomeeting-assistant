@@ -2,54 +2,74 @@
 <html lang="zh-TW">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>會議紀錄</title>
   <link rel="stylesheet" href="../ui/theme.css" />
   <link rel="stylesheet" href="live.css" />
 </head>
 <body>
-  <header class="bar">
-    <div class="row1">
-      <span id="statusBadge" class="badge"><span class="dot"></span><span id="statusText">載入中</span></span>
-      <select id="history" title="切換到其他會議"></select>
-      <button class="btn sm danger" id="stopBtn" hidden>■ 停止記錄</button>
-    </div>
-    <input id="title" class="title-input" type="text" placeholder="會議標題" title="點一下可以改標題" />
-    <div class="row2">
-      <button class="btn primary" id="copyAll" title="複製摘要和完整逐字稿">📋 複製全文</button>
-      <button class="btn" id="exportDocx" title="下載 Word 檔">⬇ Word</button>
-      <button class="btn" id="combineBtn" title="勾選幾場會議，合成一份摘要">📚 合併摘要</button>
-      <details class="menu" id="menu">
-        <summary class="btn" title="更多">⋯</summary>
-        <div class="menu-list">
-          <button data-act="copyText">複製逐字稿（不含時間）</button>
-          <button data-act="copySummary">只複製摘要</button>
-          <button data-act="resummarize">重新產生摘要</button>
-          <hr />
-          <button data-act="md">下載 Markdown</button>
-          <button data-act="txt">下載純文字</button>
-          <button data-act="gdoc" id="gdocItem" hidden>存到 Google 文件</button>
-          <hr />
-          <button data-act="delete" class="danger-text">刪除這場會議</button>
-        </div>
-      </details>
-    </div>
-  </header>
+  <!-- ── 第一層：所有會議 ── -->
+  <section id="listView" class="view">
+    <header class="bar">
+      <div class="row1">
+        <h1 class="vtitle">📚 會議紀錄</h1>
+        <button class="btn sm" id="selBtn" type="button">選取</button>
+      </div>
+      <input id="listSearch" type="search" placeholder="🔍 找會議（輸入標題）" />
+    </header>
+    <main id="mlist" class="mlist"></main>
+    <footer id="selBar" class="selbar" hidden>
+      <span id="selCount" class="small muted">已選 0 場</span>
+      <button class="btn" id="selCancel" type="button">取消</button>
+      <button class="btn" id="selDelete" type="button">🗑 刪除</button>
+      <button class="btn primary" id="selCombine" type="button">📚 合併摘要</button>
+    </footer>
+  </section>
 
-  <div class="content">
-    <section id="summaryCard" class="summary-card"></section>
-    <section class="tr-wrap">
-      <input id="search" type="search" placeholder="搜尋逐字稿…" />
-      <main id="transcript" class="transcript"></main>
-      <p class="hint small muted">點名字可改名（整場）；點文字可直接修改，按 Enter 儲存。</p>
-    </section>
-  </div>
+  <!-- ── 第二層：單場會議 ── -->
+  <section id="detailView" class="view" hidden>
+    <header class="bar">
+      <div class="row1">
+        <button class="btn sm ghost" id="backBtn" type="button" title="回到所有會議">← 所有會議</button>
+        <span id="statusBadge" class="badge"><span class="dot"></span><span id="statusText">載入中</span></span>
+        <button class="btn sm danger" id="stopBtn" type="button" hidden>■ 停止記錄</button>
+      </div>
+      <label class="title-wrap" title="點一下就可以改標題">
+        <input id="title" class="title-input" type="text" placeholder="會議標題" />
+        <span class="pen">✏️</span>
+      </label>
+      <div class="row2">
+        <button class="btn primary" id="copyAll" type="button" title="複製摘要和完整逐字稿，貼到任何地方">📋 複製</button>
+        <button class="btn" id="exportDocx" type="button" title="下載 Word 檔">⬇ Word</button>
+        <details class="menu" id="menu">
+          <summary class="btn" title="更多">⋯</summary>
+          <div class="menu-list">
+            <button data-act="resummarize">↻ 重新產生摘要</button>
+            <button data-act="copySummary">只複製摘要</button>
+            <button data-act="copyText">只複製逐字稿</button>
+            <hr />
+            <button data-act="md">下載 Markdown</button>
+            <button data-act="txt">下載純文字</button>
+            <button data-act="gdoc" id="gdocItem" hidden>存到 Google 文件</button>
+            <hr />
+            <button data-act="delete" class="danger-text">🗑 刪除這場會議</button>
+          </div>
+        </details>
+      </div>
+      <div class="tabs" role="tablist">
+        <button class="tab" data-tab="summary" role="tab" type="button">摘要</button>
+        <button class="tab" data-tab="transcript" role="tab" type="button">逐字稿 <span id="lineCount" class="muted"></span></button>
+      </div>
+    </header>
 
-  <dialog id="combineDlg" class="dlg">
-    <h3>合併幾場會議一起摘要</h3>
-    <p class="small muted">勾選要放在一起整理的會議。原本的會議不會被改動。</p>
-    <div id="cbList" class="cblist"></div>
-    <div class="row-end"><button class="btn" id="cbCancel" type="button">取消</button><button class="btn primary" id="cbGo" type="button">合併</button></div>
-  </dialog>
+    <main id="summaryPane" class="pane summary-card"></main>
+    <main id="trPane" class="pane tr-wrap" hidden>
+      <input id="search" type="search" placeholder="🔍 搜尋逐字稿…" />
+      <div id="transcript" class="transcript"></div>
+      <p class="hint small muted">點名字可以整場改名；點文字可以直接修改，按 Enter 儲存。</p>
+    </main>
+  </section>
+
   <div id="toast" class="toast"></div>
   <script type="module" src="live.js"></script>
 </body>

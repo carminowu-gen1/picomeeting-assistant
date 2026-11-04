@@ -15,7 +15,8 @@ const active = new Map(); // tabId -> meeting (錄製中)
 // 以前 50 場全塞在同一個 key：錄音時每 1.5 秒整包讀寫、popup 每 0.5 秒整包傳過去，越用越慢
 const MAX_MEETINGS = 50;
 const mkey = (id) => `m:${id}`;
-const metaOf = (m) => ({ id: m.id, title: m.title, startedAt: m.startedAt, recording: !!m.recording, summarizing: !!m.summarizing });
+const metaOf = (m) => ({ id: m.id, title: m.title, startedAt: m.startedAt, recording: !!m.recording, summarizing: !!m.summarizing,
+  lineCount: (m.lines || []).filter((l) => !l.sep).length, hasSummary: !!m.summary, combined: m.combinedFrom?.length || 0 });
 
 async function migrateStorage() {
   const { meetings, meetingIndex } = await chrome.storage.local.get(["meetings", "meetingIndex"]);
@@ -619,8 +620,24 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         if (m?.recording) { m.recording = false; m.endedAt = Date.now(); await saveMeeting(m); }
         return reply({ meeting: m || null });
       }
-      case "listMeetings":
+      case "listMeetings": {
+        // 舊版索引沒有句數：補一次
+        const idx = await listMeetings();
+        if (idx.some((x) => x.lineCount == null)) {
+          const fixed = [];
+          for (const x of idx) { const m = x.lineCount == null ? await loadMeeting(x.id) : null; fixed.push(m ? metaOf(m) : x); }
+          await updateIndex(() => fixed);
+        }
         return reply({ meetings: [...[...active.values()].map(metaOf), ...(await listMeetings()).filter((x) => ![...active.values()].some((a) => a.id === x.id))] });
+      }
+      case "restoreMeeting": {
+        // 「復原」：把剛刪掉的那場原封不動存回去
+        const m = msg.meeting;
+        if (!m?.id || !Array.isArray(m.lines)) throw new Error("無法復原");
+        m.recording = false; m.summarizing = false;
+        await saveMeeting(m);
+        return reply({ ok: true });
+      }
       case "summarize": return reply({ summary: await summarize(msg.meetingId) });
       case "combineMeetings": return reply({ meeting: await combineMeetings(msg.ids || []) });
       case "listModels": { const s = await getSettings(); return reply({ models: s.ready ? await listModels(s) : [] }); }

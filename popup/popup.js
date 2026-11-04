@@ -128,8 +128,7 @@ $("mainBtn").onclick = async () => {
 const latest = () => state?.current || state?.latest;
 
 $("openLive").onclick = async () => {
-  const m = latest();
-  const path = `live/live.html?meeting=${encodeURIComponent(m?.id || "current")}`;
+  const path = state?.current ? `live/live.html?meeting=${encodeURIComponent(state.current.id)}` : "live/live.html";
   try {
     await chrome.sidePanel.setOptions({ path, enabled: true });
     await chrome.sidePanel.open({ windowId: (await chrome.windows.getCurrent()).id });

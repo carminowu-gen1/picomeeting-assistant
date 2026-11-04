@@ -1,17 +1,28 @@
 body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.view { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.view[hidden] { display: none; }
 
 /* ── 頂部 ── */
 .bar { display: flex; flex-direction: column; gap: 8px; padding: 10px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
 .row1 { display: flex; align-items: center; gap: 8px; }
 .row1 .badge { flex: none; white-space: nowrap; }
-#history { flex: 1; min-width: 0; padding: 6px 8px; font-size: 13px; }
-#stopBtn { flex: none; }
+.vtitle { flex: 1; margin: 0; font-size: 17px; }
+#backBtn { padding-left: 4px; color: var(--accent); font-weight: 600; }
+#stopBtn { margin-left: auto; }
 .btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
-.title-input { border: 1px solid transparent; background: transparent; font-weight: 650; font-size: 16px; padding: 4px 6px; margin: 0 -6px; }
-.title-input:hover { border-color: var(--border); }
-.title-input:focus { background: var(--surface); }
+.title-wrap { display: flex; align-items: center; gap: 4px; cursor: text; border-radius: 8px; margin: 0 -6px; padding: 0 6px; }
+.title-wrap:hover { background: var(--surface-2); }
+.title-input { flex: 1; min-width: 0; border: 1px solid transparent; background: transparent; font-weight: 650; font-size: 17px; padding: 4px 0; }
+.title-input:focus { background: var(--surface); border-color: var(--accent); padding: 4px 6px; }
+.pen { font-size: 13px; opacity: .55; }
+.title-wrap:focus-within .pen { display: none; }
 .row2 { display: flex; gap: 6px; align-items: stretch; }
 .row2 > .btn { flex: 1; }
+
+/* 摘要／逐字稿 分頁 */
+.tabs { display: flex; gap: 4px; background: var(--surface-2); border-radius: 10px; padding: 3px; }
+.tab { flex: 1; border: 0; background: transparent; color: var(--text-2); font: inherit; font-weight: 600; padding: 7px 0; border-radius: 8px; cursor: pointer; }
+.tab.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 
 /* ⋯ 選單 */
 .menu { position: relative; }
@@ -27,25 +38,46 @@ body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 .menu-list hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; width: 100%; }
 .danger-text { color: var(--danger) !important; }
 
-/* ── 內容：窄（側邊欄）上下排；寬（分頁）左右排 ── */
-.content { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
-.summary-card { padding: 12px 14px; border-bottom: 1px solid var(--border); background: var(--bg); }
-.summary-card:empty { display: none; }
+/* ── 所有會議：卡片清單 ── */
+#listSearch { padding: 8px 10px; }
+.mlist { flex: 1; overflow: auto; padding: 10px 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.mcard { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); cursor: pointer; transition: border-color .15s, background .15s; }
+.mcard:hover { border-color: var(--accent); }
+.mcard.on { border-color: var(--accent); background: var(--accent-soft); }
+.mc-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.mc-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
+.mc-main small { color: var(--text-2); font-size: 12px; }
+.tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 3px; }
+.tag { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); }
+.tag.ok { background: var(--success-soft); color: var(--success); }
+.tag.rec { background: var(--danger-soft); color: var(--danger); }
+.mc-acts { display: flex; gap: 2px; flex: none; }
+.mc-acts .icon { border: 0; background: none; font-size: 15px; padding: 6px; border-radius: 8px; cursor: pointer; opacity: .55; }
+.mcard:hover .mc-acts .icon { opacity: 1; }
+.mc-acts .icon:hover { background: var(--surface-2); }
+.pick { width: 20px; height: 20px; flex: none; accent-color: var(--accent); }
+.rename { font: inherit; font-weight: 650; font-size: 15px; padding: 4px 6px; border: 1px solid var(--accent); border-radius: 8px; background: var(--bg); color: var(--text); }
+.selbar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--surface); border-top: 1px solid var(--border); }
+.selbar #selCount { flex: 1; }
+
+/* ── 單場會議：內容 ── */
+.pane { flex: 1; overflow: auto; min-height: 0; }
+.pane[hidden] { display: none; }
+.summary-card { padding: 12px 14px 20px; }
 .tr-wrap { display: flex; flex-direction: column; padding: 10px 14px 16px; gap: 8px; }
 #search { padding: 7px 10px; }
-@media (min-width: 900px) {
-  .content { flex-direction: row-reverse; overflow: hidden; }
-  .summary-card { width: 380px; flex: none; overflow: auto; border-bottom: 0; border-left: 1px solid var(--border); }
-  .tr-wrap { flex: 1; overflow: auto; }
-}
-
-/* 摘要 */
-.summary-card h3 { font-size: 12px; color: var(--text-2); letter-spacing: .04em; margin: 12px 0 4px; }
+.summary-card h3 { font-size: 13px; color: var(--accent); letter-spacing: .04em; margin: 16px 0 6px; }
 .summary-card h3:first-child { margin-top: 0; }
+.summary-card h4 { font-size: 13px; margin: 10px 0 4px; }
 .summary-card p { margin: 0 0 6px; white-space: pre-wrap; }
 .summary-card ul { margin: 0; padding-left: 18px; }
 .summary-card li { margin: 2px 0; }
 .summary-card .wait { color: var(--text-2); display: flex; align-items: center; gap: 8px; }
+.summary-card .tbl { overflow-x: auto; margin: 4px 0 10px; }
+.summary-card table { border-collapse: collapse; font-size: 12px; min-width: 100%; }
+.summary-card th, .summary-card td { border: 1px solid var(--border); padding: 4px 6px; text-align: left; vertical-align: top; }
+.summary-card th { background: var(--surface-2); white-space: nowrap; }
+.empty .btn { margin-top: 12px; }
 
 /* 逐字稿 */
 .transcript { display: flex; flex-direction: column; gap: 2px; }
@@ -63,27 +95,14 @@ body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 .tx:focus { background: var(--surface-2); box-shadow: 0 0 0 2px var(--accent-soft); }
 .line.new { animation: fade .6s; }
 @keyframes fade { from { background: var(--accent-soft); } }
-.empty { text-align: center; color: var(--text-2); padding: 40px 0; }
+.sepline { margin: 14px 0 4px; padding: 6px 10px; border-radius: 8px; background: var(--surface-2); font-weight: 700; font-size: 13px; }
+.empty { text-align: center; color: var(--text-2); padding: 40px 0; line-height: 1.7; }
 .hint { margin: 4px 0 0; }
+
+/* 提示（含「復原」）：要能按，所以顯示時接收點擊 */
+.toast { display: flex; align-items: center; gap: 12px; }
+.toast.show { pointer-events: auto; }
+.toast .undo { border: 0; background: none; color: var(--accent-soft); font: inherit; font-weight: 700; cursor: pointer; padding: 0; }
 
 .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg) } }
-
-/* 會議紀錄的表格（分工表、時程表）：太寬就左右捲動 */
-.summary-card h4 { font-size: 13px; margin: 10px 0 4px; }
-.summary-card .tbl { overflow-x: auto; margin: 4px 0 10px; }
-.summary-card table { border-collapse: collapse; font-size: 12px; min-width: 100%; }
-.summary-card th, .summary-card td { border: 1px solid var(--border); padding: 4px 6px; text-align: left; vertical-align: top; }
-.summary-card th { background: var(--surface-2); white-space: nowrap; }
-.sepline { margin: 14px 0 4px; padding: 6px 10px; border-radius: 8px; background: var(--surface-2); font-weight: 700; font-size: 13px; }
-/* 合併摘要視窗 */
-.dlg { border: 0; border-radius: 16px; padding: 18px; width: min(440px, 92vw); background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
-.dlg::backdrop { background: rgba(0,0,0,.35); }
-.dlg h3 { margin: 0 0 4px; font-size: 16px; }
-.cblist { max-height: 50vh; overflow: auto; margin: 10px 0 14px; display: flex; flex-direction: column; gap: 6px; }
-.cb { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; }
-.cb:has(input:checked) { border-color: var(--accent); background: var(--surface-2); }
-.cb input { width: 18px; height: 18px; flex: none; }
-.cb span { display: flex; flex-direction: column; }
-.cb small { color: var(--text-2); font-size: 12px; }
-.row-end { display: flex; justify-content: flex-end; gap: 8px; }
