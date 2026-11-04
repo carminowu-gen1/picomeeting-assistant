@@ -149,3 +149,22 @@ input[type="text"], input[type="password"], select { width: 100%; padding: 12px 
 .list .item.pick.on { outline: 2px solid var(--accent); }
 .cbhint { margin: 0 4px 4px; }
 .combinebar { position: sticky; bottom: 0; display: flex; gap: 10px; padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); background: var(--bg); box-shadow: 0 -6px 16px rgba(0,0,0,.06); }
+
+/* 過去的會議：卡片 */
+.wrap.hsearch { flex: none; padding-bottom: 0; overflow: visible; }
+.hsearch input { width: 100%; padding: 12px 14px; border-radius: 14px; }
+.wrap.hsearch:has(input[hidden]) { display: none; }
+.list .mcard { justify-content: flex-start; }
+.mc-main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.mc-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.tag { font-size: .75em; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); }
+.tag.ok { background: var(--accent-soft); color: var(--accent); }
+.icon.sm { width: 38px; height: 38px; font-size: 17px; flex: none; opacity: .8; }
+.list .mcard .pick { width: 22px; height: 22px; flex: none; accent-color: var(--accent); }
+.list .mcard.on { outline: 2px solid var(--accent); }
+.rename { width: 100%; font: inherit; font-weight: 700; padding: 6px 8px; border: 2px solid var(--accent); border-radius: 10px; background: var(--bg); color: var(--text); }
+.combinebar { align-items: center; }
+.toast { display: flex; align-items: center; gap: 14px; }
+.toast.show { pointer-events: auto; }
+.toast .undo { border: 0; background: none; color: var(--accent-soft); font: inherit; font-weight: 700; padding: 0; cursor: pointer; }

@@ -10,7 +10,7 @@ import { buildDocx } from "./lib/docx.js";
 import { t, detectLang, setLang, applyI18n } from "./i18n.js";
 import { setLabelFn } from "./diarize.js";
 
-const VERSION = "1.5.0";
+const VERSION = "1.6.0";
 const GROQ = "https://api.groq.com";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -24,9 +24,12 @@ let pending = 0;             // 還在辨識中的段數
 let saveTimer = null;
 
 /* ───────── 小工具 ───────── */
-function toast(msg, error = false) {
-  const t = $("toast"); t.textContent = msg; t.className = "toast show" + (error ? " error" : "");
-  clearTimeout(t._h); t._h = setTimeout(() => (t.className = "toast"), error ? 5000 : 2500);
+function toast(msg, error = false, undo = null) {
+  const el = $("toast");
+  el.innerHTML = `<span>${esc(msg)}</span>${undo ? `<button class="undo" type="button">${t("undo")}</button>` : ""}`;
+  el.className = "toast show" + (error ? " error" : "");
+  if (undo) el.querySelector(".undo").onclick = () => { el.className = "toast"; undo(); };
+  clearTimeout(el._h); el._h = setTimeout(() => (el.className = "toast"), undo ? 7000 : error ? 5000 : 2500);
 }
 function show(id) { for (const s of document.querySelectorAll(".screen")) s.hidden = s.id !== id; }
 function hdr() { return { authorization: "Bearer " + settings.apiKey }; }
@@ -391,27 +394,70 @@ function openMeeting(id) {
   $("summary").hidden = !m.summary; if (m.summary) { $("summary").innerHTML = summaryHtml(m.summary); bindRegen(); }
   show("main");
 }
-let picking = null; // 合併摘要：勾選中的會議 id
+let picking = null; // 選取模式：勾選中的會議 id
 const fmtDay = (ts) => new Date(ts).toLocaleString(t("locale"), { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+// 過去的會議：卡片清單（搜尋、✏️ 改名、🗑 刪除可復原、選取 → 合併摘要／一次刪除）
 function renderHistory() {
+  if (document.activeElement?.classList.contains("rename")) return; // 正在改名：不要重畫
   const idx = store.listMeetings();
-  $("combineBar").hidden = !picking;
-  $("cbStart").hidden = !!picking || idx.length < 2;
+  const q = $("histSearch").value.trim().toLowerCase();
+  const shown = q ? idx.filter((x) => x.title.toLowerCase().includes(q)) : idx;
+  $("selBar").hidden = !picking;
+  $("selStart").hidden = !!picking || !idx.length;
+  $("histSearch").hidden = idx.length < 2;
   if (picking) {
     const n = picking.size;
-    $("cbGo").disabled = n < 2; $("cbGo").textContent = n < 2 ? t("cb_pick") : t("cb_go", { n });
+    $("selCount").textContent = t("sel_n", { n });
+    $("selDel").disabled = n < 1;
+    $("cbGo").disabled = n < 2;
   }
-  $("histList").innerHTML = (picking ? `<p class="small muted cbhint">${t("cb_hint")}</p>` : "") + (idx.length ? idx.map((x) => picking
-      ? `<label class="item pick${picking.has(x.id) ? " on" : ""}" data-id="${x.id}"><input type="checkbox" ${picking.has(x.id) ? "checked" : ""}/><div class="grow"><b>${esc(x.title)}</b><small>${fmtDay(x.startedAt)}・${t("hist_lines", { n: x.lines })}</small></div></label>`
-      : `<div class="item" data-id="${x.id}"><div><b>${esc(x.title)}</b><small>${fmtDay(x.startedAt)}・${t("hist_lines", { n: x.lines })}${x.hasSummary ? t("hist_sum") : ""}</small></div><button class="icon del" data-id="${x.id}" title="${t("del")}">🗑</button></div>`).join("")
-    : `<div class="empty">${t("hist_empty")}</div>`);
+  if (!idx.length) { $("histList").innerHTML = `<div class="empty">${t("hist_empty")}</div>`; return; }
+  if (!shown.length) { $("histList").innerHTML = `<div class="empty">${esc(t("hist_none", { q }))}</div>`; return; }
+  $("histList").innerHTML = (picking ? `<p class="small muted cbhint">${t("cb_hint")}</p>` : "") + shown.map((x) => {
+    const tags = (x.hasSummary ? `<span class="tag ok">${t("tag_sum")}</span>` : "") + (x.combined ? `<span class="tag">${t("tag_comb", { n: x.combined })}</span>` : "");
+    return `<div class="item mcard${picking?.has(x.id) ? " on" : ""}" data-id="${esc(x.id)}">
+      ${picking ? `<input type="checkbox" class="pick" ${picking.has(x.id) ? "checked" : ""} aria-label="${t("sel")}" />` : ""}
+      <div class="grow mc-main"><b class="mc-title">${esc(x.title)}</b><small>${fmtDay(x.startedAt)}・${t("hist_lines", { n: x.lines })}</small>${tags ? `<div class="tags">${tags}</div>` : ""}</div>
+      ${picking ? "" : `<button class="icon sm" data-act="rename" title="${t("rename")}">✏️</button><button class="icon sm" data-act="del" title="${t("del")}">🗑</button>`}
+    </div>`;
+  }).join("");
 }
-$("cbStart").onclick = () => {
-  if (store.listMeetings().length < 2) return toast(t("cb_need"), true);
-  picking = new Set(meeting?.lines.length && store.loadMeeting(meeting.id) ? [meeting.id] : []);
+// 刪除不再跳確認：直接刪，提示列上有「復原」可以救回來
+function removeWithUndo(ids) {
+  const saved = ids.map((id) => store.loadMeeting(id)).filter(Boolean);
+  for (const id of ids) store.removeMeeting(id);
+  if (meeting && ids.includes(meeting.id)) newMeeting();
   renderHistory();
-};
+  toast(ids.length > 1 ? t("deleted_n", { n: ids.length }) : t("deleted"), false, () => {
+    for (const m of saved) store.saveMeeting(m);
+    toast(t("restored"));
+    renderHistory();
+  });
+}
+function startRename(card, x) {
+  const b = card.querySelector(".mc-title");
+  const input = document.createElement("input");
+  input.className = "rename"; input.value = x.title; input.enterKeyHint = "done";
+  b.replaceWith(input);
+  input.focus(); input.select();
+  let done = false;
+  const finish = (save) => {
+    if (done) return; done = true;
+    const title = input.value.trim();
+    if (save && title && title !== x.title) {
+      const m = store.loadMeeting(x.id);
+      if (m) { m.title = title; store.saveMeeting(m); if (meeting?.id === m.id) { meeting.title = title; $("title").value = title; } toast(t("renamed")); }
+    }
+    input.blur();
+    renderHistory();
+  };
+  input.onkeydown = (e) => { if (e.key === "Enter") finish(true); if (e.key === "Escape") finish(false); };
+  input.onblur = () => finish(true);
+}
+$("histSearch").oninput = renderHistory;
+$("selStart").onclick = () => { picking = new Set(); renderHistory(); };
 $("cbCancel").onclick = () => { picking = null; renderHistory(); };
+$("selDel").onclick = () => { const ids = [...picking]; picking = null; removeWithUndo(ids); };
 $("cbGo").onclick = () => {
   const ms = [...picking].map((id) => store.loadMeeting(id)).filter((m) => m?.lines?.length).sort((a, b) => a.startedAt - b.startedAt);
   if (ms.length < 2) return toast(t("cb_pick"), true);
@@ -435,16 +481,18 @@ $("cbGo").onclick = () => {
   summarize();
 };
 $("histList").addEventListener("click", (e) => {
+  const card = e.target.closest(".item");
+  if (!card || e.target.classList.contains("rename")) return;
+  const id = card.dataset.id;
   if (picking) {
-    const it = e.target.closest(".item"); if (!it) return;
     e.preventDefault();
-    const id = it.dataset.id;
     picking.has(id) ? picking.delete(id) : picking.add(id);
     return renderHistory();
   }
-  const del = e.target.closest(".del");
-  if (del) { if (confirm(t("del_q"))) { store.removeMeeting(del.dataset.id); if (meeting?.id === del.dataset.id) newMeeting(); renderHistory(); } return; }
-  const it = e.target.closest(".item"); if (it) openMeeting(it.dataset.id);
+  const act = e.target.closest("[data-act]")?.dataset.act;
+  if (act === "rename") return startRename(card, store.listMeetings().find((x) => x.id === id));
+  if (act === "del") return removeWithUndo([id]);
+  openMeeting(id);
 });
 function fillSettings() {
   $("sKey").value = settings.apiKey; $("sLang").value = settings.sttLanguage; $("sSumLang").value = settings.language || ""; $("sUiLang").value = settings.uiLang || "auto";
@@ -500,7 +548,7 @@ $("wordBtn").onclick = exportWord;
 $("newBtn").onclick = () => { newMeeting(); };
 $("title").addEventListener("change", () => { if (meeting) { meeting.title = $("title").value.trim() || meeting.title; $("title").value = meeting.title; scheduleSave(); } });
 $("toHistory").onclick = () => { renderHistory(); show("history"); };
-$("histBack").onclick = () => { picking = null; show("main"); };
+$("histBack").onclick = () => { picking = null; $("histSearch").value = ""; show("main"); };
 $("toSettings").onclick = () => { fillSettings(); show("settings"); };
 $("setBack").onclick = () => { readSettings(); show("main"); if (!settings.apiKey) toast(t("no_key_yet"), true); checkGroq(); };
 window.addEventListener("beforeunload", (e) => { if (recording) { e.preventDefault(); e.returnValue = ""; } });

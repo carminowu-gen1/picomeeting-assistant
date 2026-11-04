@@ -145,9 +145,15 @@
 
   <!-- ── 過去的會議 ── -->
   <section id="history" class="screen" hidden>
-    <header class="top"><button class="icon" id="histBack" data-tt="back">←</button><h2 class="grow" data-t="hist">過去的會議</h2><button class="btn sm" id="cbStart" data-t="cb_btn">📚 合併摘要</button></header>
+    <header class="top"><button class="icon" id="histBack" data-tt="back">←</button><h2 class="grow" data-t="hist">過去的會議</h2><button class="btn sm" id="selStart" data-t="sel">選取</button></header>
+    <div class="wrap hsearch"><input id="histSearch" type="search" data-tp="hist_search" placeholder="🔍 找會議（輸入標題）" /></div>
     <div id="histList" class="wrap list"></div>
-    <div id="combineBar" class="combinebar" hidden><button class="btn" id="cbCancel" data-t="cb_cancel">取消</button><button class="btn primary grow" id="cbGo">合併</button></div>
+    <div id="selBar" class="combinebar" hidden>
+      <span id="selCount" class="small muted grow"></span>
+      <button class="btn sm" id="cbCancel" data-t="cb_cancel">取消</button>
+      <button class="btn sm" id="selDel" data-t="sel_del">🗑 刪除</button>
+      <button class="btn sm primary" id="cbGo" data-t="cb_btn">📚 合併摘要</button>
+    </div>
   </section>
 
   <!-- ── 設定 ── -->

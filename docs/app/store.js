@@ -59,7 +59,7 @@ export function saveMeeting(m) {
     localStorage.setItem(mkey(m.id), JSON.stringify(m));
   }
   const idx = listMeetings().filter((x) => x.id !== m.id);
-  idx.unshift({ id: m.id, title: m.title, startedAt: m.startedAt, lines: m.lines.length, hasSummary: !!m.summary });
+  idx.unshift({ id: m.id, title: m.title, startedAt: m.startedAt, lines: m.lines.filter((l) => !l.sep).length, hasSummary: !!m.summary, combined: m.combinedFrom?.length || 0 });
   idx.sort((a, b) => b.startedAt - a.startedAt);
   for (const x of idx.splice(MAX)) localStorage.removeItem(mkey(x.id));
   localStorage.setItem(KEY_INDEX, JSON.stringify(idx));
