@@ -50,7 +50,7 @@ async function refresh() {
     $("update").onclick = (e) => { e.preventDefault(); chrome.tabs.create({ url: state.update.url }); window.close(); };
   }
 
-  $("where").textContent = current ? `正在記錄 ${current.platformName || "會議"}` : info ? (info.platform === "system" ? "錄整台電腦的聲音" : info.platform === "web" ? `可以錄 ${info.platformName}` : `已連上 ${info.platformName}`) : "這個頁面不能錄";
+  $("where").textContent = current ? `正在記錄 ${current.platformName || "會議"}` : info ? (info.platform === "system" ? "會錄整台電腦的聲音（LINE 也可以）" : info.platform === "web" ? `可以錄 ${info.platformName}` : `已連上 ${info.platformName}`) : "這個頁面不能錄";
 
   // ── 主按鈕 ──
   const btn = $("mainBtn"), st = $("status");
@@ -77,7 +77,7 @@ async function refresh() {
     btn.disabled = !info;
     $("mainLabel").textContent = "開始記錄";
     if (lastStartError && info) { st.textContent = friendly(lastStartError.text); st.classList.add("err"); }
-    else st.textContent = !info ? "請切到會議或影片的網頁" : info.platform === "system" ? "按開始後選「整個螢幕」，打開「分享系統音訊」" : info.platform === "web" ? "會錄這個分頁的聲音和你的麥克風，按停止就產生摘要" : "離開會議時會自動停止並產生摘要";
+    else st.textContent = !info ? "請切到會議或影片的網頁" : info.platform === "system" ? "按開始後，在跳出的視窗按「分享」就好" : info.platform === "web" ? "會錄這個分頁的聲音和你的麥克風，按停止就產生摘要" : "離開會議時會自動停止並產生摘要";
   }
 
   // ── 最近一場會議 ──

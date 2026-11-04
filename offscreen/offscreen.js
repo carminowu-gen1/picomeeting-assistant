@@ -10,8 +10,8 @@ if (IS_SYS) {
   document.body.style.cssText = "margin:0;font:15px/1.6 system-ui,'Microsoft JhengHei',sans-serif;background:#fff7f7;color:#222;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center";
   document.body.insertAdjacentHTML("afterbegin", `<div style="padding:16px">
     <div id="sysTitle" style="font-size:20px;font-weight:700;color:#e5484d">● 準備錄電腦的聲音</div>
-    <div id="sysMsg" style="margin-top:8px">請在跳出的視窗選「整個螢幕」，<br>並打開「<b>分享系統音訊</b>」，再按「分享」。</div>
-    <div style="margin-top:10px;font-size:13px;color:#666">錄完回小伐按「停止記錄」，或直接關掉這個視窗。<br>建議戴耳機，聲音最乾淨。</div></div>`);
+    <div id="sysMsg" style="margin-top:10px;font-size:18px">👉 在跳出的視窗按藍色的「<b>分享</b>」</div>
+    <div style="margin-top:10px;font-size:13px;color:#666">錄完直接關掉這個視窗就好。</div></div>`);
 }
 const sysUi = (title, msg) => { if (!IS_SYS) return; const t = document.getElementById("sysTitle"), m = document.getElementById("sysMsg"); if (t) t.textContent = title; if (m) m.innerHTML = msg; };
 
@@ -20,7 +20,7 @@ function pickSystemAudio() {
   return new Promise((res, rej) => {
     chrome.desktopCapture.chooseDesktopMedia(["screen", "audio"], async (id, opts) => {
       if (!id) return rej(new Error("你取消了選擇，沒有開始錄音。"));
-      if (!opts?.canRequestAudioTrack) return rej(new Error("沒有打開「分享系統音訊」，錄不到聲音。請再按一次開始，記得打開它。"));
+      if (!opts?.canRequestAudioTrack) return rej(new Error("沒有收到聲音：請再按一次開始，分享視窗左下角如果有「分享系統音訊」開關，請把它打開。"));
       try {
         const src = { mandatory: { chromeMediaSource: "desktop", chromeMediaSourceId: id } };
         const st = await navigator.mediaDevices.getUserMedia({ audio: src, video: src }); // 只要聲音，但 Chrome 規定要連畫面一起要

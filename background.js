@@ -166,15 +166,27 @@ async function pageInfo(tab, inject = true) {
   return info || { platform: "web", platformName: new URL(tab.url).hostname.replace(/^www\./, "") };
 }
 
+// 自動決定錄哪裡（不用設定）：
+//   會議網站（Meet / Teams / Zoom / Jitsi）→ 錄那個分頁（不跳視窗，還抓得到發言者名字）
+//   其他地方（開著 LINE、Teams 電腦版時隨便哪個分頁）→ 錄整台電腦的聲音
+//   Mac 大多錄不到系統聲音：一般網頁還是錄分頁
+const MEETING_SITES = new Set(["meet", "teams", "zoom", "jitsi"]);
+const IS_MAC = /Mac/i.test(navigator.userAgent);
+async function decideSource(tab) {
+  const page = tab && recordable(tab.url) ? await pageInfo(tab) : null;
+  if (page && MEETING_SITES.has(page.platform)) return { sys: false, info: page };
+  if (IS_MAC && page) return { sys: false, info: page };
+  return { sys: true, info: { platform: "system", platformName: "電腦聲音" } };
+}
+
 async function startRecording(tabId) {
   const settings = await getSettings();
   const tab = await chrome.tabs.get(tabId).catch(() => null);
-  const sys = settings.audioSource === "system"; // 錄整台電腦的聲音（LINE、Teams 電腦版…）
+  const { sys, info: found } = await decideSource(tab);
   if (sys && [...active.values()].some((x) => x.source === "system")) throw new Error("已經在錄電腦的聲音了。");
-  if (!sys && (!tab || !recordable(tab.url))) throw new Error("這個頁面不能錄音：請切到會議或影片的網頁再按開始。");
   const info = sys
-    ? { platform: "system", platformName: "電腦聲音", title: `會議 ${new Date().toLocaleString("zh-TW", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}` }
-    : await pageInfo(tab);
+    ? { ...found, title: `會議 ${new Date().toLocaleString("zh-TW", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}` }
+    : found;
   if (!info.title) info.title = tab.title;
   const m = newMeeting(tabId, info);
   m.url = sys ? "" : tab.url;
@@ -189,7 +201,7 @@ async function startRecording(tabId) {
   else if (mode !== "stt") await tell({ type: "start", autoCaptions: settings.autoCaptions, watchSpeakers: mode === "both", myName: settings.myName });
   else await tell({ type: "startSpeakerWatch", myName: settings.myName });
   if (mode !== "captions") {
-    try { await startStt(tabId, settings); m.stt = "on"; }
+    try { await startStt(tabId, settings, sys); m.stt = "on"; }
     catch (e) {
       m.stt = "error"; m.sttError = e.message;
       await stopStt(tabId, sys ? 8000 : 0); // 失敗也要把可能已開的串流放掉，否則下次會 "active stream"；錄音小視窗留 8 秒讓人看到原因
@@ -243,9 +255,9 @@ chrome.windows.onRemoved.addListener(async (id) => {
   for (const [t, m] of active) if (m.source === "system") stopRecording(t);
 });
 
-async function startStt(tabId, settings) {
+async function startStt(tabId, settings, sys = false) {
   if (!settings.ready) throw new Error("尚未完成設定：請先在設定頁貼上 Groq 金鑰。");
-  if (settings.audioSource === "system") {
+  if (sys) {
     await openSysWindow();
     const r = await chrome.runtime.sendMessage({ target: "offscreen", type: "stt:start", system: true, tabId, settings }).catch((e) => ({ error: e.message }));
     if (!r) throw new Error("錄音視窗沒有回應，請再按一次開始");
@@ -542,14 +554,13 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     switch (msg.type) {
       case "getState": {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        const s0 = await getSettings();
-        const info = s0.audioSource === "system" ? { platform: "system", platformName: "電腦聲音" } : await pageInfo(tab);
+        const info = (await decideSource(tab)).info;
         const current = (tab ? active.get(tab.id) : null) || [...active.values()].find((x) => x.source === "system") || null;
         const { lastStartError } = await chrome.storage.session.get("lastStartError");
         checkForUpdate(); // 不等結果；下次打開 popup 就會看到
         const { update } = await chrome.storage.local.get("update");
         const s = await getSettings();
-        const settings = { ready: s.ready, sttMode: s.sttMode, autoSummarize: s.autoSummarize, audioSource: s.audioSource }; // 不把金鑰傳出去
+        const settings = { ready: s.ready, sttMode: s.sttMode, autoSummarize: s.autoSummarize }; // 不把金鑰傳出去
         // 只回最近一場（popup 只顯示這一場），不再把所有會議的逐字稿都傳過去
         // popup 只顯示狀態、句數和摘要：不傳整份逐字稿（錄音中它每 0.5 秒問一次）
         const lite = (m) => (m ? { ...m, lines: undefined, lineCount: m.lines.length } : null);

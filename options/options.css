@@ -28,8 +28,3 @@ header h1 { font-size: 22px; }
 
 .about { margin-top: 18px; text-align: center; }
 
-.sysguide { margin-top: 10px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); }
-.sg-step { display: flex; gap: 10px; align-items: flex-start; margin: 6px 0; }
-.sg-step .n { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--accent, #4f6bed); color: #fff; font-size: 13px; font-weight: 700; display: grid; place-items: center; }
-.sw-demo { display: inline-block; width: 30px; height: 16px; border-radius: 8px; background: #1a73e8; vertical-align: middle; position: relative; }
-.sw-demo i { position: absolute; right: 2px; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; }
