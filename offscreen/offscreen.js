@@ -321,6 +321,23 @@ async function sttFetch(url, headers, makeForm, onWait) {
   }
 }
 
+// ── 語言誤判：Whisper 把整段判成別的語言時，會把中文「翻譯」成英文（不是照錄）──
+// 記住這場會議主要講什麼語言；某段被判成別的語言 → 用主要語言再辨識一次，兩個結果比「把握度」，留可信的那個
+const LANG_CODE = { chinese: "zh", mandarin: "zh", cantonese: "zh", english: "en", japanese: "ja", korean: "ko", russian: "ru", german: "de", french: "fr", spanish: "es", portuguese: "pt", italian: "it", indonesian: "id", malay: "ms", thai: "th", vietnamese: "vi", hindi: "hi", urdu: "ur", arabic: "ar", tagalog: "tl" };
+function langCode(l) { const s = String(l || "").toLowerCase().trim(); return LANG_CODE[s] || (s.length <= 3 ? s : ""); }
+// 把握度：各句 avg_logprob 依長度加權平均（越接近 0 越可信）
+function sttScore(segs) {
+  let w = 0, sum = 0;
+  for (const g of segs || []) { if (g.avg_logprob == null) continue; const d = Math.max(0.3, (g.end || 0) - (g.start || 0)); sum += g.avg_logprob * d; w += d; }
+  return w ? sum / w : -Infinity;
+}
+// 主要語言：累積夠多字（≥40）且某語言佔 65% 以上才算
+function mainLangOf(counts) {
+  let best = "", n = 0, total = 0;
+  for (const [k, v] of Object.entries(counts || {})) { total += v; if (v > n) { best = k; n = v; } }
+  return total >= 40 && n / total >= 0.65 ? best : "";
+}
+
 async function transcribe(s, ch, blob, startedAt, voicedMs = 0, pcm = null) {
   const fd = new FormData();
   fd.append("file", blob, "chunk.wav");
@@ -348,7 +365,17 @@ async function transcribe(s, ch, blob, startedAt, voicedMs = 0, pcm = null) {
     if (res.status === 429) { notify(s.tabId, "warn", "Groq 語音額度用完了，這段沒辦法辨識"); return; }
     throw new Error(`(${res.status}) ${detail}`);
   }
-  const data = await res.json();
+  let data = await res.json();
+  // 語言誤判（例如中文被判成英文、翻成英文）→ 用這場的主要語言再辨識一次，留把握度高的
+  const fixedLang = lang && lang !== "auto";
+  const main = fixedLang ? "" : mainLangOf(s.langCounts);
+  if (main && langCode(data.language) && langCode(data.language) !== main) {
+    const res2 = await sttFetch(`${s.settings.apiBase}/openai/v1/audio/transcriptions`, s.settings.apiHeaders, (model) => { const f = form(model); f.append("language", main); return f; });
+    if (res2.ok) {
+      const d2 = await res2.json();
+      if (sttScore(d2.segments) > sttScore(data.segments)) { d2.language = d2.language || main; data = d2; s.stats.langRetried = (s.stats.langRetried || 0) + 1; }
+    }
+  }
   s.stats.lastLang = data.language || (lang && lang !== "auto" ? lang + "(固定)" : "?"); // Whisper 偵測到的語言（診斷用）
   const text = (data.text || "").trim();
   // 最近 10 段的辨識結果和分數放進診斷資料（有漏網之魚時，可以拿真實數據調門檻）
@@ -374,6 +401,8 @@ async function transcribe(s, ch, blob, startedAt, voicedMs = 0, pcm = null) {
     })
     .map((g) => ({ start: g.start, end: g.end, text: g.text }));
   if (!segments.length) return;
+  const lc = langCode(data.language);
+  if (lc) { s.langCounts ??= {}; s.langCounts[lc] = (s.langCounts[lc] || 0) + segments.reduce((n, g) => n + (g.text || "").trim().length, 0); }
   if (pcm) await diarize(s, pcm, segments);
   s.prevText = segments.map((g) => g.text.trim()).join(" ");
   chrome.runtime.sendMessage({ type: "stt:segments", tabId: s.tabId, channel: ch.name, chunkStart: startedAt, language: data.language || "", segments });

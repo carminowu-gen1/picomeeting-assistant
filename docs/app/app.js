@@ -10,7 +10,7 @@ import { buildDocx } from "./lib/docx.js";
 import { t, detectLang, setLang, applyI18n } from "./i18n.js";
 import { setLabelFn } from "./diarize.js";
 
-const VERSION = "1.7.2";
+const VERSION = "1.7.3";
 const GROQ = "https://api.groq.com";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -125,6 +125,22 @@ async function sttFetch(url, headers, makeForm, onWait) {
     sttCool[model] = Date.now() + Math.max(3000, sttRetryMs(res, detail));
   }
 }
+// ── 語言誤判：Whisper 把整段判成別的語言時，會把中文「翻譯」成英文（不是照錄）──
+// 記住這場會議主要講什麼語言；某段被判成別的語言 → 用主要語言再辨識一次，兩個結果比「把握度」，留可信的那個
+const LANG_CODE = { chinese: "zh", mandarin: "zh", cantonese: "zh", english: "en", japanese: "ja", korean: "ko", russian: "ru", german: "de", french: "fr", spanish: "es", portuguese: "pt", italian: "it", indonesian: "id", malay: "ms", thai: "th", vietnamese: "vi", hindi: "hi", urdu: "ur", arabic: "ar", tagalog: "tl" };
+function langCode(l) { const s = String(l || "").toLowerCase().trim(); return LANG_CODE[s] || (s.length <= 3 ? s : ""); }
+// 把握度：各句 avg_logprob 依長度加權平均（越接近 0 越可信）
+function sttScore(segs) {
+  let w = 0, sum = 0;
+  for (const g of segs || []) { if (g.avg_logprob == null) continue; const d = Math.max(0.3, (g.end || 0) - (g.start || 0)); sum += g.avg_logprob * d; w += d; }
+  return w ? sum / w : -Infinity;
+}
+// 主要語言：累積夠多字（≥40）且某語言佔 65% 以上才算
+function mainLangOf(counts) {
+  let best = "", n = 0, total = 0;
+  for (const [k, v] of Object.entries(counts || {})) { total += v; if (v > n) { best = k; n = v; } }
+  return total >= 40 && n / total >= 0.65 ? best : "";
+}
 let waitToastAt = 0;
 async function transcribe(wav, forceLang) {
   const fixed = forceLang || (settings.sttLanguage && !settings.sttLanguage.startsWith("auto") ? settings.sttLanguage : "");
@@ -143,7 +159,7 @@ async function transcribe(wav, forceLang) {
   });
   if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 100)}`);
   const j = await r.json();
-  return { segments: j.segments || (j.text ? [{ start: 0, end: 0, text: j.text }] : []), language: j.language || fixed || "" };
+  return { segments: j.segments || (j.text ? [{ start: 0, end: 0, text: j.text }] : []), language: langCode(j.language) || fixed || "" };
 }
 
 // 一段錄音：辨識 → 過濾 → 每句算聲紋 → 歸到說話者 → 加到逐字稿
@@ -153,7 +169,15 @@ async function handleChunk({ wav, pcm, startedAt }) {
   try {
     let r = await transcribe(wav);
     const allow = allowedLangs();
-    if (allow && r.language && !allow.includes(r.language)) r = await transcribe(wav, allow[0]); // 聽成不相干的語言 → 用中文再辨識一次
+    const fixed = settings.sttLanguage && !settings.sttLanguage.startsWith("auto");
+    const main = fixed ? "" : mainLangOf(meeting.langCounts);
+    if (allow && r.language && !allow.includes(r.language)) r = await transcribe(wav, main && allow.includes(main) ? main : allow[0]); // 聽成不相干的語言 → 用主要語言（或中文）再辨識
+    else if (main && r.language && r.language !== main) {
+      // 這場大多講中文，這段卻被判成英文：多半是把中文翻成英文了 → 用中文再辨識一次，留把握度高的
+      const alt = await transcribe(wav, main);
+      if (sttScore(alt.segments) > sttScore(r.segments)) r = alt;
+    }
+    if (r.language) { meeting.langCounts ??= {}; meeting.langCounts[r.language] = (meeting.langCounts[r.language] || 0) + r.segments.reduce((n, g) => n + (g.text || "").trim().length, 0); }
     segs = r.segments; setLight("groq", "ok");
   } catch (e) { toast(t("stt_fail") + friendly(e), true); setLight("groq", "bad", t("groq_err") + friendly(e)); return; }
   const { kept } = filterSegments(segs);
