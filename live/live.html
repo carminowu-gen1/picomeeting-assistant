@@ -17,6 +17,7 @@
     <div class="row2">
       <button class="btn primary" id="copyAll" title="複製摘要和完整逐字稿">📋 複製全文</button>
       <button class="btn" id="exportDocx" title="下載 Word 檔">⬇ Word</button>
+      <button class="btn" id="combineBtn" title="勾選幾場會議，合成一份摘要">📚 合併摘要</button>
       <details class="menu" id="menu">
         <summary class="btn" title="更多">⋯</summary>
         <div class="menu-list">
@@ -43,6 +44,12 @@
     </section>
   </div>
 
+  <dialog id="combineDlg" class="dlg">
+    <h3>合併幾場會議一起摘要</h3>
+    <p class="small muted">勾選要放在一起整理的會議。原本的會議不會被改動。</p>
+    <div id="cbList" class="cblist"></div>
+    <div class="row-end"><button class="btn" id="cbCancel" type="button">取消</button><button class="btn primary" id="cbGo" type="button">合併</button></div>
+  </dialog>
   <div id="toast" class="toast"></div>
   <script type="module" src="live.js"></script>
 </body>

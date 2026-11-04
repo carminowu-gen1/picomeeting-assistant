@@ -2,7 +2,7 @@
 import { summarizeTranscript, listModels } from "./lib/groq.js";
 import { buildDocx } from "./lib/docx.js";
 import { exportToGoogleDoc, googleStatus, googleConnect, googleDisconnect } from "./lib/gdocs.js";
-import { DEFAULT_SETTINGS, meetingToMarkdown, meetingToPlainText } from "./lib/format.js";
+import { DEFAULT_SETTINGS, meetingToMarkdown, meetingToPlainText, fmtDate } from "./lib/format.js";
 import { pushSpeakerEvent, attributeSegments, dropUnspokenShort, mainLanguage } from "./lib/speakers.js";
 import { toTraditional } from "./lib/s2t.js";
 import { withApi } from "./lib/config.js";
@@ -345,6 +345,33 @@ function scheduleSave(m) {
   }, 3000);
 }
 
+// 把幾場會議合成一份新的紀錄（原本的會議不動），接著自動產生合併摘要
+async function combineMeetings(ids) {
+  const ms = (await Promise.all([...new Set(ids)].map(findMeeting))).filter((m) => m && !m.recording && m.lines?.length).sort((a, b) => a.startedAt - b.startedAt);
+  if (ms.length < 2) throw new Error("請至少勾選兩場有內容的會議。");
+  const md = (t) => new Date(t).toLocaleDateString("zh-TW", { month: "numeric", day: "numeric" });
+  const lines = [];
+  ms.forEach((m, i) => {
+    lines.push({ id: `sep-${i}`, t: m.startedAt, speaker: "", text: `第 ${i + 1} 場：${m.title}（${fmtDate(m.startedAt)}）`, sep: true });
+    for (const l of m.lines) if (!l.sep) lines.push({ ...l, id: `p${i}-${l.id}` });
+  });
+  const first = md(ms[0].startedAt), last = md(ms[ms.length - 1].startedAt);
+  const c = {
+    id: `m-${Date.now()}`,
+    title: `合併摘要 ${first === last ? first : `${first}–${last}`}（${ms.length} 場）`,
+    platformName: `合併 ${ms.length} 場`,
+    startedAt: Date.now(), // 排在清單最上面
+    endedAt: null,
+    lines,
+    summary: null,
+    recording: false,
+    combinedFrom: ms.map((m) => ({ id: m.id, title: m.title, startedAt: m.startedAt, endedAt: m.endedAt, platformName: m.platformName })),
+  };
+  await saveMeeting(c);
+  summarize(c.id).catch((e) => console.warn("combined summary failed", e));
+  return { id: c.id, title: c.title };
+}
+
 async function summarize(meetingId) {
   const m = await findMeeting(meetingId);
   if (!m) throw new Error("找不到會議");
@@ -583,6 +610,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       case "listMeetings":
         return reply({ meetings: [...[...active.values()].map(metaOf), ...(await listMeetings()).filter((x) => ![...active.values()].some((a) => a.id === x.id))] });
       case "summarize": return reply({ summary: await summarize(msg.meetingId) });
+      case "combineMeetings": return reply({ meeting: await combineMeetings(msg.ids || []) });
       case "listModels": { const s = await getSettings(); return reply({ models: s.ready ? await listModels(s) : [] }); }
       case "export": return reply(await exportMeeting(msg.meetingId, msg.target));
       case "googleStatus": return reply(await googleStatus());

@@ -135,3 +135,17 @@ input[type="text"], input[type="password"], select { width: 100%; padding: 12px 
 .light.tr[data-state="on"] { color: var(--accent); }
 .trx { margin-top: 4px; color: var(--text-2); font-size: .9em; border-left: 3px solid var(--accent-soft); padding-left: 8px; }
 .trx:empty { display: none; }
+
+/* 會議紀錄：分工表、時程表 */
+.summary h4 { margin: 12px 0 4px; font-size: .95em; }
+.summary .tbl { overflow-x: auto; margin: 6px 0 12px; -webkit-overflow-scrolling: touch; }
+.summary table { border-collapse: collapse; font-size: .85em; min-width: 100%; }
+.summary th, .summary td { border: 1px solid var(--border, #e5e7eb); padding: 5px 7px; text-align: left; vertical-align: top; }
+.summary th { background: var(--accent-soft); white-space: nowrap; }
+.sepline { margin: 16px 0 6px; padding: 8px 12px; border-radius: 12px; background: var(--accent-soft); font-weight: 700; }
+/* 合併摘要：勾選 */
+.list .item.pick { justify-content: flex-start; }
+.list .item.pick input { width: 22px; height: 22px; flex: none; accent-color: var(--accent); }
+.list .item.pick.on { outline: 2px solid var(--accent); }
+.cbhint { margin: 0 4px 4px; }
+.combinebar { position: sticky; bottom: 0; display: flex; gap: 10px; padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); background: var(--bg); box-shadow: 0 -6px 16px rgba(0,0,0,.06); }

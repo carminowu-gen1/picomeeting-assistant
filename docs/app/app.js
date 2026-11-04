@@ -5,12 +5,12 @@ import { filterSegments } from "./filters.js";
 import * as store from "./store.js";
 import { summarizeTranscript, listModels, pickModels, CHEAP_MODELS } from "./lib/groq.js";
 import { toTraditional } from "./lib/s2t.js";
-import { meetingToPlainText, fmtTime, setLocale } from "./lib/format.js";
+import { meetingToPlainText, fmtTime, setLocale, summaryHtml as recordHtml } from "./lib/format.js";
 import { buildDocx } from "./lib/docx.js";
 import { t, detectLang, setLang, applyI18n } from "./i18n.js";
 import { setLabelFn } from "./diarize.js";
 
-const VERSION = "1.4.0";
+const VERSION = "1.5.0";
 const GROQ = "https://api.groq.com";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -52,7 +52,9 @@ function applyBig() { document.body.classList.toggle("big", !!settings.bigText);
 function applyLang() {
   setLang(detectLang(settings.uiLang));
   setLabelFn((letter) => t("speaker", { x: letter }));
-  setLocale(t("locale"), { summary: t("sum_h"), points: t("sum_points"), decisions: t("sum_decisions"), todo: t("sum_todo"), owner: t("sum_owner"), due: t("sum_due"), open: t("x_open"), transcript: t("x_transcript"), sep: t("locale") === "en-US" ? ": " : "：" });
+  setLocale(t("locale"), { summary: t("sum_h"), points: t("sum_points"), decisions: t("sum_decisions"), todo: t("sum_todo"), owner: t("sum_owner"), due: t("sum_due"), open: t("x_open"), transcript: t("x_transcript"), sep: t("locale") === "en-US" ? ": " : "：",
+    participants: t("sum_people"), work: t("sum_work"), timeline: t("sum_timeline"), risks: t("sum_risks"), names: t("sum_names"), other: t("sum_other"), part: t("sum_part"),
+    cols: Object.fromEntries(["no", "task", "owner", "helpers", "due", "note", "when", "item", "status"].map((k) => [k, t("col_" + k)])) });
   applyI18n();
   // 說明／隱私權連結帶上目前語言
   const code = { "zh-TW": "zh", "en-US": "en", "ja-JP": "ja" }[t("locale")] || "zh";
@@ -179,7 +181,7 @@ function renderLines() {
       : `<div class="empty"><div class="ill"><img src="icons/icon192.png" alt="" /></div><h3>${t("empty_h")}</h3><div class="steps"><div><span>📱</span>${t("empty_1")}</div><div><span>🎙️</span>${t("empty_2")}</div><div><span>📝</span>${t("empty_3")}</div></div></div>`;
     return;
   }
-  box.innerHTML = meeting.lines.map((l, i) => `<div class="line">${lineHtml(l, i)}</div>`).join("");
+  box.innerHTML = meeting.lines.map((l, i) => (l.sep ? `<div class="sepline">${esc(l.text)}</div>` : `<div class="line">${lineHtml(l, i)}</div>`)).join("");
   box.scrollTop = box.scrollHeight;
 }
 function refreshChips() { // 改名／合併後只換小標籤，不重畫整頁（避免輸入中的文字跑掉）
@@ -224,6 +226,7 @@ function updateButtons() {
   const has = !!meeting?.lines.length;
   $("doneBar").hidden = recording || !has;          // 散會後才出現「複製」「存成 Word」
   $("newBtn").hidden = recording || !has;
+  $("recBtn").hidden = !!meeting?.combinedFrom; // 合併摘要不能再接著錄
   $("recBtn").className = "rec" + (recording ? " stop" : "");
   $("recLabel").textContent = recording ? t("rec_stop") : has ? t("rec_cont") : t("rec_start");
   $("title").value = meeting?.title || "";
@@ -336,10 +339,7 @@ $("trBtn").onclick = () => {
 
 /* ───────── 摘要／匯出 ───────── */
 function summaryHtml(s) {
-  const list = (t, items) => items?.length ? `<h3>${t}</h3><ul>${items.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "";
-  return `<h3>${t("sum_h")}</h3><p>${esc(s.summary)}</p>` + list(t("sum_points"), s.key_points) + list(t("sum_decisions"), s.decisions)
-    + list(t("sum_todo"), s.action_items?.map((a) => `${a.task}${a.owner ? t("sum_owner", { x: a.owner }) : ""}${a.due ? t("sum_due", { x: a.due }) : ""}`))
-    + list(t("sum_open"), s.open_questions) + (s.model ? `<p class="small muted">${esc(t("sum_by", { m: s.model }))}</p>` : "")
+  return recordHtml(s) + (s.model ? `<p class="small muted">${esc(t("sum_by", { m: s.model }))}</p>` : "")
     + regenHtml(s.lang);
 }
 const SUM_LANGS = ["繁體中文", "English", "日本語"];
@@ -391,12 +391,57 @@ function openMeeting(id) {
   $("summary").hidden = !m.summary; if (m.summary) { $("summary").innerHTML = summaryHtml(m.summary); bindRegen(); }
   show("main");
 }
+let picking = null; // 合併摘要：勾選中的會議 id
+const fmtDay = (ts) => new Date(ts).toLocaleString(t("locale"), { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
 function renderHistory() {
   const idx = store.listMeetings();
-  $("histList").innerHTML = idx.length ? idx.map((x) => `<div class="item" data-id="${x.id}"><div><b>${esc(x.title)}</b><small>${fmtTime(x.startedAt)}・${t("hist_lines", { n: x.lines })}${x.hasSummary ? t("hist_sum") : ""}</small></div><button class="icon del" data-id="${x.id}" title="${t("del")}">🗑</button></div>`).join("")
-    : `<div class="empty">${t("hist_empty")}</div>`;
+  $("combineBar").hidden = !picking;
+  $("cbStart").hidden = !!picking || idx.length < 2;
+  if (picking) {
+    const n = picking.size;
+    $("cbGo").disabled = n < 2; $("cbGo").textContent = n < 2 ? t("cb_pick") : t("cb_go", { n });
+  }
+  $("histList").innerHTML = (picking ? `<p class="small muted cbhint">${t("cb_hint")}</p>` : "") + (idx.length ? idx.map((x) => picking
+      ? `<label class="item pick${picking.has(x.id) ? " on" : ""}" data-id="${x.id}"><input type="checkbox" ${picking.has(x.id) ? "checked" : ""}/><div class="grow"><b>${esc(x.title)}</b><small>${fmtDay(x.startedAt)}・${t("hist_lines", { n: x.lines })}</small></div></label>`
+      : `<div class="item" data-id="${x.id}"><div><b>${esc(x.title)}</b><small>${fmtDay(x.startedAt)}・${t("hist_lines", { n: x.lines })}${x.hasSummary ? t("hist_sum") : ""}</small></div><button class="icon del" data-id="${x.id}" title="${t("del")}">🗑</button></div>`).join("")
+    : `<div class="empty">${t("hist_empty")}</div>`);
 }
+$("cbStart").onclick = () => {
+  if (store.listMeetings().length < 2) return toast(t("cb_need"), true);
+  picking = new Set(meeting?.lines.length && store.loadMeeting(meeting.id) ? [meeting.id] : []);
+  renderHistory();
+};
+$("cbCancel").onclick = () => { picking = null; renderHistory(); };
+$("cbGo").onclick = () => {
+  const ms = [...picking].map((id) => store.loadMeeting(id)).filter((m) => m?.lines?.length).sort((a, b) => a.startedAt - b.startedAt);
+  if (ms.length < 2) return toast(t("cb_pick"), true);
+  // 每場的發言者名字先換成那場的標籤（各場的聲紋編號互不相通）
+  const lines = [];
+  ms.forEach((m, i) => {
+    const d = new Diarizer(m.diar);
+    lines.push({ t: m.startedAt, speaker: "", text: `${t("sum_part", { n: i + 1 })}：${m.title}（${fmtDay(m.startedAt)}）`, sep: true });
+    for (const l of m.lines) if (!l.sep) lines.push({ t: l.t, speaker: d.get(l.speakerId)?.label || l.speaker, speakerId: `p${i}-${l.speakerId ?? ""}`, text: l.text, confidence: "high" });
+  });
+  const day = (ts) => new Date(ts).toLocaleDateString(t("locale"), { month: "numeric", day: "numeric" });
+  const a = day(ms[0].startedAt), b = day(ms[ms.length - 1].startedAt);
+  meeting = { id: Date.now().toString(36), title: t("cb_name", { d: a === b ? a : `${a}–${b}`, n: ms.length }), platformName: t("cb_platform", { n: ms.length }),
+    startedAt: Date.now(), endedAt: Date.now(), lines, summary: null, diar: null,
+    combinedFrom: ms.map((m) => ({ id: m.id, title: m.title, startedAt: m.startedAt, endedAt: m.endedAt, platformName: m.platformName })) };
+  diar = new Diarizer();
+  store.saveMeeting(meeting);
+  picking = null;
+  renderLines(); updateButtons(); tick(); setStatus(t("ended"), "done");
+  show("main");
+  summarize();
+};
 $("histList").addEventListener("click", (e) => {
+  if (picking) {
+    const it = e.target.closest(".item"); if (!it) return;
+    e.preventDefault();
+    const id = it.dataset.id;
+    picking.has(id) ? picking.delete(id) : picking.add(id);
+    return renderHistory();
+  }
   const del = e.target.closest(".del");
   if (del) { if (confirm(t("del_q"))) { store.removeMeeting(del.dataset.id); if (meeting?.id === del.dataset.id) newMeeting(); renderHistory(); } return; }
   const it = e.target.closest(".item"); if (it) openMeeting(it.dataset.id);
@@ -455,7 +500,7 @@ $("wordBtn").onclick = exportWord;
 $("newBtn").onclick = () => { newMeeting(); };
 $("title").addEventListener("change", () => { if (meeting) { meeting.title = $("title").value.trim() || meeting.title; $("title").value = meeting.title; scheduleSave(); } });
 $("toHistory").onclick = () => { renderHistory(); show("history"); };
-$("histBack").onclick = () => show("main");
+$("histBack").onclick = () => { picking = null; show("main"); };
 $("toSettings").onclick = () => { fillSettings(); show("settings"); };
 $("setBack").onclick = () => { readSettings(); show("main"); if (!settings.apiKey) toast(t("no_key_yet"), true); checkGroq(); };
 window.addEventListener("beforeunload", (e) => { if (recording) { e.preventDefault(); e.returnValue = ""; } });

@@ -68,3 +68,22 @@ body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
 .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg) } }
+
+/* 會議紀錄的表格（分工表、時程表）：太寬就左右捲動 */
+.summary-card h4 { font-size: 13px; margin: 10px 0 4px; }
+.summary-card .tbl { overflow-x: auto; margin: 4px 0 10px; }
+.summary-card table { border-collapse: collapse; font-size: 12px; min-width: 100%; }
+.summary-card th, .summary-card td { border: 1px solid var(--border); padding: 4px 6px; text-align: left; vertical-align: top; }
+.summary-card th { background: var(--surface-2); white-space: nowrap; }
+.sepline { margin: 14px 0 4px; padding: 6px 10px; border-radius: 8px; background: var(--surface-2); font-weight: 700; font-size: 13px; }
+/* 合併摘要視窗 */
+.dlg { border: 0; border-radius: 16px; padding: 18px; width: min(440px, 92vw); background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.dlg::backdrop { background: rgba(0,0,0,.35); }
+.dlg h3 { margin: 0 0 4px; font-size: 16px; }
+.cblist { max-height: 50vh; overflow: auto; margin: 10px 0 14px; display: flex; flex-direction: column; gap: 6px; }
+.cb { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; }
+.cb:has(input:checked) { border-color: var(--accent); background: var(--surface-2); }
+.cb input { width: 18px; height: 18px; flex: none; }
+.cb span { display: flex; flex-direction: column; }
+.cb small { color: var(--text-2); font-size: 12px; }
+.row-end { display: flex; justify-content: flex-end; gap: 8px; }

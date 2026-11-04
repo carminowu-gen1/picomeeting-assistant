@@ -1,6 +1,6 @@
 // 會議全文頁（側邊欄或分頁）：即時逐字稿、可修改、可複製、可停止記錄
 import { applyTheme } from "../ui/theme.js";
-import { fmtTime, fmtDate, meetingToPlainText } from "../lib/format.js";
+import { fmtTime, fmtDate, meetingToPlainText, summaryHtml, summaryToPlainText } from "../lib/format.js";
 
 const $ = (id) => document.getElementById(id);
 const send = (msg) => new Promise((res) => chrome.runtime.sendMessage(msg, res));
@@ -22,12 +22,7 @@ async function copy(text, label) {
   try { await navigator.clipboard.writeText(text); toast(`已複製${label}`); }
   catch { toast("複製失敗", true); }
 }
-function summaryText(s) {
-  const sec = (t, a) => (a?.length ? `\n${t}\n${a.map((x) => "- " + x).join("\n")}\n` : "");
-  return `摘要\n${s.summary}\n` + sec("重點整理", s.key_points) + sec("決議事項", s.decisions) +
-    sec("待辦事項", s.action_items?.map((a) => `${a.task}${a.owner ? `（${a.owner}）` : ""}${a.due ? ` 期限：${a.due}` : ""}`)) +
-    sec("後續追蹤", s.open_questions);
-}
+const summaryText = (s) => summaryToPlainText(s);
 
 // ── 逐字稿 ──
 function lineEl(l) {
@@ -73,6 +68,8 @@ function renderTranscript(m) {
   for (const l of m.lines) {
     ids.add(l.id);
     let el = rendered.get(l.id);
+    if (!el && l.sep) { el = document.createElement("div"); el.className = "sepline"; el.textContent = l.text; el._line = l; rendered.set(l.id, el); box.appendChild(el); added = true; }
+    if (l.sep) continue;
     if (!el) { el = lineEl(l); rendered.set(l.id, el); box.appendChild(el); added = true; }
     el._line = l;
     const sp = el.querySelector(".sp");
@@ -98,13 +95,7 @@ function renderSummary(m) {
     $("mk")?.addEventListener("click", (e) => { e.preventDefault(); summarize(); });
     return;
   }
-  const li = (a) => (a?.length ? `<ul>${a.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "");
-  const todo = s.action_items?.map((a) => `${a.task}${a.owner ? `（${a.owner}）` : ""}${a.due ? ` 期限：${a.due}` : ""}`);
-  box.innerHTML = `<h3>摘要</h3><p>${esc(s.summary)}</p>`
-    + (s.key_points?.length ? `<h3>重點整理</h3>${li(s.key_points)}` : "")
-    + (s.decisions?.length ? `<h3>決議事項</h3>${li(s.decisions)}` : "")
-    + (todo?.length ? `<h3>待辦事項</h3>${li(todo)}` : "")
-    + (s.open_questions?.length ? `<h3>後續追蹤</h3>${li(s.open_questions)}` : "");
+  box.innerHTML = summaryHtml(s);
 }
 
 function renderHeader(m) {
@@ -164,6 +155,32 @@ async function summarize() {
   if (r?.error) toast(r.error, true);
   load();
 }
+
+// ── 合併幾場會議一起摘要：勾選 → 產生一份新的合併紀錄 ──
+$("combineBtn").onclick = async () => {
+  const r = await send({ type: "listMeetings" });
+  const list = (r?.meetings || []).filter((x) => !x.recording);
+  if (list.length < 2) return toast("至少要有兩場會議才能合併", true);
+  $("cbList").innerHTML = list.map((x) => `<label class="cb"><input type="checkbox" value="${esc(x.id)}" ${x.id === meeting?.id ? "checked" : ""}/><span><b>${esc(x.title)}</b><small>${fmtDate(x.startedAt)}</small></span></label>`).join("");
+  const sync = () => {
+    const n = $("cbList").querySelectorAll("input:checked").length;
+    $("cbGo").disabled = n < 2;
+    $("cbGo").textContent = n < 2 ? "請勾選兩場以上" : `合併這 ${n} 場，產生摘要`;
+  };
+  $("cbList").onchange = sync; sync();
+  $("combineDlg").showModal();
+};
+$("cbCancel").onclick = () => $("combineDlg").close();
+$("cbGo").onclick = async () => {
+  const ids = [...$("cbList").querySelectorAll("input:checked")].map((x) => x.value);
+  $("cbGo").disabled = true;
+  const r = await send({ type: "combineMeetings", ids });
+  $("combineDlg").close();
+  if (r?.error) return toast(r.error, true);
+  meetingId = r.meeting.id; meeting = null; rendered.clear(); $("transcript").innerHTML = "";
+  toast("已合併，正在產生摘要…");
+  load();
+};
 
 // ⋯ 選單
 $("menu").addEventListener("click", async (e) => {

@@ -590,6 +590,7 @@
     <!-- ── 常見問題 ── -->
     <h2 data-t="faq_h">常見問題</h2>
     <details><summary data-t="q1">Teams、Zoom 也能用嗎？</summary><p data-t="a1">可以！任何在 Chrome 裡開的網頁都能錄（自架的 Jitsi、網路研討會、線上課程、影片都行）；Google Meet、Teams、Zoom、Jitsi 還會自動認出發言者的名字。不過要用<b>網頁版</b>，也就是在 Chrome 裡開會。電腦上安裝的 Teams／Zoom 應用程式，它聽不到。</p></details>
+    <details><summary data-t="q13">可以把幾場會議合在一起摘要嗎？</summary><p data-t="a13">可以。電腦版按「📄 查看全文」，再按上面的「📚 合併摘要」；手機版在「過去的會議」右上角按「📚 合併摘要」。勾選要一起整理的會議，按「合併這 N 場，產生摘要」，就會多出一份合併紀錄：有整體摘要、各主題重點、工作分工表、時程表和待確認事項，後面的會議改了前面的決定會以新的為準。原本的會議不會被改動。</p></details>
     <details><summary data-t="q12">LINE 通話、Teams／Zoom 電腦版能錄嗎？</summary><p data-t="a12">可以，用 <b>Windows 電腦</b>錄。開著 LINE 通話時，在 Chrome 隨便一個分頁點小伐、按「開始記錄」，跳出的視窗按「<b>分享</b>」就好，小伐會錄整台電腦的聲音。錄完關掉錄音小視窗。建議戴耳機；用喇叭也行，重複的句子會自動去掉。<br><b>手機上的 LINE 通話錄不到</b>：通話時手機會把麥克風整個交給 LINE，任何網頁都拿不到聲音。可以讓 LINE 開擴音，用另一支手機開小伐記錄。</p></details>
     <details><summary data-t="q9">背景音樂、冷氣聲會不會被記進去？</summary><p data-t="a9">不會。降噪（RNNoise）和語音偵測（Silero VAD）都在你的電腦或手機上先跑一遍，只有真的有人在說話的片段才會送去辨識，所以不會出現「音樂被翻成歌詞」這種事。</p></details>
     <details><summary data-t="q6">載入時出現「Cannot load extension… desktop.ini」？</summary><p data-t="a6">這是選錯資料夾，或 Windows 在資料夾裡放了隱藏檔 <code>desktop.ini</code>。在「文件」裡<b>新建一個空資料夾</b>，把 zip 解壓縮到裡面，載入時選<b>打開就看得到 <code>manifest.json</code></b> 的那一層（不要選「下載」或「桌面」）。還是不行的話：檔案總管上方「檢視 → 顯示 → 隱藏的項目」，把那個資料夾裡的 <code>desktop.ini</code> 刪掉再載入一次。</p></details>
@@ -746,6 +747,8 @@
       e_desc: "Auto-transcribes meetings and summarizes them with AI…", e_det: "Details", e_rm: "Remove",
       faq_h: "FAQ",
       q1: "Does it work with Teams and Zoom?",
+      q13: "Can I summarize several meetings together?",
+      a13: "Yes. On the computer, press “📄 查看全文” (full text), then “📚 合併摘要” at the top; on the phone, open “Past meetings” and press “📚 Combine” at the top right. Tick the meetings, press “Combine N meetings & summarize”, and you get one combined record: an overview, key points by topic, a task-assignment table, a timeline and open items. Later meetings override earlier decisions. The original meetings stay unchanged.",
       q12: "Can it record LINE calls or the Teams/Zoom desktop apps?",
       a12: "Yes — on a <b>Windows computer</b>. During the LINE call, click PicoNotes in any Chrome tab, press Start, and just click “<b>Share</b>” in the dialog that pops up — PicoNotes records the whole computer’s sound. Close the small recording window when you’re done. Headphones work best; with speakers, duplicate lines are removed automatically.<br><b>LINE calls on a phone can’t be recorded</b>: during a call the phone hands the microphone to LINE, and no web page can hear it. Put LINE on speaker and record with a second phone instead.",
       a1: "Yes! Any web page open in Chrome can be recorded (self-hosted Jitsi, webinars, online classes, videos); on Google Meet, Teams, Zoom and Jitsi it also picks up speaker names. Either way, just use the <b>web version</b> and join the meeting inside Chrome. It can't hear the desktop Teams/Zoom apps.",
@@ -908,6 +911,8 @@
       e_desc: "会議を自動で文字起こしし、AI で要約します…", e_det: "詳細", e_rm: "削除",
       faq_h: "よくある質問",
       q1: "Teams や Zoom でも使えますか？",
+      q13: "複数の会議をまとめて要約できますか？",
+      a13: "できます。パソコンは「📄 查看全文」を開いて上の「📚 合併摘要」、スマホは「過去の会議」右上の「📚 まとめて要約」から。まとめたい会議にチェックを入れて実行すると、全体の要約・テーマ別のポイント・役割分担表・スケジュール・確認事項がそろった 1 つの記録ができます。後の会議で決定が変わった場合は新しい方を採用します。元の会議は変更されません。",
       q12: "LINE 通話や Teams／Zoom のパソコンアプリも録音できますか？",
       a12: "はい、<b>Windows パソコン</b>なら可能です。LINE 通話中に Chrome のどのタブでもいいので小伐を開いて「記録開始」を押し、出てきた画面で「<b>共有</b>」を押すだけ。パソコン全体の音を記録します。終わったら小さな録音ウィンドウを閉じてください。ヘッドホン推奨。スピーカーでも重複した文は自動で消えます。<br><b>スマホの LINE 通話は録音できません</b>：通話中はマイクを LINE が独占し、ウェブページからは聞こえません。LINE をスピーカーにして、別のスマホで小伐を使ってください。",
       a1: "使えます！Chrome で開いたウェブページならどれでも録音できます（自前の Jitsi、ウェビナー、オンライン授業、動画も）。Google Meet・Teams・Zoom・Jitsi では発言者の名前も自動で取得します。ただし<b>ウェブ版</b>、つまり Chrome の中で会議に参加してください。パソコンにインストールした Teams／Zoom アプリの音は聞こえません。",
