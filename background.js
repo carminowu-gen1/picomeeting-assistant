@@ -178,23 +178,28 @@ async function pageInfo(tab, inject = true) {
   return info || { platform: "web", platformName: new URL(tab.url).hostname.replace(/^www\./, "") };
 }
 
-// 自動決定錄哪裡（不用設定）：
-//   會議網站（Meet / Teams / Zoom / Jitsi）→ 錄那個分頁（不跳視窗，還抓得到發言者名字）
-//   其他地方（開著 LINE、Teams 電腦版時隨便哪個分頁）→ 錄整台電腦的聲音
-//   Mac 大多錄不到系統聲音：一般網頁還是錄分頁
+// 三種情境（小伐視窗上可以切換，預設自動選好）：
+//   online 線上會議：錄網頁的聲音＋你的麥克風；會議網站（Meet / Teams / Zoom / Jitsi）還抓得到發言者名字
+//   room   實體會議：只用麥克風（實體會議、LINE、電腦版 App），用聲紋分出不同的人
+//   web    網頁／影片：只錄網頁的聲音（課程、研討會、YouTube），不開麥克風，整理成重點筆記
+// 自動：會議網站 → 線上會議；正在播聲音的網頁 → 網頁／影片；其他 → 實體會議
 const MEETING_SITES = new Set(["meet", "teams", "zoom", "jitsi"]);
-const IS_MAC = /Mac/i.test(navigator.userAgent);
-async function decideSource(tab) {
+const SCENES = new Set(["online", "room", "web"]);
+async function decideSource(tab, want) {
   const page = tab && recordable(tab.url) ? await pageInfo(tab) : null;
-  if (page && MEETING_SITES.has(page.platform)) return { sys: false, info: page };
-  if (IS_MAC && page) return { sys: false, info: page };
-  return { sys: true, info: { platform: "system", platformName: "麥克風" } };
+  const meetingSite = !!(page && MEETING_SITES.has(page.platform));
+  const auto = meetingSite ? "online" : page && tab.audible ? "web" : "room";
+  const scenario = SCENES.has(want) && (want === "room" || page) ? want : auto;
+  const info = scenario === "room" ? { platform: "system", platformName: "實體會議" } : page;
+  return { scenario, auto, page, meetingSite, sys: scenario === "room", info };
 }
 
-async function startRecording(tabId) {
-  const settings = await getSettings();
+async function startRecording(tabId, want) {
+  let settings = await getSettings();
   const tab = await chrome.tabs.get(tabId).catch(() => null);
-  const { sys, info: found } = await decideSource(tab);
+  const { sys, scenario, info: found } = await decideSource(tab, want);
+  if (want && want !== "room" && scenario !== want) throw new Error("這個頁面不能錄網頁的聲音：請改選「實體會議」，或切到要錄的網頁。");
+  if (scenario === "web") settings = { ...settings, sttMic: false }; // 只錄網頁：不開麥克風，房間裡的聲音不會混進來
   if (sys && [...active.values()].some((x) => x.source === "system")) throw new Error("已經在錄音了，請先停止上一場。");
   const info = sys
     ? { ...found, title: `會議 ${new Date().toLocaleString("zh-TW", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}` }
@@ -203,8 +208,9 @@ async function startRecording(tabId) {
   const m = newMeeting(tabId, info);
   m.url = sys ? "" : tab.url;
   m.source = sys ? "system" : "tab";
+  m.scenario = scenario;
   // 一般網頁、整台電腦都沒有字幕可抓：一律用語音辨識
-  const mode = info.platform === "web" || sys ? "stt" : settings.sttMode || "stt";
+  const mode = info.platform === "web" || sys || scenario === "web" ? "stt" : settings.sttMode || "stt";
   m.sttMode = mode;
   active.set(tabId, m);
   speakerLogs.set(tabId, []);
@@ -500,7 +506,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         const log = (speakerLogs.get(tabId) || []).map((e) => ({ t: e.t, names: e.names.filter((n) => n !== me && n !== "我") }));
         // 畫面上沒有對方在說話時冒出的短句、或和會議主要語言不同的句子，多半是雜音被編成句子
         const kept = dropUnspokenShort(log, msg.segments, msg.chunkStart, { lang: msg.language, mainLang: mainLanguage(m.langCounts) });
-        lines = attributeSegments(log, kept, msg.chunkStart, settings.sttSpeaker || "語音");
+        lines = attributeSegments(log, kept, msg.chunkStart, m.scenario === "web" ? "講者" : settings.sttSpeaker || "語音");
       }
       // 累計每種語言的字數，用來判斷這場會議的主要語言
       if (msg.language) {
@@ -573,7 +579,8 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     switch (msg.type) {
       case "getState": {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        const info = (await decideSource(tab)).info;
+        const d = await decideSource(tab);
+        const info = d.info, scene = { auto: d.auto, canTab: !!d.page, page: d.page, meetingSite: d.meetingSite };
         const current = (tab ? active.get(tab.id) : null) || [...active.values()].find((x) => x.source === "system") || null;
         const { lastStartError } = await chrome.storage.session.get("lastStartError");
         checkForUpdate(); // 不等結果；下次打開 popup 就會看到
@@ -583,10 +590,10 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         // 只回最近一場（popup 只顯示這一場），不再把所有會議的逐字稿都傳過去
         // popup 只顯示狀態、句數和摘要：不傳整份逐字稿（錄音中它每 0.5 秒問一次）
         const lite = (m) => (m ? { ...m, lines: undefined, lineCount: m.lines.length } : null);
-        return reply({ tabId: tab?.id, info, current: lite(current), latest: lite(current || (await latestMeeting())), settings, lastStartError, update });
+        return reply({ tabId: tab?.id, info, scene, current: lite(current), latest: lite(current || (await latestMeeting())), settings, lastStartError, update });
       }
       case "start": {
-        try { const meeting = await startRecording(msg.tabId); await chrome.storage.session.set({ lastStartError: null }); return reply({ meeting }); }
+        try { const meeting = await startRecording(msg.tabId, msg.scenario); await chrome.storage.session.set({ lastStartError: null }); return reply({ meeting }); }
         catch (e) { await chrome.storage.session.set({ lastStartError: { at: Date.now(), text: e.message || String(e) } }); throw e; }
       }
       case "stop": {

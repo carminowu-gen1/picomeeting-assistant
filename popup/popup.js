@@ -8,6 +8,19 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 
 let state = null;
 let busy = false;
+let scene = null; // 使用者手動選的情境（沒選就用自動判斷的）
+const SCENE_HINT = {
+  online: (st) => (st.scene?.meetingSite ? "錄會議聲音和你的麥克風，離開會議會自動停止" : "錄這個網頁的聲音和你的麥克風"),
+  room: () => "用麥克風錄，自動分出不同的人。LINE 通話請開喇叭",
+  web: () => "只錄這個網頁的聲音，整理成重點筆記",
+};
+const curScene = () => (scene && (scene === "room" || state?.scene?.canTab) ? scene : state?.scene?.auto || "room");
+$("scenes").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-s]");
+  if (!b || b.disabled) return;
+  scene = b.dataset.s;
+  refresh();
+});
 
 function toast(msg, isErr = false) {
   const t = $("toast");
@@ -23,6 +36,7 @@ function friendly(err) {
   if (/active stream/i.test(e)) return "上一次的錄音還沒結束，請重新整理會議頁面後再試一次。";
   if (/尚未完成設定|金鑰|API Key/i.test(e)) return "還沒完成設定，請按右上角 ⚙ 完成設定。";
   if (/存取碼/.test(e)) return "組織服務無法使用，請聯絡管理員。";
+  if (/不能錄網頁的聲音/.test(e)) return "這個頁面不能錄網頁的聲音：請改選「實體會議」，或切到要錄的網頁。";
   if (/不能錄音|不是支援的會議頁面|尚未載入/.test(e)) return "這個頁面不能錄，請切到會議或影片的網頁再按開始。";
   if (/message channel closed|Receiving end does not exist|沒有回應/i.test(e)) return "錄音沒有開始，請再按一次「開始記錄」。";
   if (/麥克風/.test(e)) return "無法使用麥克風，請在跳出的視窗按「允許」。";
@@ -50,7 +64,18 @@ async function refresh() {
     $("update").onclick = (e) => { e.preventDefault(); chrome.tabs.create({ url: state.update.url }); window.close(); };
   }
 
-  $("where").textContent = current ? `正在記錄 ${current.platformName || "會議"}` : info ? (info.platform === "system" ? "用麥克風錄（實體會議、LINE 都可以）" : info.platform === "web" ? `可以錄 ${info.platformName}` : `已連上 ${info.platformName}`) : "這個頁面不能錄";
+  const sc = state.scene || {};
+  $("where").textContent = current ? `正在記錄 ${current.platformName || "會議"}` : sc.page ? (sc.meetingSite ? `已連上 ${sc.page.platformName}` : sc.page.platformName) : "這個頁面只能用麥克風錄";
+
+  // ── 情境 ──
+  const now = curScene();
+  $("scenes").hidden = !settings.ready || !!current;
+  for (const b of $("scenes").querySelectorAll("button")) {
+    b.classList.toggle("on", b.dataset.s === now);
+    b.setAttribute("aria-checked", b.dataset.s === now);
+    b.disabled = b.dataset.s !== "room" && !sc.canTab;
+    b.title = b.disabled ? "這個頁面不能錄網頁聲音" : "";
+  }
 
   // ── 主按鈕 ──
   const btn = $("mainBtn"), st = $("status");
@@ -74,10 +99,10 @@ async function refresh() {
     }
     if (current.stt === "error") { st.textContent = friendly(current.sttError || current.sttNotice); st.classList.add("err"); }
   } else {
-    btn.disabled = !info;
+    btn.disabled = false;
     $("mainLabel").textContent = "開始記錄";
-    if (lastStartError && info) { st.textContent = friendly(lastStartError.text); st.classList.add("err"); }
-    else st.textContent = !info ? "請切到會議或影片的網頁" : info.platform === "system" ? "會自動分出不同的人，點名字可以改成真名" : info.platform === "web" ? "會錄這個分頁的聲音和你的麥克風，按停止就產生摘要" : "離開會議時會自動停止並產生摘要";
+    if (lastStartError && Date.now() - lastStartError.at < 60e3) { st.textContent = friendly(lastStartError.text); st.classList.add("err"); }
+    else st.textContent = SCENE_HINT[now](state);
   }
 
   // ── 最近一場會議 ──
@@ -118,7 +143,7 @@ $("mainBtn").onclick = async () => {
   busy = true;
   $("mainBtn").disabled = true;
   $("mainLabel").innerHTML = `<span class="spin"></span>`;
-  const r = state.current ? await send({ type: "stop", tabId: state.current.tabId ?? state.tabId, meetingId: state.current.id }) : await send({ type: "start", tabId: state.tabId });
+  const r = state.current ? await send({ type: "stop", tabId: state.current.tabId ?? state.tabId, meetingId: state.current.id }) : await send({ type: "start", tabId: state.tabId, scenario: curScene() });
   busy = false;
   if (r?.error) toast(friendly(r.error), true);
   await refresh();

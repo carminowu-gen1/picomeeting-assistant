@@ -24,6 +24,12 @@
 
   <!-- 唯一的主要按鈕 -->
   <section class="card hero">
+    <!-- 情境：自動選好，猜錯點一下換 -->
+    <div class="scenes" id="scenes" role="radiogroup" aria-label="要錄什麼">
+      <button type="button" role="radio" data-s="online"><i>💻</i>線上會議</button>
+      <button type="button" role="radio" data-s="room"><i>👥</i>實體會議</button>
+      <button type="button" role="radio" data-s="web"><i>🎧</i>網頁／影片</button>
+    </div>
     <button class="big" id="mainBtn" disabled>
       <span class="big-dot"></span><span id="mainLabel">開始記錄</span>
     </button>

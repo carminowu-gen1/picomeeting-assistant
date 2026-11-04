@@ -50,3 +50,12 @@ body { width: 340px; padding: 12px; display: flex; flex-direction: column; gap: 
 
 /* 固定的「所有會議紀錄」入口 */
 .records { width: 100%; padding: 11px; font-weight: 600; }
+
+/* 情境 */
+.scenes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.scenes[hidden] { display: none; }
+.scenes button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text-2); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.scenes button i { font-style: normal; font-size: 20px; line-height: 1.2; }
+.scenes button:hover:not(:disabled) { border-color: var(--accent); }
+.scenes button.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.scenes button:disabled { opacity: .35; cursor: not-allowed; }
