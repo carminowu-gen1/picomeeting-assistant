@@ -188,14 +188,14 @@ async function decideSource(tab) {
   const page = tab && recordable(tab.url) ? await pageInfo(tab) : null;
   if (page && MEETING_SITES.has(page.platform)) return { sys: false, info: page };
   if (IS_MAC && page) return { sys: false, info: page };
-  return { sys: true, info: { platform: "system", platformName: "電腦聲音" } };
+  return { sys: true, info: { platform: "system", platformName: "麥克風" } };
 }
 
 async function startRecording(tabId) {
   const settings = await getSettings();
   const tab = await chrome.tabs.get(tabId).catch(() => null);
   const { sys, info: found } = await decideSource(tab);
-  if (sys && [...active.values()].some((x) => x.source === "system")) throw new Error("已經在錄電腦的聲音了。");
+  if (sys && [...active.values()].some((x) => x.source === "system")) throw new Error("已經在錄音了，請先停止上一場。");
   const info = sys
     ? { ...found, title: `會議 ${new Date().toLocaleString("zh-TW", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}` }
     : found;
@@ -216,7 +216,7 @@ async function startRecording(tabId) {
     try { await startStt(tabId, settings, sys); m.stt = "on"; }
     catch (e) {
       m.stt = "error"; m.sttError = e.message;
-      await stopStt(tabId, sys ? 8000 : 0); // 失敗也要把可能已開的串流放掉，否則下次會 "active stream"；錄音小視窗留 8 秒讓人看到原因
+      await stopStt(tabId); // 失敗也要把可能已開的串流放掉，否則下次會 "active stream"
       if (mode === "stt") { active.delete(tabId); await persistActive(); throw new Error("無法啟動語音辨識：" + e.message); }
     }
   }
@@ -232,47 +232,18 @@ async function ensureOffscreen() {
   if (has) return;
   await chrome.offscreen.createDocument({
     url: "offscreen/offscreen.html",
-    reasons: ["USER_MEDIA"], // 整台電腦的聲音不在這裡錄（見 openSysWindow）
+    reasons: ["USER_MEDIA"],
     justification: "擷取會議分頁音訊並轉成逐字稿",
   });
 }
 
-// 整台電腦的聲音：desktopCapture 的串流只能給「叫出選擇視窗的那個頁面」用，
-// 背景程式和 offscreen 都不行，所以開一個小視窗（同一份 offscreen.js）來選擇與錄音。
-let sysWinId = null;
-chrome.storage.session.get("sysWinId").then((r) => { if (sysWinId == null && r.sysWinId != null) sysWinId = r.sysWinId; });
-async function openSysWindow() {
-  if (sysWinId != null) { try { await chrome.windows.get(sysWinId); return; } catch { sysWinId = null; } }
-  const w = await chrome.windows.create({ url: chrome.runtime.getURL("offscreen/offscreen.html?system=1"), type: "popup", width: 380, height: 260, focused: true });
-  sysWinId = w.id;
-  await chrome.storage.session.set({ sysWinId });
-  for (let i = 0; i < 50; i++) { // 等頁面載入（最多 5 秒）
-    const ok = await chrome.runtime.sendMessage({ target: "offscreen", type: "stt:ping", system: true }).catch(() => null);
-    if (ok) return;
-    await new Promise((r) => setTimeout(r, 100));
-  }
-}
-async function closeSysWindow() {
-  const id = sysWinId;
-  sysWinId = null;
-  await chrome.storage.session.set({ sysWinId: null });
-  if (id != null) await chrome.windows.remove(id).catch(() => {});
-}
-// 使用者直接關掉錄音小視窗 → 停止並產生摘要
-chrome.windows.onRemoved.addListener(async (id) => {
-  if (id !== sysWinId) return;
-  sysWinId = null;
-  await chrome.storage.session.set({ sysWinId: null });
-  await rehydrated;
-  for (const [t, m] of active) if (m.source === "system") stopRecording(t);
-});
-
 async function startStt(tabId, settings, sys = false) {
   if (!settings.ready) throw new Error("尚未完成設定：請先在設定頁貼上 Groq 金鑰。");
   if (sys) {
-    await openSysWindow();
-    const r = await chrome.runtime.sendMessage({ target: "offscreen", type: "stt:start", system: true, tabId, settings }).catch((e) => ({ error: e.message }));
-    if (!r) throw new Error("錄音視窗沒有回應，請再按一次開始");
+    // 不在會議網站：直接用麥克風錄，不跳任何視窗
+    await ensureOffscreen();
+    const r = await chrome.runtime.sendMessage({ target: "offscreen", type: "stt:start", micOnly: true, tabId, settings }).catch((e) => ({ error: e.message }));
+    if (!r) throw new Error("錄音程式沒有回應，請再按一次開始");
     if (r.error) throw new Error(r.error);
     return;
   }
@@ -310,13 +281,8 @@ async function closeOffscreen() {
   try { if (await chrome.offscreen.hasDocument?.()) await chrome.offscreen.closeDocument(); } catch {}
 }
 
-async function stopStt(tabId, sysCloseDelay = 0) {
+async function stopStt(tabId) {
   try { await chrome.runtime.sendMessage({ target: "offscreen", type: "stt:stop", tabId }); } catch {}
-  const otherSys = () => [...active.entries()].some(([t, x]) => x.source === "system" && t !== tabId);
-  if (sysWinId != null && !otherSys()) {
-    if (sysCloseDelay) setTimeout(() => { if (![...active.values()].some((x) => x.source === "system")) closeSysWindow(); }, sysCloseDelay);
-    else await closeSysWindow();
-  }
   try {
     const st = await chrome.runtime.sendMessage({ target: "offscreen", type: "stt:status" });
     if (!st || !st.active?.length) await closeOffscreen();
@@ -518,8 +484,8 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       const me = settings.myName || "我";
       let lines;
       if (msg.channel === "mic") {
-        // 麥克風通道一定是你自己
-        lines = attributeSegments([], msg.segments, msg.chunkStart, me);
+        // 麥克風通道是你自己；只用麥克風錄（LINE 等）時是所有人，標「發言」
+        lines = attributeSegments([], msg.segments, msg.chunkStart, m.source === "system" ? "發言" : me);
       } else {
         // 分頁通道是其他人：時間軸裡把「我」排除，剩下的才是候選
         const log = (speakerLogs.get(tabId) || []).map((e) => ({ t: e.t, names: e.names.filter((n) => n !== me && n !== "我") }));
@@ -537,10 +503,6 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       lines.forEach((l, i) => m.lines.push({ id: `stt-${msg.channel || "tab"}-${msg.chunkStart}-${i}`, ...l, src: "stt" }));
       m.lines.sort((a, b) => a.t - b.t); // 語音段落可能晚到
       scheduleSave(m);
-      return;
-    }
-    if (msg.type === "stt:sysEnded" && tabId != null) {
-      if (active.has(tabId)) await stopRecording(tabId);
       return;
     }
     if (msg.type === "stt:micDenied" && tabId != null) {

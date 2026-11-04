@@ -24,7 +24,7 @@ function friendly(err) {
   if (/尚未完成設定|金鑰|API Key/i.test(e)) return "還沒完成設定，請按右上角 ⚙ 完成設定。";
   if (/存取碼/.test(e)) return "組織服務無法使用，請聯絡管理員。";
   if (/不能錄音|不是支援的會議頁面|尚未載入/.test(e)) return "這個頁面不能錄，請切到會議或影片的網頁再按開始。";
-  if (/分享系統音訊|取消了選擇|電腦的聲音/.test(e)) return e.replace(/^無法啟動語音辨識：/, "");
+  if (/message channel closed|Receiving end does not exist|沒有回應/i.test(e)) return "錄音沒有開始，請再按一次「開始記錄」。";
   if (/麥克風/.test(e)) return "無法使用麥克風，請在跳出的視窗按「允許」。";
   if (/額度|429/.test(e)) return "使用量暫時達到上限，請稍後再試。";
   return e.replace(/^無法啟動語音辨識：/, "").slice(0, 120);
@@ -50,7 +50,7 @@ async function refresh() {
     $("update").onclick = (e) => { e.preventDefault(); chrome.tabs.create({ url: state.update.url }); window.close(); };
   }
 
-  $("where").textContent = current ? `正在記錄 ${current.platformName || "會議"}` : info ? (info.platform === "system" ? "會錄整台電腦的聲音（LINE 也可以）" : info.platform === "web" ? `可以錄 ${info.platformName}` : `已連上 ${info.platformName}`) : "這個頁面不能錄";
+  $("where").textContent = current ? `正在記錄 ${current.platformName || "會議"}` : info ? (info.platform === "system" ? "會用麥克風錄（LINE 也可以）" : info.platform === "web" ? `可以錄 ${info.platformName}` : `已連上 ${info.platformName}`) : "這個頁面不能錄";
 
   // ── 主按鈕 ──
   const btn = $("mainBtn"), st = $("status");
@@ -77,7 +77,7 @@ async function refresh() {
     btn.disabled = !info;
     $("mainLabel").textContent = "開始記錄";
     if (lastStartError && info) { st.textContent = friendly(lastStartError.text); st.classList.add("err"); }
-    else st.textContent = !info ? "請切到會議或影片的網頁" : info.platform === "system" ? "按開始後，在跳出的視窗按「分享」就好" : info.platform === "web" ? "會錄這個分頁的聲音和你的麥克風，按停止就產生摘要" : "離開會議時會自動停止並產生摘要";
+    else st.textContent = !info ? "請切到會議或影片的網頁" : info.platform === "system" ? "按開始就會錄。LINE 通話請開喇叭，不要戴耳機" : info.platform === "web" ? "會錄這個分頁的聲音和你的麥克風，按停止就產生摘要" : "離開會議時會自動停止並產生摘要";
   }
 
   // ── 最近一場會議 ──
