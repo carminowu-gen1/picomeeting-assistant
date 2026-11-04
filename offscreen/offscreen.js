@@ -273,10 +273,40 @@ function toWav(chunks, samples) {
   return new Blob([buf], { type: "audio/wav" });
 }
 
+
+// ── 語音辨識模型自動切換 ──
+// Groq 每個模型的額度分開算：Large v3 用完就先換 Turbo（錯字稍多但不漏）；兩個都用完就等額度回來再送，
+// 那段話不會被丟掉（等太久，超過 10 分鐘才放棄）
+const STT_MODELS = ["whisper-large-v3", "whisper-large-v3-turbo"];
+const sttCool = {}; // model -> 額度恢復的時間
+function sttRetryMs(res, detail) {
+  const m = String(detail).match(/try again in\s*(?:(\d+)h)?\s*(?:(\d+)m)?\s*([\d.]+)s/i);
+  if (m) return ((+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + parseFloat(m[3])) * 1000;
+  const h = +res.headers.get("retry-after");
+  return h > 0 ? h * 1000 : 20000;
+}
+async function sttFetch(url, headers, makeForm, onWait) {
+  for (;;) {
+    const now = Date.now();
+    const model = STT_MODELS.find((m) => !(sttCool[m] > now));
+    if (!model) {
+      const wait = Math.min(...STT_MODELS.map((m) => sttCool[m])) - now;
+      if (wait > 10 * 60e3) { const e = new Error("429 rate limit"); e.status = 429; throw e; }
+      onWait?.(wait);
+      await new Promise((r) => setTimeout(r, wait + 300));
+      continue;
+    }
+    const res = await fetch(url, { method: "POST", headers, body: makeForm(model) });
+    if (res.status !== 429) return res;
+    let detail = "";
+    try { detail = (await res.json()).error?.message || ""; } catch {}
+    sttCool[model] = Date.now() + Math.max(3000, sttRetryMs(res, detail));
+  }
+}
+
 async function transcribe(s, ch, blob, startedAt, voicedMs = 0) {
   const fd = new FormData();
   fd.append("file", blob, "chunk.wav");
-  fd.append("model", "whisper-large-v3"); // Turbo 錯字太多，固定用 Large v3
   fd.append("response_format", "verbose_json"); // 要句子時間戳，才能對回發言者
   fd.append("temperature", "0");
   if (s.settings.sttLanguage && s.settings.sttLanguage !== "auto") fd.append("language", s.settings.sttLanguage);
@@ -291,15 +321,14 @@ async function transcribe(s, ch, blob, startedAt, voicedMs = 0) {
     if (prompt) fd.append("prompt", prompt);
   }
 
-  const res = await fetch(`${s.settings.apiBase}/openai/v1/audio/transcriptions`, {
-    method: "POST",
-    headers: s.settings.apiHeaders,
-    body: fd,
-  });
+  // 平常用 Large v3（Turbo 錯字較多），額度用完才換 Turbo；都用完就等
+  const form = (model) => { const f = new FormData(); for (const [k, v] of fd) f.append(k, v); f.append("model", model); return f; };
+  const res = await sttFetch(`${s.settings.apiBase}/openai/v1/audio/transcriptions`, s.settings.apiHeaders, form,
+    (ms) => notify(s.tabId, "warn", `Groq 語音額度暫時用完，錄音先存著，約 ${Math.ceil(ms / 1000)} 秒後自動補上`));
   if (!res.ok) {
     let detail = "";
     try { detail = (await res.json()).error?.message || ""; } catch {}
-    if (res.status === 429) { notify(s.tabId, "warn", "Groq 語音額度暫時用完，這段略過，下一段會再試"); return; }
+    if (res.status === 429) { notify(s.tabId, "warn", "Groq 語音額度用完了，這段沒辦法辨識"); return; }
     throw new Error(`(${res.status}) ${detail}`);
   }
   const data = await res.json();

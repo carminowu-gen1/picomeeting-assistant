@@ -10,7 +10,7 @@ import { buildDocx } from "./lib/docx.js";
 import { t, detectLang, setLang, applyI18n } from "./i18n.js";
 import { setLabelFn } from "./diarize.js";
 
-const VERSION = "1.6.0";
+const VERSION = "1.6.1";
 const GROQ = "https://api.groq.com";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -94,20 +94,52 @@ async function embed(pcm) {
 // 偵測到不在清單裡的語言就用第一個語言（中文）重新辨識一次
 const LANG_SETS = { auto: ["zh", "en"], "auto-ja": ["zh", "en", "ja"], "auto-all": null };
 function allowedLangs() { const v = settings.sttLanguage || "auto"; return v in LANG_SETS ? LANG_SETS[v] : [v]; }
-async function transcribe(wav, forceLang) {
-  const fd = new FormData();
-  fd.append("file", wav, "chunk.wav");
-  fd.append("model", "whisper-large-v3");
-  fd.append("response_format", "verbose_json");
-  fd.append("temperature", "0");
-  const fixed = forceLang || (settings.sttLanguage && !settings.sttLanguage.startsWith("auto") ? settings.sttLanguage : "");
-  if (fixed) fd.append("language", fixed);
-  let r;
-  for (let attempt = 0; ; attempt++) {
-    r = await fetch(`${GROQ}/openai/v1/audio/transcriptions`, { method: "POST", headers: hdr(), body: fd });
-    if (r.status === 429 && attempt < 2) { await new Promise((z) => setTimeout(z, 2500 * (attempt + 1))); continue; }
-    break;
+
+// ── 語音辨識模型自動切換 ──
+// Groq 每個模型的額度分開算：Large v3 用完就先換 Turbo（錯字稍多但不漏）；兩個都用完就等額度回來再送，
+// 那段話不會被丟掉（等太久，超過 10 分鐘才放棄）
+const STT_MODELS = ["whisper-large-v3", "whisper-large-v3-turbo"];
+const sttCool = {}; // model -> 額度恢復的時間
+function sttRetryMs(res, detail) {
+  const m = String(detail).match(/try again in\s*(?:(\d+)h)?\s*(?:(\d+)m)?\s*([\d.]+)s/i);
+  if (m) return ((+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + parseFloat(m[3])) * 1000;
+  const h = +res.headers.get("retry-after");
+  return h > 0 ? h * 1000 : 20000;
+}
+async function sttFetch(url, headers, makeForm, onWait) {
+  for (;;) {
+    const now = Date.now();
+    const model = STT_MODELS.find((m) => !(sttCool[m] > now));
+    if (!model) {
+      const wait = Math.min(...STT_MODELS.map((m) => sttCool[m])) - now;
+      if (wait > 10 * 60e3) { const e = new Error("429 rate limit"); e.status = 429; throw e; }
+      onWait?.(wait);
+      await new Promise((r) => setTimeout(r, wait + 300));
+      continue;
+    }
+    const res = await fetch(url, { method: "POST", headers, body: makeForm(model) });
+    if (res.status !== 429) return res;
+    let detail = "";
+    try { detail = (await res.json()).error?.message || ""; } catch {}
+    sttCool[model] = Date.now() + Math.max(3000, sttRetryMs(res, detail));
   }
+}
+let waitToastAt = 0;
+async function transcribe(wav, forceLang) {
+  const fixed = forceLang || (settings.sttLanguage && !settings.sttLanguage.startsWith("auto") ? settings.sttLanguage : "");
+  const form = (model) => {
+    const fd = new FormData();
+    fd.append("file", wav, "chunk.wav");
+    fd.append("model", model);
+    fd.append("response_format", "verbose_json");
+    fd.append("temperature", "0");
+    if (fixed) fd.append("language", fixed);
+    return fd;
+  };
+  const r = await sttFetch(`${GROQ}/openai/v1/audio/transcriptions`, hdr(), form, (ms) => {
+    setLight("groq", "wait", t("stt_wait", { s: Math.ceil(ms / 1000) }));
+    if (Date.now() - waitToastAt > 60e3) { waitToastAt = Date.now(); toast(t("stt_wait", { s: Math.ceil(ms / 1000) })); }
+  });
   if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 100)}`);
   const j = await r.json();
   return { segments: j.segments || (j.text ? [{ start: 0, end: 0, text: j.text }] : []), language: j.language || fixed || "" };
@@ -220,9 +252,11 @@ $("lines").addEventListener("input", (e) => {
 /* ───────── 畫面：狀態 ───────── */
 function setStatus(text, cls = "") { const b = $("badge"); b.textContent = text; b.className = "badge " + cls; }
 function setHint(t) { $("hint").textContent = t; }
+let recSince = 0; // 這次按下錄音的時間
 function tick() {
   if (!meeting?.startedAt) return;
-  const s = Math.floor(((recording ? Date.now() : meeting.endedAt || Date.now()) - meeting.startedAt) / 1000);
+  const base = meeting.recMs ?? (meeting.lines.length && meeting.endedAt ? meeting.endedAt - meeting.startedAt : 0); // 舊紀錄沒有 recMs
+  const s = Math.floor((base + (recording && recSince ? Date.now() - recSince : 0)) / 1000);
   $("timer").textContent = `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 }
 function updateButtons() {
@@ -248,6 +282,8 @@ async function startRecording() {
   if (!settings.apiKey) { toast(t("need_key"), true); show("settings"); return; }
   if (!meeting || meeting.summary) newMeeting();
   if (!meeting.startedAt) meeting.startedAt = Date.now();
+  meeting.recMs ??= meeting.lines.length && meeting.endedAt ? meeting.endedAt - meeting.startedAt : 0;
+  recSince = Date.now();
   meeting.endedAt = 0;
   $("recBtn").disabled = true;
   try {
@@ -283,6 +319,7 @@ async function stopRecording() {
   await rec.stop(); rec = null;
   $("meter").style.width = "0";
   clearInterval(timerId);
+  meeting.recMs = (meeting.recMs || 0) + (recSince ? Date.now() - recSince : 0); recSince = 0;
   meeting.endedAt = Date.now(); tick();
   try { await wakeLock?.release(); } catch {} wakeLock = null;
   setStatus(pending ? t("finishing") : t("ended"), "busy");

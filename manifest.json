@@ -5,7 +5,7 @@
   },
   "name": "小伐速記 PicoNotes",
   "description": "會議摘要助理：開會時自動記錄逐字稿，會後 AI 整理摘要、重點與待辦，一鍵匯出 Word。",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
