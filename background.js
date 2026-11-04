@@ -583,7 +583,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         const info = d.info, scene = { auto: d.auto, canTab: !!d.page, page: d.page, meetingSite: d.meetingSite };
         const current = (tab ? active.get(tab.id) : null) || [...active.values()].find((x) => x.source === "system") || null;
         const { lastStartError } = await chrome.storage.session.get("lastStartError");
-        checkForUpdate(); // 不等結果；下次打開 popup 就會看到
+        await Promise.race([checkForUpdate(), new Promise((r) => setTimeout(r, 1500))]); // 打開小伐就查；最多等 1.5 秒，網路慢就下次再顯示
         const { update } = await chrome.storage.local.get("update");
         const s = await getSettings();
         const settings = { ready: s.ready, sttMode: s.sttMode, autoSummarize: s.autoSummarize }; // 不把金鑰傳出去
@@ -717,7 +717,7 @@ async function checkForUpdate(force = false) {
   try {
     if ((await chrome.management.getSelf()).installType !== "development") return;
     const { updateCheckedAt = 0 } = await chrome.storage.local.get("updateCheckedAt");
-    if (!force && Date.now() - updateCheckedAt < 12 * 3600e3) return; // 最多 12 小時查一次
+    if (!force && Date.now() - updateCheckedAt < 10 * 60e3) return; // 最多 10 分鐘查一次（以前 12 小時，發新版後要等很久才看得到）
     await chrome.storage.local.set({ updateCheckedAt: Date.now() });
     const r = await fetch(`https://api.github.com/repos/${UPDATE_REPO}/releases/latest`, { headers: { accept: "application/vnd.github+json" } });
     if (!r.ok) return; // repo 是私人或還沒有 release：不提醒
