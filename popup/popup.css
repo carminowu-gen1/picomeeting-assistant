@@ -47,3 +47,6 @@ body { width: 340px; padding: 12px; display: flex; flex-direction: column; gap: 
 @keyframes spin { to { transform: rotate(360deg) } }
 
 .brand h1 .sub { font-size: 11px; font-weight: 500; color: var(--text-2, #6b7280); margin-left: 4px; }
+
+/* 固定的「所有會議紀錄」入口 */
+.records { width: 100%; padding: 11px; font-weight: 600; }
