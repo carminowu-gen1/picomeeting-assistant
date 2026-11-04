@@ -33,8 +33,11 @@ body { width: 340px; padding: 12px; display: flex; flex-direction: column; gap: 
 /* 結果卡 */
 .result { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
 .result-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.result-head b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.summary { font-size: 13px; max-height: 210px; overflow: auto; }
+.result-head b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.result-head span { flex: none; white-space: nowrap; }
+.summary { font-size: 13px; overflow: hidden; }
+.summary .clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.summary p.small { margin: 0; }
 .summary p { margin: 0 0 6px; white-space: pre-wrap; }
 .summary ul { margin: 4px 0 0; padding-left: 18px; }
 .summary li { margin: 2px 0; }
@@ -59,3 +62,12 @@ body { width: 340px; padding: 12px; display: flex; flex-direction: column; gap: 
 .scenes button:hover:not(:disabled) { border-color: var(--accent); }
 .scenes button.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 .scenes button:disabled { opacity: .35; cursor: not-allowed; }
+
+/* 自適應：Chrome 的小視窗最高 600px。超過時只讓「最近一場會議」卡片縮小，
+   開始按鈕和「所有會議紀錄」永遠完整顯示，整個視窗不會出現捲軸 */
+html, body { max-height: var(--max-h, 600px); }
+body { overflow: hidden; }
+.top, .update, .hero, .records { flex: none; }
+.result { flex: 0 1 auto; min-height: 76px; overflow: hidden; }
+.result-head, .result .actions { flex: none; }
+.result .summary { flex: 1 1 auto; min-height: 0; }

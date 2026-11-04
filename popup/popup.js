@@ -6,6 +6,14 @@ const $ = (id) => document.getElementById(id);
 const send = (msg) => new Promise((res) => chrome.runtime.sendMessage(msg, res));
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+// 依螢幕自適應：大螢幕整體放大（字、按鈕、圖示一起），可用高度不夠時壓縮「最近一場會議」卡片
+(() => {
+  const scale = Math.min(1.25, Math.max(1, screen.width / 1700));          // 1440 以下 1 倍、1920 約 1.13 倍、2560 以上 1.25 倍
+  const limit = Math.min(600, Math.max(420, (screen.availHeight || 800) - 160)); // Chrome 小視窗最高 600，小螢幕再扣掉瀏覽器上方
+  document.documentElement.style.zoom = scale;
+  document.documentElement.style.setProperty("--max-h", Math.floor(limit / scale) + "px");
+})();
+
 let state = null;
 let busy = false;
 let scene = null; // 使用者手動選的情境（沒選就用自動判斷的）
@@ -113,7 +121,7 @@ async function refresh() {
 
 function renderResult(m) {
   $("mTitle").textContent = m.title;
-  $("mMeta").textContent = `${fmtDate(m.startedAt)} · ${m.lineCount} 句`;
+  $("mMeta").textContent = `${new Date(m.startedAt).toLocaleString("zh-TW", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} · ${m.lineCount} 句`;
   const box = $("summary");
   const s = m.summary;
   const has = m.lineCount > 0;
@@ -128,12 +136,10 @@ function renderResult(m) {
     $("retry")?.addEventListener("click", async (e) => { e.preventDefault(); await send({ type: "summarize", meetingId: m.id }).then((r) => r?.error && toast(friendly(r.error), true)); refresh(); });
     return;
   }
-  const li = (a) => (a?.length ? `<ul>${a.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "");
-  const todo = s.action_items?.map((a) => `${a.task}${a.owner ? `（${a.owner}）` : ""}${a.due ? ` ${a.due}` : ""}`);
-  const more = (todo?.length || 0) > 6 ? `<p class="small muted">還有 ${todo.length - 6} 項，按「會議紀錄」看完整分工表</p>` : "";
-  box.innerHTML = `<p>${esc(String(s.summary || "").split(/\n+/)[0])}</p>`
-    + (s.v >= 2 ? "" : s.key_points?.length ? `<h4>重點</h4>${li(s.key_points)}` : "")
-    + (todo?.length ? `<h4>待辦</h4>${li(todo.slice(0, 6))}${more}` : "");
+  // 小伐視窗不能有捲軸（下面的按鈕會被藏起來）：摘要最多三行，待辦只說幾項
+  const n = s.action_items?.length || 0;
+  box.innerHTML = `<p class="clamp">${esc(String(s.summary || "").split(/\n+/)[0])}</p>`
+    + `<p class="small muted">${n ? `📝 待辦 ${n} 項・` : ""}完整內容在「📚 所有會議紀錄」</p>`;
 }
 
 // ── 主按鈕 ──

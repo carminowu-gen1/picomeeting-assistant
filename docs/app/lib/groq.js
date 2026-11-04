@@ -96,7 +96,7 @@ async function summarizeWith(meeting, settings, model, cheap) {
 
   // 2) 先試整份一次送；太長（或超過這個模型的每分鐘上限）就改「分段筆記 → 彙整」
   //    筆記合起來還是太大時，再把筆記濃縮一輪（很長的會議、或合併好幾場時會用到）
-  const notesMode = meeting.scenario === "web";
+  const notesMode = meeting.scenario === "web" || meeting.scenario === "lecture";
   const system = notesMode ? notesPrompt(lang) : systemPrompt(lang, multi);
   let chunkChars = input.length > CHUNK_THRESHOLD ? CHUNK_SIZE : 0;
   let notes = null, budget = Infinity, final, chunked = false;
@@ -286,7 +286,7 @@ const JSON_SHAPE = `{
 
 // 網頁／影片（課程、研討會、YouTube）：不是會議，整理成重點筆記
 function notesPrompt(lang) {
-  return `你是很會做筆記的助理。這份逐字稿是線上課程、演講、研討會或影片的錄音（不是會議），請整理成一份清楚好讀的重點筆記，全部用${lang}撰寫。
+  return `你是很會做筆記的助理。這份逐字稿是課程、演講、研討會或影片的錄音（不是會議），請整理成一份清楚好讀的重點筆記，全部用${lang}撰寫。
 
 逐字稿來自語音辨識：會有錯字、同音字，依上下文還原專有名詞；忽略與內容無關的外語雜句、「謝謝收看」「記得訂閱」之類的套話、廣告和片頭片尾。
 

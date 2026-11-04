@@ -3,7 +3,7 @@ const KEY_SETTINGS = "pm:settings", KEY_INDEX = "pm:index", MAX = 30;
 const mkey = (id) => `pm:m:${id}`;
 
 export const DEFAULTS = {
-  apiKey: "", model: "auto", language: "", uiLang: "auto", sttLanguage: "auto", toTraditional: true, translate: false, // language 空 = 跟著介面語言
+  apiKey: "", model: "auto", language: "", uiLang: "auto", sttLanguage: "auto", toTraditional: true, translate: false, scene: "room", // language 空 = 跟著介面語言；scene：room 實體會議／lecture 上課講座（記住上次選的）
   autoFallback: true, tokenSaver: true, bigText: false, theme: "auto", setupDone: false,
 };
 

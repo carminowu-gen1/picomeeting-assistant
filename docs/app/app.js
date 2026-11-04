@@ -10,7 +10,7 @@ import { buildDocx } from "./lib/docx.js";
 import { t, detectLang, setLang, applyI18n } from "./i18n.js";
 import { setLabelFn } from "./diarize.js";
 
-const VERSION = "1.6.1";
+const VERSION = "1.7.1";
 const GROQ = "https://api.groq.com";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -57,7 +57,8 @@ function applyLang() {
   setLabelFn((letter) => t("speaker", { x: letter }));
   setLocale(t("locale"), { summary: t("sum_h"), points: t("sum_points"), decisions: t("sum_decisions"), todo: t("sum_todo"), owner: t("sum_owner"), due: t("sum_due"), open: t("x_open"), transcript: t("x_transcript"), sep: t("locale") === "en-US" ? ": " : "：",
     participants: t("sum_people"), work: t("sum_work"), timeline: t("sum_timeline"), risks: t("sum_risks"), names: t("sum_names"), other: t("sum_other"), part: t("sum_part"),
-    cols: Object.fromEntries(["no", "task", "owner", "helpers", "due", "note", "when", "item", "status"].map((k) => [k, t("col_" + k)])) });
+    cols: Object.fromEntries(["no", "task", "owner", "helpers", "due", "note", "when", "item", "status"].map((k) => [k, t("col_" + k)])),
+    notes: { summary: t("nt_summary"), participants: t("nt_people"), decisions: t("nt_decisions"), work: t("nt_work"), risks: t("nt_risks") } });
   applyI18n();
   // 說明／隱私權連結帶上目前語言
   const code = { "zh-TW": "zh", "en-US": "en", "ja-JP": "ja" }[t("locale")] || "zh";
@@ -267,8 +268,16 @@ function updateButtons() {
   $("recBtn").className = "rec" + (recording ? " stop" : "");
   $("recLabel").textContent = recording ? t("rec_stop") : has ? t("rec_cont") : t("rec_start");
   $("title").value = meeting?.title || "";
-  setHint(recording ? t("hint_rec") : has ? t("hint_done") : "");
+  const fresh = !recording && !has && !meeting?.combinedFrom;
+  $("scenes").hidden = !fresh;
+  for (const b of $("scenes").querySelectorAll("button")) { const on = b.dataset.s === (settings.scene || "room"); b.classList.toggle("on", on); b.setAttribute("aria-checked", on); }
+  setHint(recording ? t("hint_rec") : has ? t("hint_done") : t(settings.scene === "lecture" ? "sc_lecture_hint" : "sc_room_hint"));
 }
+$("scenes").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-s]"); if (!b) return;
+  settings = store.saveSettings({ scene: b.dataset.s });
+  updateButtons();
+});
 
 /* ───────── 錄音流程 ───────── */
 function newMeeting() {
@@ -281,7 +290,7 @@ function newMeeting() {
 async function startRecording() {
   if (!settings.apiKey) { toast(t("need_key"), true); show("settings"); return; }
   if (!meeting || meeting.summary) newMeeting();
-  if (!meeting.startedAt) meeting.startedAt = Date.now();
+  if (!meeting.startedAt) { meeting.startedAt = Date.now(); meeting.scenario = settings.scene || "room"; }
   meeting.recMs ??= meeting.lines.length && meeting.endedAt ? meeting.endedAt - meeting.startedAt : 0;
   recSince = Date.now();
   meeting.endedAt = 0;

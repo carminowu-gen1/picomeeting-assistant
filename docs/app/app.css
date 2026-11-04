@@ -168,3 +168,16 @@ input[type="text"], input[type="password"], select { width: 100%; padding: 12px 
 .toast { display: flex; align-items: center; gap: 14px; }
 .toast.show { pointer-events: auto; }
 .toast .undo { border: 0; background: none; color: var(--accent-soft); font: inherit; font-weight: 700; padding: 0; cursor: pointer; }
+
+/* 情境：實體會議／上課講座 */
+.scenes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.scenes[hidden] { display: none; }
+.scenes button { padding: 11px 6px; border-radius: 14px; border: 2px solid var(--border, #e5e7eb); background: var(--surface); color: var(--text-2); font: inherit; font-weight: 700; cursor: pointer; }
+.scenes button.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+/* 自適應：平板／電腦上不要拉滿整個寬度 */
+@media (min-width: 760px) {
+  :root { --fs: 18px; }
+  .screen { max-width: 720px; margin: 0 auto; box-shadow: 0 0 0 1px var(--border); }
+  html { background: var(--surface-2); }
+}
