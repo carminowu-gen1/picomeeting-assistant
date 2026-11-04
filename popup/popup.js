@@ -92,7 +92,7 @@ function renderResult(m) {
   const box = $("summary");
   const s = m.summary;
   const has = m.lineCount > 0;
-  ["copyAll", "saveWord", "openLive"].forEach((id) => ($(id).disabled = !has && !m.recording));
+  ["copyAll", "saveWord"].forEach((id) => ($(id).disabled = !has && !m.recording));
 
   if (m.recording) { box.innerHTML = `<div class="wait">● 記錄中…會議結束後會自動產生摘要</div>`; return; }
   if (m.summarizing) { box.innerHTML = `<div class="wait"><span class="spin"></span> 正在產生摘要…</div>`; return; }
@@ -105,7 +105,7 @@ function renderResult(m) {
   }
   const li = (a) => (a?.length ? `<ul>${a.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "");
   const todo = s.action_items?.map((a) => `${a.task}${a.owner ? `（${a.owner}）` : ""}${a.due ? ` ${a.due}` : ""}`);
-  const more = (todo?.length || 0) > 6 ? `<p class="small muted">還有 ${todo.length - 6} 項，按「查看全文」看完整分工表</p>` : "";
+  const more = (todo?.length || 0) > 6 ? `<p class="small muted">還有 ${todo.length - 6} 項，按「會議紀錄」看完整分工表</p>` : "";
   box.innerHTML = `<p>${esc(String(s.summary || "").split(/\n+/)[0])}</p>`
     + (s.v >= 2 ? "" : s.key_points?.length ? `<h4>重點</h4>${li(s.key_points)}` : "")
     + (todo?.length ? `<h4>待辦</h4>${li(todo.slice(0, 6))}${more}` : "");

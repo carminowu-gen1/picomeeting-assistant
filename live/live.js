@@ -1,4 +1,4 @@
-// 會議全文頁（側邊欄或分頁）：即時逐字稿、可修改、可複製、可停止記錄
+// 會議紀錄頁（側邊欄或分頁）：即時逐字稿、可修改、可複製、可停止記錄
 import { applyTheme } from "../ui/theme.js";
 import { fmtTime, fmtDate, meetingToPlainText, summaryHtml, summaryToPlainText } from "../lib/format.js";
 
@@ -103,7 +103,7 @@ function renderHeader(m) {
   $("statusText").textContent = m.recording ? "記錄中" : `${m.lines.length} 句`;
   $("stopBtn").hidden = !m.recording;
   if (document.activeElement !== $("title")) $("title").value = m.title;
-  document.title = `${m.recording ? "● " : ""}${m.title} – 會議全文`;
+  document.title = `${m.recording ? "● " : ""}${m.title} – 會議紀錄`;
 }
 
 async function renderHistory() {

@@ -99,6 +99,17 @@ const rehydrated = (async () => {
     if (m && m.recording) { active.set(Number(tabId), m); speakerLogs.set(Number(tabId), []); }
   }
   if (![...active.values()].some((m) => m.sttMode && m.sttMode !== "captions")) await closeOffscreen(); // 殘留的 offscreen 會抓著分頁串流
+  // 一次性：清掉以前留下的空紀錄（例如錄音沒成功的那幾場）
+  const { emptyCleaned } = await chrome.storage.local.get("emptyCleaned");
+  if (!emptyCleaned) {
+    const busy = new Set([...active.values()].map((m) => m.id));
+    for (const meta of await listMeetings()) {
+      if (busy.has(meta.id)) continue;
+      const m = await loadMeeting(meta.id);
+      if (m && !m.recording && !m.lines?.length) await removeMeeting(m.id);
+    }
+    await chrome.storage.local.set({ emptyCleaned: true });
+  }
 })();
 
 // 設定放在記憶體，改設定時才重讀（以前每一則字幕更新都讀一次 storage）
@@ -321,8 +332,9 @@ async function stopRecording(tabId) {
   await chrome.tabs.sendMessage(tabId, { type: "stop" }).catch(() => {});
   if (m.sttMode && m.sttMode !== "captions") await stopStt(tabId);
   speakerLogs.delete(tabId);
-  await saveMeeting(m);
   await setBadge(tabId, false);
+  if (!m.lines.length) { await removeMeeting(m.id); return m; } // 什麼都沒錄到：不留空紀錄
+  await saveMeeting(m);
   const settings = await getSettings();
   if (settings.autoSummarize && m.lines.length) {
     summarize(m.id).catch((e) => console.warn("auto summarize failed", e));
