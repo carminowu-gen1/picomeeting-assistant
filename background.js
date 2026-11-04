@@ -483,9 +483,18 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       const settings = await getSettings();
       const me = settings.myName || "我";
       let lines;
-      if (msg.channel === "mic") {
-        // 麥克風通道是你自己；只用麥克風錄（LINE 等）時是所有人，標「發言」
-        lines = attributeSegments([], msg.segments, msg.chunkStart, m.source === "system" ? "發言" : me);
+      if (msg.channel === "mic" && m.source === "system") {
+        // 只用麥克風（實體會議、LINE）：說話的人由聲紋分出來（說話者 A、B…），連續同一人合成一句
+        lines = [];
+        for (const g of msg.segments) {
+          const text = (g.text || "").trim(); if (!text) continue;
+          const t = msg.chunkStart + Math.round((g.start || 0) * 1000), speaker = g.speaker || "發言", last = lines[lines.length - 1];
+          if (last && last.speaker === speaker && t - last.t < 15000) last.text += (/[。！？!?.]$/.test(last.text) ? "" : "，") + text;
+          else lines.push({ t, speaker, text });
+        }
+      } else if (msg.channel === "mic") {
+        // 麥克風通道一定是你自己
+        lines = attributeSegments([], msg.segments, msg.chunkStart, me);
       } else {
         // 分頁通道是其他人：時間軸裡把「我」排除，剩下的才是候選
         const log = (speakerLogs.get(tabId) || []).map((e) => ({ t: e.t, names: e.names.filter((n) => n !== me && n !== "我") }));
@@ -502,6 +511,14 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       lines = dropEcho(m, lines, msg.channel === "mic" ? "mic" : "tab");
       lines.forEach((l, i) => m.lines.push({ id: `stt-${msg.channel || "tab"}-${msg.chunkStart}-${i}`, ...l, src: "stt" }));
       m.lines.sort((a, b) => a.t - b.t); // 語音段落可能晚到
+      scheduleSave(m);
+      return;
+    }
+    if (msg.type === "stt:relabel" && tabId != null) {
+      // 聲紋發現兩群其實是同一人：舊句子跟著改
+      const m = active.get(tabId);
+      if (!m) return;
+      for (const { from, to } of msg.map || []) for (const l of m.lines) if (l.speaker === from) l.speaker = to;
       scheduleSave(m);
       return;
     }
@@ -659,6 +676,8 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         if (!m) throw new Error("找不到會議");
         m.lines.forEach((l) => { if (l.speaker === msg.from) l.speaker = msg.to; });
         await saveMeeting(m);
+        // 錄音中：讓聲紋也記住新名字，之後同一個人的句子直接用真名
+        for (const [tabId, a] of active) if (a.id === m.id) chrome.runtime.sendMessage({ target: "offscreen", type: "stt:renameSpeaker", tabId, from: msg.from, to: msg.to }).catch(() => {});
         return reply({ ok: true });
       }
       case "setTitle": {

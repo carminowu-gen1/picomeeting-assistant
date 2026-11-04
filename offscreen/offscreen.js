@@ -50,6 +50,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     else if (msg.type === "stt:stop") { stop(msg.tabId); reply({ ok: true }); }
     else if (msg.type === "stt:status") reply({ active: [...sessions.keys()] });
     else if (msg.type === "stt:addMic") { for (const s of sessions.values()) await addMic(s); reply({ ok: true }); }
+    else if (msg.type === "stt:renameSpeaker") { // 使用者把「說話者 A」改成真名：之後的句子也用新名字
+      const c = sessions.get(msg.tabId)?.diar?.clusters.find((x) => x.label === msg.from);
+      if (c) { c.label = msg.to; c.named = true; }
+      reply({ ok: true });
+    }
   })().catch((e) => reply({ error: e.message || String(e) }));
   return true;
 });
@@ -75,7 +80,7 @@ async function start({ tabId, streamId, settings, micOnly }) {
   // 分頁音訊要接回喇叭（被擷取的分頁會變靜音）
   if (tabStream) ctx.createMediaStreamSource(tabStream).connect(ctx.destination);
 
-  s = { tabId, settings, ctx, stopped: false, channels: {}, prevText: "",
+  s = { tabId, settings, ctx, micOnly: !!micOnly, diar: null, stopped: false, channels: {}, prevText: "",
     stats: { chunks: 0, sent: 0, silent: 0, ok: 0, lastPeak: 0, mic: false, lastError: "", ctxState: ctx.state, byChannel: {}, dsp: "載入中" } };
   sessions.set(tabId, s);
   await startDsp();
@@ -248,12 +253,15 @@ function flush(s, ch) {
   ch.chunks = []; ch.samples = 0; ch.startedAt = 0;
   if (!samples) return;
   const blob = toWav(chunks, samples);
+  // 只用麥克風（實體會議、LINE）：留一份原始聲音給聲紋分辨說話的人
+  let pcm = null;
+  if (s.micOnly) { pcm = new Int16Array(samples); let o = 0; for (const c of chunks) { pcm.set(c, o); o += c.length; } }
   s.stats.chunks++; s.stats.lastPeak = +peak.toFixed(4);
   const bc = s.stats.byChannel[ch.name] || (s.stats.byChannel[ch.name] = { chunks: 0, sent: 0, silent: 0, peak: 0, bytes: 0 });
   bc.chunks++; bc.peak = +peak.toFixed(4); bc.bytes = blob.size; bc.voicedMs = Math.round(voicedMs);
   if (voicedMs < MIN_VOICE_MS) { s.stats.silent++; bc.silent++; report(s); return; } // 只有雜音：跳過
   s.stats.sent++; bc.sent++;
-  transcribe(s, ch, blob, startedAt, Math.round(voicedMs))
+  transcribe(s, ch, blob, startedAt, Math.round(voicedMs), pcm)
     .then(() => { s.stats.ok++; report(s); })
     .catch((e) => { s.stats.lastError = e.message; report(s); notify(s.tabId, "error", "語音辨識失敗：" + e.message); });
 }
@@ -304,7 +312,7 @@ async function sttFetch(url, headers, makeForm, onWait) {
   }
 }
 
-async function transcribe(s, ch, blob, startedAt, voicedMs = 0) {
+async function transcribe(s, ch, blob, startedAt, voicedMs = 0, pcm = null) {
   const fd = new FormData();
   fd.append("file", blob, "chunk.wav");
   fd.append("response_format", "verbose_json"); // 要句子時間戳，才能對回發言者
@@ -357,8 +365,55 @@ async function transcribe(s, ch, blob, startedAt, voicedMs = 0) {
     })
     .map((g) => ({ start: g.start, end: g.end, text: g.text }));
   if (!segments.length) return;
+  if (pcm) await diarize(s, pcm, segments);
   s.prevText = segments.map((g) => g.text.trim()).join(" ");
   chrome.runtime.sendMessage({ type: "stt:segments", tabId: s.tabId, channel: ch.name, chunkStart: startedAt, language: data.language || "", segments });
+}
+
+// ── 聲紋分辨說話的人（和手機版同一套：CAM++ 聲紋 + 依相似度分群）──
+// 只在「只用麥克風」時用：會議網站本來就抓得到真名
+let embedWorker = null, embedReady = null, embedSeq = 0, DiarMod = null;
+const embedWait = new Map();
+function startEmbed() {
+  if (embedReady) return embedReady;
+  embedWorker = new Worker(chrome.runtime.getURL("dsp/embed-worker.js"));
+  embedWorker.onmessage = (e) => { const w = embedWait.get(e.data.id); if (w) { embedWait.delete(e.data.id); w(e.data); } };
+  embedReady = embedCall("init", { modelUrl: chrome.runtime.getURL("dsp/model/campplus.onnx") })
+    .then((r) => { if (!r.ok) throw new Error(r.error); return true; })
+    .catch((e) => { console.warn("voiceprint", e); embedReady = null; embedWorker = null; throw e; });
+  return embedReady;
+}
+function embedCall(type, data) {
+  return new Promise((res) => { const id = ++embedSeq; embedWait.set(id, res); embedWorker.postMessage({ id, type, ...data }); });
+}
+async function embedOf(pcm16) {
+  try { await startEmbed(); } catch { return null; }
+  const r = await embedCall("embed", { pcm: pcm16 });
+  return r.ok ? r.emb : null;
+}
+async function diarize(s, pcm, segments) {
+  try {
+    DiarMod ??= await import(chrome.runtime.getURL("dsp/diarize.js"));
+    s.diar ??= new DiarMod.Diarizer();
+  } catch (e) { console.warn("diarize load", e); return; }
+  let chunkEmb;
+  for (const g of segments) {
+    const a = Math.max(0, Math.floor(g.start * TARGET_SR)), b = Math.min(pcm.length, Math.ceil(g.end * TARGET_SR));
+    let emb = b - a >= TARGET_SR ? await embedOf(pcm.slice(a, b)) : null;
+    if (!emb) { if (chunkEmb === undefined) chunkEmb = await embedOf(pcm); emb = chunkEmb; }
+    if (!emb) return; // 模型載不起來：照舊不分人
+    // 不到 3 秒的句子聲紋不穩：不開新的人
+    const len = emb === chunkEmb ? pcm.length : b - a;
+    g.speaker = s.diar.assign(emb, { allowNew: len >= 3 * TARGET_SR }).label;
+  }
+  // 同一個人被分成兩群 → 自動併回來，並請背景把舊句子改名
+  const before = new Map(s.diar.clusters.map((c) => [c.id, c.label]));
+  const merged = s.diar.autoMerge();
+  if (merged.length) {
+    const map = merged.map(({ from, to }) => ({ from: before.get(from), to: s.diar.get(to)?.label })).filter((x) => x.from && x.to && x.from !== x.to);
+    for (const g of segments) for (const x of map) if (g.speaker === x.from) g.speaker = x.to;
+    if (map.length) chrome.runtime.sendMessage({ type: "stt:relabel", tabId: s.tabId, map });
+  }
 }
 
 // Whisper 在靜音/雜訊時常吐出固定幻覺句（訓練資料裡大量 YouTube 影片的開場白、片尾、字幕署名）
