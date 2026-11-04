@@ -8,8 +8,21 @@ const HALLUCINATION = new RegExp([
   "請勿模仿|请勿模仿", "明鏡與點點|明镜与点点",
 ].join("|"), "i");
 
+// 整句只有這些（不分大小寫、去掉標點）→ 多半是 Whisper 在雜音／回音上編出來的
+const SHORT_HALLU = new RegExp("^(" + [
+  "thank you( so much| all| very much| everyone)?", "thanks( a lot)?", "bye( bye)?", "goodbye", "peace", "i love you", "you", "okay bye", "see you",
+  "gracias", "adi[oó]s", "hola", "obrigad[oa]", "tchau", "grazie", "ciao", "buonanotte", "merci", "au revoir", "danke( sch[oö]n)?", "tsch[uü]ss", "hallo( hallo)?",
+  "terima kasih", "salamat", "c[aả]m [oơ]n", "спасибо", "все", "до свидания", "감사합니다", "안녕히 계세요",
+  "お疲れ様でした", "おつかれさまでした", "ありがとうございました", "ご視聴ありがとうございました", "ごちそうさまでした", "以上です", "失礼します",
+  "謝謝(大家)?", "谢谢(大家)?", "再見", "再见", "拜拜", "धन्यवाद", "शुक्रिया", "شکریہ", "شكرا",
+].join("|") + ")$", "i");
+export function isShortHallucination(t) {
+  const n = String(t).toLowerCase().replace(/[\s.,!?。！？、，…~～"'「」()（）-]+/g, " ").trim();
+  return !!n && SHORT_HALLU.test(n);
+}
+
 export function isHallucination(t) {
-  if (/^※/.test(t) || HALLUCINATION.test(t) || isSelfRepeat(t)) return true;
+  if (/^※/.test(t) || HALLUCINATION.test(t) || isSelfRepeat(t) || isShortHallucination(t)) return true;
   return /^(請不吝點贊|請看|请看|謝謝(大家)?(觀看|收看)|谢谢(大家)?(观看|收看)|字幕由|subtitles? by|thank you for watching|thanks for watching|thank you\.?$|you\.?$|bye\.?$)/i.test(t)
     || /^(.)\1{5,}$/.test(t) || /^(.{1,4})\1{2,}$/.test(t);
 }

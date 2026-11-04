@@ -424,7 +424,7 @@ function blobToDataUrl(blob) {
 
 // ── 回音去重：沒戴耳機時，對方的聲音從喇叭出來又被麥克風收到，同一句會出現兩次 ──
 // 規則：時間差 8 秒內、內容相似度 ≥ 0.6 → 留電腦／分頁那一份（音質較好、是對方本人），麥克風那份丟掉
-const ECHO_MS = 8000, ECHO_SIM = 0.6;
+const ECHO_MS = 8000, ECHO_SIM = 0.45; // 喇叭回音經過房間會被聽歪：一半左右相似就算同一句
 function bigrams(s) {
   const t = String(s || "").toLowerCase().replace(/[\s\p{P}]/gu, "");
   const out = new Map();
