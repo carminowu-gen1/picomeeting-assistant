@@ -15,6 +15,7 @@ const state = {
   receipt: false,
   status: {}, // 列號 → "ok" 或錯誤訊息
   off: {}, // 列號 → 1 表示沒打勾（不寄）
+  custom: {}, // 列號 → { subject, html }：在預覽裡為這一位單獨改過的版本
 };
 let attachments = [];
 let current = 0;
@@ -163,19 +164,25 @@ function fill(template, row, html) {
 }
 
 // 收信確認：信末放一顆按鈕，對方點了會開啟一封寫好的回覆信
-function receiptHtml(row) {
+function subjectFor(i) {
+  return state.custom[i] ? state.custom[i].subject : fill(state.subject, state.rows[i], false);
+}
+
+function receiptHtml(i) {
+  const row = state.rows[i];
   const to = (state.replyTo || "").trim() || myEmail;
   const who = (col(row, "name") + " " + col(row, "title")).trim();
   const href = to
-    ? "mailto:" + to + "?subject=" + encodeURIComponent("已收到：" + fill(state.subject, row, false)) +
+    ? "mailto:" + to + "?subject=" + encodeURIComponent("已收到：" + subjectFor(i)) +
       "&body=" + encodeURIComponent((who ? who + " " : "") + "已收到這封信。")
     : "#";
   return '<div style="margin-top:28px"><a href="' + esc(href) + '" style="display:inline-block;padding:10px 24px;background:#1f2a44;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:bold">✓ 我已收到</a>' +
     '<div style="margin-top:8px;font-size:12px;color:#888888">點一下按鈕會開啟一封已寫好的回覆信，按傳送即可。</div></div>';
 }
 
-function mailHtml(row) {
-  return fill(state.body, row, true) + (state.receipt ? receiptHtml(row) : "");
+function mailHtml(i) {
+  const body = state.custom[i] ? state.custom[i].html : fill(state.body, state.rows[i], true).replace(/<\/?mark>/g, "");
+  return body + (state.receipt ? receiptHtml(i) : "");
 }
 
 function usedKeys() {
@@ -185,7 +192,7 @@ function usedKeys() {
 }
 
 function setTable(table, source) {
-  Object.assign(state, { headers: table.headers, rows: table.rows, map: table.map, source: table.source || source, status: {}, off: {} });
+  Object.assign(state, { headers: table.headers, rows: table.rows, map: table.map, source: table.source || source, status: {}, off: {}, custom: {} });
   current = Math.max(0, state.rows.findIndex(validRow));
   showMsg("listMsg", "");
   store.save();
@@ -254,14 +261,14 @@ function renderPeople() {
     const err = st && st !== "ok" && st !== "sending" ? '<span class="err" title="' + esc(st) + '">✗</span>' : "";
     return '<tr data-i="' + i + '" class="' + (i === current ? "current " : "") + (ok ? "" : "bad") + '">' + mark +
       "<td>" + esc(col(row, "title")) + "</td><td>" + esc(col(row, "name")) + "</td><td>" + esc(col(row, "email") || "（沒有 Email）") + "</td>" +
-      '<td class="act">' + err + '<button type="button" class="del" title="從列表刪除"' + lock + ">×</button></td></tr>";
+      '<td class="act">' + (state.custom[i] ? '<span class="edited" title="這一位的信個別修改過">✎</span>' : "") + err + '<button type="button" class="del" title="從列表刪除"' + lock + ">×</button></td></tr>";
   }).join("") + "</tbody>";
 }
 
 // 從列表刪掉一位（不會動到原本的 Excel）
 function removeRow(i) {
   state.rows.splice(i, 1);
-  for (const key of ["status", "off"]) {
+  for (const key of ["status", "off", "custom"]) {
     const next = {};
     for (const k in state[key]) {
       if (+k < i) next[k] = state[key][k];
@@ -297,8 +304,15 @@ function renderPreview() {
   $("pvReplyRow").hidden = !reply;
   $("pvReply").textContent = reply;
   $("pvTo").textContent = (name ? name + " " : "") + "<" + (email || "沒有 Email") + ">";
-  $("pvSubject").innerHTML = fill(esc(state.subject), row, true) || '<span style="color:#a9afbd">（還沒寫主旨）</span>';
-  $("pvBody").innerHTML = mailHtml(row);
+  const mine = state.custom[current];
+  if (mine) { $("pvSubject").textContent = mine.subject; $("pvBody").innerHTML = mine.html; }
+  else { $("pvSubject").innerHTML = fill(esc(state.subject), row, true); $("pvBody").innerHTML = fill(state.body, row, true); }
+  $("pvReceipt").innerHTML = state.receipt ? receiptHtml(current) : "";
+  const editable = !sending && state.status[current] !== "ok";
+  $("pvSubject").contentEditable = editable ? "plaintext-only" : "false";
+  $("pvBody").contentEditable = editable ? "true" : "false";
+  $("customNote").hidden = !mine;
+  $("editHint").hidden = !!mine || !editable;
   $("pvAttach").textContent = attachments.length ? "📎 " + attachments.map((a) => a.name).join("、") : "";
 
   $("warnings").innerHTML = problems().map((p) => "<li>" + esc(p) + "</li>").join("");
@@ -332,7 +346,8 @@ function problems() {
 
 // ---------- 寄信 ----------
 
-async function sendOne(row, toSelf) {
+async function sendOne(i, toSelf) {
+  const row = state.rows[i];
   const sender = (state.sender || "").trim();
   if ((sender || state.receipt) && !myEmail) await connect(); // 換顯示名稱、收信確認都要知道寄件信箱
   const mime = buildMime({
@@ -341,9 +356,9 @@ async function sendOne(row, toSelf) {
     replyTo: (state.replyTo || "").trim(),
     toName: toSelf ? "" : col(row, "name"),
     toEmail: toSelf || col(row, "email"),
-    subject: (toSelf ? "【測試】" : "") + fill(state.subject, row, false),
+    subject: (toSelf ? "【測試】" : "") + subjectFor(i),
     receiptTo: state.receipt ? (state.replyTo || "").trim() || myEmail : "",
-    html: mailHtml(row),
+    html: mailHtml(i),
     attachments,
   });
   await gfetch("https://gmail.googleapis.com/upload/gmail/v1/users/me/messages/send?uploadType=media", {
@@ -365,7 +380,7 @@ async function sendTest() {
   showMsg("sendMsg", "寄送測試信中…");
   try {
     if (!myEmail) await connect();
-    await sendOne(state.rows[current], myEmail);
+    await sendOne(current, myEmail);
     showMsg("sendMsg", "測試信已寄到 " + myEmail + "（內容是目前預覽的這一位）。", "good");
   } catch (e) { showMsg("sendMsg", e.message, "bad"); }
   $("testBtn").disabled = false;
@@ -401,7 +416,7 @@ async function sendAll() {
     document.querySelector("tr.current")?.scrollIntoView({ block: "nearest" });
     showMsg("sendMsg", "寄送中 " + (sent + failed + 1) + " / " + todo.length + "…");
     try {
-      await sendOne(state.rows[i]);
+      await sendOne(i);
       state.status[i] = "ok"; sent++; streak = 0;
     } catch (e) {
       state.status[i] = e.message; failed++; streak++;
@@ -462,7 +477,7 @@ function bind() {
   $("changeList").onclick = () => {
     if (sending) return;
     showMap = false;
-    Object.assign(state, { source: "", headers: [], rows: [], map: { title: -1, name: -1, email: -1 }, status: {}, off: {} });
+    Object.assign(state, { source: "", headers: [], rows: [], map: { title: -1, name: -1, email: -1 }, status: {}, off: {}, custom: {} });
     url.value = "";
     showMsg("sendMsg", ""); $("progress").hidden = true; $("bar").style.width = 0;
     store.save(); render();
@@ -504,7 +519,18 @@ function bind() {
   $("sender").oninput = (e) => { state.sender = e.target.value; store.save(); renderPreview(); };
   $("replyTo").oninput = (e) => { state.replyTo = e.target.value; store.save(); renderPreview(); };
   $("receipt").onchange = (e) => { state.receipt = e.target.checked; store.save(); renderPreview(); };
-  $("pvBody").addEventListener("click", (e) => { if (e.target.closest("a")) e.preventDefault(); }); // 預覽裡的連結不要真的打開
+  document.querySelector(".mailBody").addEventListener("click", (e) => { if (e.target.closest("a")) e.preventDefault(); }); // 預覽裡的連結不要真的打開
+  // 直接在預覽上改：只存成這一位的版本，自動儲存
+  const saveCustom = () => {
+    const first = !state.custom[current];
+    state.custom[current] = { subject: $("pvSubject").textContent.replace(/\s*\n\s*/g, " ").trim(), html: $("pvBody").innerHTML.replace(/<\/?mark>/g, "") };
+    store.save();
+    if (first) { $("customNote").hidden = false; $("editHint").hidden = true; renderPeople(); }
+  };
+  $("pvSubject").addEventListener("input", saveCustom);
+  $("pvBody").addEventListener("input", saveCustom);
+  $("pvSubject").addEventListener("keydown", (e) => { if (e.key === "Enter") e.preventDefault(); });
+  $("restore").onclick = () => { delete state.custom[current]; store.save(); renderPeople(); renderPreview(); };
   $("subject").oninput = (e) => { state.subject = e.target.value; store.save(); renderPreview(); };
   $("body").oninput = () => { state.body = $("body").innerHTML; store.save(); renderPreview(); };
   $("chips").addEventListener("mousedown", (e) => e.preventDefault()); // 點按鈕時游標留在原處

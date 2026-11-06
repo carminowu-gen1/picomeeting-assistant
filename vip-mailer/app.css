@@ -199,3 +199,14 @@ tr:hover .del, .del:focus-visible { opacity: 1; }
 .del:hover { color: #fff; background: rgba(255, 120, 100, .45); }
 .check { display: flex; align-items: center; gap: 9px; margin-top: 12px; cursor: pointer; font-size: 14px; }
 .check span { color: var(--faint); font-size: 13px; }
+
+/* 預覽可直接編輯（每人各自的版本） */
+.hint { margin: 0 0 10px; font-size: 13px; color: var(--faint); text-align: center; }
+.hint.custom { color: #f6d590; }
+.hint .link { margin-left: 8px; }
+#pvSubject:empty::before { content: attr(data-placeholder); color: #a9afbd; font-weight: 400; }
+#pvSubject, #pvBody { outline: none; border-radius: 6px; transition: box-shadow .15s; }
+#pvBody { min-height: 120px; }
+#pvSubject[contenteditable]:not([contenteditable=false]):hover, #pvBody[contenteditable=true]:hover { box-shadow: 0 0 0 2px rgba(227, 168, 59, .25); }
+#pvSubject[contenteditable]:not([contenteditable=false]):focus, #pvBody[contenteditable=true]:focus { box-shadow: 0 0 0 2px rgba(227, 168, 59, .7); }
+td.act .edited { color: var(--gold); margin-right: 6px; }

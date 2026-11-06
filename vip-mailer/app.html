@@ -99,10 +99,12 @@
             <span id="navLabel"></span>
             <button type="button" id="next" aria-label="下一位">›</button>
           </div>
+          <p class="hint" id="editHint">想為這一位單獨改幾個字？直接點信件內容修改，會自動儲存。</p>
+          <p class="hint custom" id="customNote" hidden>✎ 這一位用的是個別修改過的版本，不會再跟著左邊的內容變動。<button type="button" class="link" id="restore">還原</button></p>
           <div class="mail">
             <div class="mailTo"><div id="pvFromRow">寄件人：<span id="pvFrom"></span></div>收件人：<span id="pvTo"></span><div id="pvReplyRow">對方回信會寄到：<span id="pvReply"></span></div></div>
-            <div class="mailSubject" id="pvSubject"></div>
-            <div class="mailBody" id="pvBody"></div>
+            <div class="mailSubject" id="pvSubject" data-placeholder="（還沒寫主旨）"></div>
+            <div class="mailBody"><div id="pvBody"></div><div id="pvReceipt"></div></div>
             <div class="mailAttach" id="pvAttach"></div>
           </div>
           <ul id="warnings"></ul>
