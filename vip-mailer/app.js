@@ -16,6 +16,7 @@ const state = {
   status: {}, // 列號 → "ok" 或錯誤訊息
   off: {}, // 列號 → 1 表示沒打勾（不寄）
   custom: {}, // 列號 → { subject, html }：在預覽裡為這一位單獨改過的版本
+  sentAt: {}, // 列號 → 寄出時間
 };
 let attachments = [];
 let current = 0;
@@ -144,20 +145,20 @@ function friendly(status, message) {
 
 // ---------- 名單 ----------
 
-const col = (row, key) => (state.map[key] >= 0 ? row[state.map[key]] || "" : "");
+const col = (row, key, c = state) => (c.map[key] >= 0 ? row[c.map[key]] || "" : "");
 const validRow = (row) => EMAIL_RE.test(col(row, "email"));
 
 // {{稱謂}} {{姓名}} {{Email}} 走對應欄位，其他用 Excel 的欄位名稱
-function lookup(row, key) {
+function lookup(row, key, c = state) {
   const fixed = { 稱謂: "title", 姓名: "name", Email: "email" }[key] || (key.toLowerCase() === "email" ? "email" : null);
-  if (fixed && state.map[fixed] >= 0) return row[state.map[fixed]] || "";
-  const i = state.headers.indexOf(key);
+  if (fixed && c.map[fixed] >= 0) return row[c.map[fixed]] || "";
+  const i = c.headers.indexOf(key);
   return i >= 0 ? row[i] || "" : undefined;
 }
 
-function fill(template, row, html) {
+function fill(template, row, html, c = state) {
   return template.replace(TOKEN, (whole, key) => {
-    const v = lookup(row, key);
+    const v = lookup(row, key, c);
     if (v === undefined) return html ? "<mark>" + esc(whole) + "</mark>" : whole;
     return html ? esc(v) : v;
   });
@@ -192,7 +193,7 @@ function usedKeys() {
 }
 
 function setTable(table, source) {
-  Object.assign(state, { headers: table.headers, rows: table.rows, map: table.map, source: table.source || source, status: {}, off: {}, custom: {} });
+  Object.assign(state, { headers: table.headers, rows: table.rows, map: table.map, source: table.source || source, status: {}, off: {}, custom: {}, sentAt: {} });
   current = Math.max(0, state.rows.findIndex(validRow));
   showMsg("listMsg", "");
   store.save();
@@ -268,7 +269,7 @@ function renderPeople() {
 // 從列表刪掉一位（不會動到原本的 Excel）
 function removeRow(i) {
   state.rows.splice(i, 1);
-  for (const key of ["status", "off", "custom"]) {
+  for (const key of ["status", "off", "custom", "sentAt"]) {
     const next = {};
     for (const k in state[key]) {
       if (+k < i) next[k] = state[key][k];
@@ -417,7 +418,7 @@ async function sendAll() {
     showMsg("sendMsg", "寄送中 " + (sent + failed + 1) + " / " + todo.length + "…");
     try {
       await sendOne(i);
-      state.status[i] = "ok"; sent++; streak = 0;
+      state.status[i] = "ok"; state.sentAt[i] = Date.now(); sent++; streak = 0;
     } catch (e) {
       state.status[i] = e.message; failed++; streak++;
       // 授權或額度問題，再試也沒用，先停下來
@@ -477,7 +478,7 @@ function bind() {
   $("changeList").onclick = () => {
     if (sending) return;
     showMap = false;
-    Object.assign(state, { source: "", headers: [], rows: [], map: { title: -1, name: -1, email: -1 }, status: {}, off: {}, custom: {} });
+    Object.assign(state, { source: "", headers: [], rows: [], map: { title: -1, name: -1, email: -1 }, status: {}, off: {}, custom: {}, sentAt: {} });
     url.value = "";
     showMsg("sendMsg", ""); $("progress").hidden = true; $("bar").style.width = 0;
     store.save(); render();
@@ -571,6 +572,137 @@ function renderAttach() {
   renderPreview();
 }
 
+// ---------- 案件：結案、開始新案件、回查過去寄過的信 ----------
+
+let cases = []; // 已結案的案件，新的在前面
+let openCase = null; // 案件紀錄裡正在看的那一案
+let casePerson = 0;
+
+const caseStore = {
+  async load() {
+    if (ext) return (await chrome.storage.local.get("vipCases")).vipCases || [];
+    try { return JSON.parse(localStorage.getItem("vipCases")) || []; } catch { return []; }
+  },
+  save() {
+    if (ext) chrome.storage.local.set({ vipCases: cases });
+    else localStorage.setItem("vipCases", JSON.stringify(cases));
+  },
+};
+
+const sentCount = (c) => Object.values(c.status).filter((v) => v === "ok").length;
+const day = (t) => { const d = new Date(t); return d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate(); };
+const clock = (t) => { const d = new Date(t); return day(t) + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
+
+function askClose() {
+  if (sending || !state.rows.length) return;
+  const sent = sentCount(state), left = pending().length;
+  $("closeText").innerHTML = "<p>這個案件會收進「案件紀錄」，之後隨時可以回來查寄給了誰、寄了什麼。畫面會清空，準備下一個案件。</p>" +
+    "<p>已寄出 " + sent + " 位" + (left ? '，<span class="warn">還有 ' + left + " 位打勾但沒寄</span>" : "") + "。</p>";
+  $("caseName").value = (state.subject.replace(TOKEN, "").replace(/\s+/g, " ").trim() || state.source || "未命名案件").slice(0, 60);
+  $("closeDlg").showModal();
+  $("caseName").select();
+}
+
+function closeCase() {
+  const keep = ["source", "headers", "rows", "map", "sender", "replyTo", "subject", "body", "receipt", "status", "off", "custom", "sentAt"];
+  const c = { id: Date.now(), name: $("caseName").value.trim() || "未命名案件", closedAt: Date.now(), files: attachments.map((a) => a.name) };
+  for (const k of keep) c[k] = JSON.parse(JSON.stringify(state[k]));
+  cases.unshift(c);
+  caseStore.save();
+  // 新案件：名單和信清空，寄件人名稱、回覆信箱沿用
+  Object.assign(state, { source: "", headers: [], rows: [], map: { title: -1, name: -1, email: -1 }, subject: "", body: DEFAULT_BODY, status: {}, off: {}, custom: {}, sentAt: {} });
+  attachments = []; current = 0; showMap = false;
+  $("subject").value = ""; $("body").innerHTML = DEFAULT_BODY; $("sheetUrl").value = "";
+  showMsg("sendMsg", ""); $("progress").hidden = true; $("bar").style.width = 0;
+  $("closeDlg").close();
+  renderAttach(); store.save(); render();
+  showMsg("listMsg", "「" + c.name + "」已結案，收進案件紀錄了。可以開始新案件。", "good");
+}
+
+function showCases() {
+  openCase = null;
+  $("caseSearch").value = "";
+  renderCases();
+  $("cases").showModal();
+}
+
+function renderCases() {
+  const detail = !!openCase;
+  $("caseList").hidden = detail;
+  $("caseDetail").hidden = !detail;
+  $("caseSearch").hidden = detail;
+  if (detail) return renderCaseDetail();
+  const q = $("caseSearch").value.trim().toLowerCase();
+  const hit = cases.filter((c) => !q || c.name.toLowerCase().includes(q) || c.rows.some((r) => r.some((cell) => cell.toLowerCase().includes(q))));
+  $("caseList").innerHTML = !cases.length
+    ? '<p class="empty">還沒有結案的案件。<br>信寄完後按「✓ 結案，開始新案件」，就會收到這裡。</p>'
+    : !hit.length ? '<p class="empty">找不到符合的案件。</p>'
+    : hit.map((c) => '<button type="button" class="caseItem" data-id="' + c.id + '"><b>' + esc(c.name) + "</b><span>" + day(c.closedAt) +
+        " 結案　寄出 " + sentCount(c) + "／" + c.rows.length + " 位</span></button>").join("");
+}
+
+function renderCaseDetail() {
+  const c = openCase;
+  $("caseTitle").innerHTML = "<b>" + esc(c.name) + "</b><span>" + day(c.closedAt) + " 結案　寄出 " + sentCount(c) + "／" + c.rows.length + " 位" +
+    (c.sender ? "　寄件人：" + esc(c.sender) : "") + "</span>";
+  $("casePeople").innerHTML = "<thead><tr><th class=\"st\"></th><th>稱謂</th><th>姓名</th><th>Email</th><th>寄出時間</th></tr></thead><tbody>" +
+    c.rows.map((row, i) => {
+      const st = c.status[i];
+      const mark = st === "ok" ? '<td class="st ok">✓</td>' : st ? '<td class="st err" title="' + esc(st) + '">✗</td>' : '<td class="st"></td>';
+      return '<tr data-i="' + i + '" class="' + (i === casePerson ? "current" : "") + '">' + mark + "<td>" + esc(col(row, "title", c)) + "</td><td>" +
+        esc(col(row, "name", c)) + "</td><td>" + esc(col(row, "email", c)) + "</td><td>" + (st === "ok" ? (c.sentAt?.[i] ? clock(c.sentAt[i]) : "已寄") : st ? "沒寄成功" : "沒寄") + "</td></tr>";
+    }).join("") + "</tbody>";
+  const row = c.rows[casePerson];
+  if (!row) return;
+  const mine = c.custom?.[casePerson];
+  const st = c.status[casePerson];
+  $("caseTo").textContent = (st === "ok" ? "已寄給：" : "沒有寄出：") + col(row, "name", c) + " <" + col(row, "email", c) + ">" + (mine ? "　✎ 個別修改過" : "");
+  $("caseSubject").textContent = mine ? mine.subject : fill(c.subject, row, false, c);
+  $("caseBody").innerHTML = mine ? mine.html : fill(c.body, row, true, c).replace(/<\/?mark>/g, "");
+  $("caseAttach").textContent = (c.files?.length ? "📎 " + c.files.join("、") : "") + (c.receipt ? "　含「我已收到」按鈕" : "");
+}
+
+function bindCases() {
+  $("closeCase").onclick = askClose;
+  $("closeYes").onclick = closeCase;
+  $("closeNo").onclick = () => $("closeDlg").close();
+  $("caseName").addEventListener("keydown", (e) => { if (e.key === "Enter") closeCase(); });
+  $("openCases").onclick = showCases;
+  $("casesClose").onclick = () => $("cases").close();
+  $("caseSearch").oninput = renderCases;
+  $("caseList").onclick = (e) => {
+    const b = e.target.closest(".caseItem");
+    if (!b) return;
+    openCase = cases.find((c) => c.id === +b.dataset.id);
+    casePerson = Math.max(0, openCase.rows.findIndex((r, i) => openCase.status[i] === "ok"));
+    $("caseDelete").textContent = "刪除這個案件";
+    renderCases();
+  };
+  $("caseBack").onclick = () => { openCase = null; renderCases(); };
+  $("casePeople").onclick = (e) => {
+    const tr = e.target.closest("tr[data-i]");
+    if (tr) { casePerson = +tr.dataset.i; renderCaseDetail(); }
+  };
+  document.querySelector("#caseBody").addEventListener("click", (e) => { if (e.target.closest("a")) e.preventDefault(); });
+  $("caseReuse").onclick = () => {
+    const c = openCase;
+    Object.assign(state, { subject: c.subject, body: c.body, sender: c.sender || "", replyTo: c.replyTo || "", receipt: !!c.receipt, custom: {} });
+    $("subject").value = state.subject; $("body").innerHTML = state.body;
+    $("sender").value = state.sender; $("replyTo").value = state.replyTo; $("receipt").checked = state.receipt;
+    store.save(); render();
+    $("cases").close();
+    showMsg("sendMsg", "已帶入「" + c.name + "」的主旨和內容，改一改就能寄。", "good");
+  };
+  $("caseDelete").onclick = () => {
+    // 按第一次先問，按第二次才真的刪
+    if ($("caseDelete").textContent !== "確定刪除？刪了救不回來") { $("caseDelete").textContent = "確定刪除？刪了救不回來"; return; }
+    cases = cases.filter((c) => c !== openCase);
+    caseStore.save();
+    openCase = null;
+    renderCases();
+  };
+}
+
 // ---------- 新版本提醒（做法和小伐速記一樣：查 GitHub Release，有新版就在畫面上提醒） ----------
 
 const UPDATE_REPO = "carminowu-gen1/picomeeting-assistant";
@@ -613,7 +745,9 @@ async function checkForUpdate() {
   $("receipt").checked = !!state.receipt;
   $("subject").value = state.subject;
   $("body").innerHTML = state.body;
+  cases = await caseStore.load();
   bind();
+  bindCases();
   render();
   if (ext) {
     const cfg = await chrome.storage.local.get(["vipClientId", "vipEmail"]);

@@ -36,7 +36,8 @@ body::before {
 header { display: flex; align-items: center; gap: 16px; padding: 20px 32px 18px; }
 header img { width: 34px; height: 34px; border-radius: 9px; }
 header h1 { margin: 0; font-size: 24px; font-weight: 300; letter-spacing: .06em; text-shadow: 0 1px 8px rgba(0, 0, 0, .5); }
-header #help { margin-left: auto; text-decoration: none; }
+header #openCases { margin-left: auto; }
+header a.link { text-decoration: none; }
 header #account { color: var(--soft); text-shadow: 0 1px 4px rgba(0, 0, 0, .6); }
 
 .banner {
@@ -210,3 +211,36 @@ tr:hover .del, .del:focus-visible { opacity: 1; }
 #pvSubject[contenteditable]:not([contenteditable=false]):hover, #pvBody[contenteditable=true]:hover { box-shadow: 0 0 0 2px rgba(227, 168, 59, .25); }
 #pvSubject[contenteditable]:not([contenteditable=false]):focus, #pvBody[contenteditable=true]:focus { box-shadow: 0 0 0 2px rgba(227, 168, 59, .7); }
 td.act .edited { color: var(--gold); margin-right: 6px; }
+
+/* 案件：結案與紀錄 */
+.closeRow { text-align: center; margin-top: 14px; }
+.closeRow .link { font-size: 14px; color: var(--soft); }
+.closeRow .link:hover { color: var(--gold); }
+.dlgText { color: var(--soft); font-size: 14px; margin-bottom: 12px; }
+.dlgText p { margin: 4px 0; }
+.dlgText .warn { color: var(--bad); }
+dialog#cases { max-width: 1100px; width: calc(100% - 40px); height: calc(100% - 60px); padding: 22px 24px; }
+dialog#cases[open] { display: flex; flex-direction: column; }
+.casesHead { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
+.casesHead h3 { margin: 0; white-space: nowrap; }
+.casesHead input { flex: 1; padding: 8px 14px; }
+.casesHead .link { margin-left: auto; white-space: nowrap; }
+#caseList { overflow: auto; display: grid; gap: 8px; align-content: start; flex: 1; }
+.caseItem {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 16px; text-align: left; width: 100%;
+  padding: 14px 18px; border-radius: 14px; border: 1px solid var(--line); background: var(--glass); color: var(--ink); font: inherit; cursor: pointer; transition: .15s;
+}
+.caseItem:hover { border-color: var(--gold); background: var(--glass-2); }
+.caseItem b { font-size: 16px; font-weight: 600; }
+.caseItem span { color: var(--soft); font-size: 13px; white-space: nowrap; }
+#caseDetail { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.caseTop { display: flex; justify-content: space-between; align-items: center; }
+#caseTitle { margin: 10px 0 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+#caseTitle b { font-size: 20px; font-weight: 600; }
+#caseTitle span { color: var(--soft); font-size: 13px; }
+.caseCols { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.caseCols .tableWrap { max-height: none; }
+.caseCols .mail { display: flex; flex-direction: column; min-height: 0; }
+.caseCols .mailBody { max-height: none; flex: 1; }
+.link.danger { color: var(--bad); }
+@media (max-width: 800px) { .caseCols { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; } }
