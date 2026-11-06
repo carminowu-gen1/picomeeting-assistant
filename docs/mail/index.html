@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <title>小伐郵件高手｜一人一封專屬郵件</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="從 Excel 或 Google 試算表匯入稱謂、姓名、Email，每位收件人各寄一封專屬的信，用自己的 Gmail 寄出。">
+  <link rel="icon" href="icon.png">
+  <style>
+    :root { --ink: #f4f6f8; --soft: rgba(255,255,255,.66); --faint: rgba(255,255,255,.4); --glass: rgba(255,255,255,.09); --line: rgba(255,255,255,.16); --gold: #e3a83b; --blue: #9cc4f5; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body { color: var(--ink); background: #12161b; font: 16px/1.7 "Microsoft JhengHei UI", "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", system-ui, sans-serif; }
+    body::before {
+      content: ""; position: fixed; inset: 0; z-index: -1;
+      background:
+        radial-gradient(38% 55% at 62% 62%, rgba(46,196,190,.32), transparent 70%),
+        radial-gradient(22% 30% at 86% 78%, rgba(176,92,214,.30), transparent 70%),
+        radial-gradient(26% 26% at 30% 88%, rgba(232,120,96,.22), transparent 70%),
+        radial-gradient(30% 22% at 12% 96%, rgba(236,190,110,.20), transparent 70%),
+        radial-gradient(90% 60% at 40% 0%, rgba(120,124,112,.55), transparent 75%),
+        linear-gradient(180deg, #3a3d38 0%, #23282b 45%, #14181d 100%);
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 22px 70px; display: grid; gap: 18px; }
+    .hero { text-align: center; padding-bottom: 8px; }
+    .hero img { width: 84px; height: 84px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,.4); }
+    .hero h1 { margin: 16px 0 0; font-size: 40px; font-weight: 300; letter-spacing: .06em; text-shadow: 0 1px 10px rgba(0,0,0,.5); }
+    .hero p { margin: 8px 0 0; color: var(--soft); font-size: 17px; }
+    .dl { display: inline-block; margin-top: 24px; padding: 15px 38px; border-radius: 14px; background: var(--gold); color: #1d1a12; font-size: 18px; font-weight: 700; text-decoration: none; box-shadow: 0 6px 28px rgba(227,168,59,.4); transition: .15s; }
+    .dl:hover { background: #f0b950; transform: translateY(-1px); }
+    .ver { margin-top: 10px; font-size: 13px; color: var(--faint); }
+    .card { background: var(--glass); border: 1px solid var(--line); border-radius: 18px; padding: 22px 24px; backdrop-filter: blur(22px) saturate(1.2); -webkit-backdrop-filter: blur(22px) saturate(1.2); box-shadow: 0 10px 40px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.1); }
+    h2 { margin: 0 0 12px; font-size: 14px; font-weight: 600; color: var(--soft); letter-spacing: .08em; display: flex; align-items: center; gap: 10px; }
+    h2::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 10px rgba(227,168,59,.7); }
+    ul.feat { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; }
+    ul.feat li::before { content: "✓ "; color: var(--gold); font-weight: 700; }
+    ol { margin: 0; padding-left: 24px; }
+    ol li { margin: 8px 0; color: rgba(255,255,255,.86); }
+    ol li::marker { color: var(--gold); font-weight: 700; }
+    b { color: #f6d590; font-weight: 600; }
+    code { font: 14px/1.5 Consolas, monospace; background: rgba(0,0,0,.3); border: 1px solid var(--line); border-radius: 7px; padding: 2px 8px; color: var(--blue); overflow-wrap: anywhere; user-select: all; }
+    a { color: var(--blue); }
+    .note { margin: 12px 0 0; font-size: 14px; color: var(--soft); }
+    footer { text-align: center; font-size: 13px; color: var(--faint); margin-top: 8px; }
+    @media (max-width: 560px) { ul.feat { grid-template-columns: 1fr; } .hero h1 { font-size: 30px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="hero">
+      <img src="icon.png" alt="">
+      <h1>小伐郵件高手</h1>
+      <p>Excel 名單拖進來，每個人收到一封寫著自己稱謂和姓名的專屬信。</p>
+      <a class="dl" id="dl" href="https://github.com/carminowu-gen1/picomeeting-assistant/releases/download/mail-v1.2.0/xiaofa-mail.zip">下載小伐郵件高手</a>
+      <div class="ver" id="ver">Chrome 外掛 · 免費 · 用自己的 Gmail 寄出</div>
+    </div>
+
+    <section class="card">
+      <h2>可以做什麼</h2>
+      <ul class="feat">
+        <li>匯入 Excel、CSV 或 Google 試算表</li>
+        <li>自動帶入每個人的稱謂、姓名</li>
+        <li>寄出前逐封預覽實際內容</li>
+        <li>打勾才寄，可單獨刪除某一位</li>
+        <li>自訂寄件人名稱與回覆信箱</li>
+        <li>信末「我已收到」確認按鈕</li>
+        <li>每人單獨收信，看不到其他人</li>
+        <li>中斷後接著寄，不會重複</li>
+      </ul>
+    </section>
+
+    <section class="card" id="install">
+      <h2>安裝（約 1 分鐘）</h2>
+      <ol>
+        <li>按上面的按鈕下載 <code>xiaofa-mail.zip</code>，在檔案上按右鍵 →「<b>解壓縮全部</b>」。解出來的資料夾請放在不會被移動或刪掉的地方（例如「文件」）。</li>
+        <li>在 Chrome 網址列輸入 <code>chrome://extensions</code> 按 Enter。</li>
+        <li>打開頁面<b>右上角</b>的「<b>開發人員模式</b>」。</li>
+        <li>點<b>左上角</b>的「<b>載入未封裝項目</b>」，選剛剛解壓縮的資料夾。</li>
+        <li>點 Chrome 右上角的拼圖圖示 🧩，在「小伐郵件高手」旁邊按圖釘，之後點圖示就能開啟。</li>
+      </ol>
+    </section>
+
+    <section class="card" id="setup">
+      <h2>第一次設定 Google 授權（約 10 分鐘，只做一次）</h2>
+      <ol>
+        <li>到 <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a> 建一個專案。</li>
+        <li>「API 和服務」→「程式庫」，啟用 <b>Gmail API</b> 和 <b>Google Sheets API</b>。</li>
+        <li>「OAuth 同意畫面」→ 使用者類型選「外部」→ 維持「測試中」→ 在「測試使用者」加入要寄信的 Gmail。</li>
+        <li>「憑證」→「建立憑證」→「OAuth 用戶端 ID」→ 類型選「<b>網頁應用程式</b>」。在「<b>已授權的重新導向 URI</b>」貼上外掛設定畫面顯示的那一串（有「複製」按鈕）。「已授權的 JavaScript 來源」留空。</li>
+        <li>把拿到的「<b>用戶端 ID</b>」貼回外掛，按「<b>連結 Google 帳號</b>」，選要寄信的帳號。用戶端密碼不需要。</li>
+      </ol>
+      <p class="note">連結時若顯示「Google 尚未驗證這個應用程式」，點「進階」→「繼續」即可，這是你自己建立的應用程式。同一組用戶端 ID 可以給家人用，記得先把對方的 Gmail 加進「測試使用者」。</p>
+    </section>
+
+    <section class="card" id="update">
+      <h2>新版本來敲門了 🎁</h2>
+      <ol>
+        <li>外掛畫面上方出現「🎁 有新版本」時，點「下載新版」（或回到這一頁按下載）。</li>
+        <li>解壓縮到<b>原本的資料夾</b>，問要不要取代時選「<b>取代目的地中的檔案</b>」。</li>
+        <li>到 <code>chrome://extensions</code>，按小伐郵件高手卡片上的重新整理（圓形箭頭）。</li>
+      </ol>
+      <p class="note">名單、信件內容和授權設定都會保留。</p>
+    </section>
+
+    <footer>小伐郵件高手 · 信件直接從你的 Gmail 寄出，名單只存在你自己的電腦裡 · <a href="../">小伐速記</a></footer>
+  </main>
+
+  <script>
+    // 下載按鈕永遠指向最新版（發布用 mail-v 開頭的標籤）
+    fetch("https://api.github.com/repos/carminowu-gen1/picomeeting-assistant/releases?per_page=30", { headers: { accept: "application/vnd.github+json" } })
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (list) {
+        var rel = list.find(function (x) { return !x.draft && String(x.tag_name).indexOf("mail-v") === 0; });
+        var zip = rel && rel.assets.find(function (a) { return /\.zip$/.test(a.name); });
+        if (!zip) return;
+        document.getElementById("dl").href = zip.browser_download_url;
+        document.getElementById("ver").textContent = "最新版本 " + rel.tag_name.slice(6) + " · Chrome 外掛 · 免費 · 用自己的 Gmail 寄出";
+      })
+      .catch(function () {});
+  </script>
+</body>
+</html>

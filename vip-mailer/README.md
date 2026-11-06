@@ -1,5 +1,7 @@
 # 小伐郵件高手（Chrome 外掛）
 
+下載與安裝說明：<https://carminowu-gen1.github.io/picomeeting-assistant/mail/>
+
 從 Excel 或 Google 試算表匯入「稱謂、姓名、Email」，每位收件人各寄一封專屬的信，用自己的 Gmail 寄出。
 
 ## 平常怎麼用
