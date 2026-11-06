@@ -1,0 +1,44 @@
+# 發布「小伐郵件高手」新版本
+#   推一個 mail-v 開頭的標籤（例如 mail-v1.2.0，要和 vip-mailer/manifest.json 的 version 一樣）
+#   會把 vip-mailer 資料夾打包成 xiaofa-mail.zip 放到 GitHub Release。
+#   Release 不會標成 latest，所以不影響小伐速記自己的新版提醒。
+name: 發布小伐郵件高手
+
+on:
+  push:
+    tags: ["mail-v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 建立 Release 需要
+    env:
+      REF_NAME: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: 檢查版本
+        id: ver
+        run: |
+          v=$(python3 -c "import json;print(json.load(open('vip-mailer/manifest.json',encoding='utf-8'))['version'])")
+          if [ "mail-v$v" != "$REF_NAME" ]; then
+            echo "標籤 $REF_NAME 和 vip-mailer/manifest.json 的版本 $v 不一樣，請先改 manifest.json"; exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - name: 打包
+        run: |
+          cd vip-mailer
+          zip -r ../xiaofa-mail.zip . -x "_test/*"
+
+      - name: 建立 GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: gh release create "$REF_NAME" xiaofa-mail.zip --title "小伐郵件高手 $VERSION" --generate-notes --latest=false

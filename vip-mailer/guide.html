@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <title>小伐郵件高手 使用說明</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="icons/icon48.png">
+  <link rel="stylesheet" href="app.css">
+  <style>
+    .guide { max-width: 760px; margin: 0 auto; padding: 0 24px 60px; display: grid; gap: 18px; }
+    .hero { text-align: center; padding: 10px 0 6px; }
+    .hero h1 { margin: 0; font-size: 34px; font-weight: 300; letter-spacing: .06em; text-shadow: 0 1px 10px rgba(0, 0, 0, .5); }
+    .hero p { margin: 8px 0 0; color: var(--soft); font-size: 16px; }
+    .step { position: relative; padding-left: 88px; }
+    .num { position: absolute; left: 20px; top: 20px; width: 54px; font-size: 44px; font-weight: 200; line-height: 1; color: var(--gold); text-align: center; }
+    .step h3 { margin: 4px 0 0; font-size: 20px; font-weight: 600; }
+    .step p, .step ul { margin: 6px 0 0; color: rgba(255, 255, 255, .82); font-size: 15.5px; }
+    .step ul { padding-left: 20px; }
+    .step li { margin: 3px 0; }
+    b.key { color: #f6d590; font-weight: 600; }
+    .tip { margin-top: 10px; padding: 10px 14px; border-radius: 12px; background: rgba(156, 196, 245, .12); border: 1px solid rgba(156, 196, 245, .3); font-size: 14px; color: rgba(255, 255, 255, .85); }
+    .tip::before { content: "💡 "; }
+    /* 小示意圖 */
+    .demo { margin-top: 12px; border-radius: 12px; background: rgba(0, 0, 0, .25); overflow: hidden; font-size: 14px; }
+    .demo table { width: 100%; }
+    .demo th { position: static; background: rgba(255, 255, 255, .08); color: var(--soft); font-size: 13px; }
+    .demo td { cursor: default; }
+    .demo tr:hover { background: none; }
+    .btnDemo { display: inline-block; padding: 4px 14px; border-radius: 9px; font-weight: 600; font-size: 14px; white-space: nowrap; }
+    .btnDemo.gold { background: var(--gold); color: #1d1a12; }
+    .btnDemo.glass { background: var(--glass-2); border: 1px solid var(--line); }
+    .chipDemo { display: inline-block; border: 1px solid rgba(227, 168, 59, .55); background: rgba(227, 168, 59, .16); color: #f6d590; border-radius: 999px; padding: 0 11px; font-size: 13px; }
+    .letter { margin-top: 12px; display: grid; grid-template-columns: 1fr 28px 1fr; align-items: center; gap: 8px; font-size: 14px; }
+    .letter div { padding: 10px 14px; border-radius: 12px; }
+    .letter .a { background: rgba(0, 0, 0, .25); }
+    .letter .b { background: #fdfdfb; color: #222; }
+    .letter .arrow { padding: 0; text-align: center; color: var(--gold); font-size: 20px; }
+    h2.sec { margin: 14px 0 0; font-size: 14px; color: var(--soft); letter-spacing: .1em; text-align: center; }
+    .qa h3 { margin: 0; font-size: 16.5px; font-weight: 600; }
+    .qa h3::before { content: "Q　"; color: var(--gold); }
+    .qa p { margin: 6px 0 0; color: rgba(255, 255, 255, .82); font-size: 15px; }
+    .qa + .qa { margin-top: 0; }
+    .ok { color: var(--ok); font-weight: 700; } .no { color: var(--bad); font-weight: 700; }
+    @media (max-width: 560px) { .step { padding-left: 22px; padding-top: 70px; } .num { text-align: left; } .letter { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="icons/icon48.png" alt="">
+    <h1>小伐郵件高手</h1>
+    <a class="link" id="help" href="app.html">← 回到寄信畫面</a>
+  </header>
+
+  <div class="guide">
+    <div class="hero">
+      <h1>五步驟，寄出每人專屬的信</h1>
+      <p>準備一份 Excel 名單，剩下的交給小伐。</p>
+    </div>
+
+    <section class="card step">
+      <div class="num">1</div>
+      <h3>準備名單</h3>
+      <p>Excel 第一列寫標題，之後一列一個人。至少要有 <b class="key">稱謂、姓名、Email</b> 三欄，順序不拘，多幾欄（例如公司）也沒關係。</p>
+      <div class="demo">
+        <table>
+          <tr><th>稱謂</th><th>姓名</th><th>Email</th><th>公司</th></tr>
+          <tr><td>董事長</td><td>王大明</td><td>wang@example.com</td><td>大明實業</td></tr>
+          <tr><td>總經理</td><td>陳美玲</td><td>chen@example.com</td><td>美玲國際</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <section class="card step">
+      <div class="num">2</div>
+      <h3>把名單放進來</h3>
+      <p>點 Chrome 右上角的小伐郵件高手圖示，然後二選一：</p>
+      <ul>
+        <li>把 Excel 檔<b class="key">直接拖進畫面</b>左上角的框框。</li>
+        <li>或把 <b class="key">Google 試算表的網址</b>貼進下面那一格。</li>
+      </ul>
+      <p>名單會出現在「寄件列表」，每個人前面都有打勾。</p>
+      <div class="tip">欄位會自動認。萬一認錯，按列表右上的「欄位不對？」自己選。</div>
+    </section>
+
+    <section class="card step">
+      <div class="num">3</div>
+      <h3>寫信</h3>
+      <p>填主旨、寫內容。要放對方名字的地方，<b class="key">點一下金色小按鈕</b> <span class="chipDemo">姓名</span> <span class="chipDemo">稱謂</span>，就會插入一個代號，寄出時會自動換成每個人自己的。</p>
+      <div class="letter">
+        <div class="a">{{姓名}} {{稱謂}} 您好：<br>誠摯邀請您…</div>
+        <div class="arrow">→</div>
+        <div class="b">王大明 董事長 您好：<br>誠摯邀請您…</div>
+      </div>
+      <ul>
+        <li><b class="key">寄件人名稱</b>：對方看到的寄件者名字。不填就用 Google 帳號的名字。</li>
+        <li><b class="key">回覆信箱</b>：對方按回覆時要寄到哪裡。不填就回到寄件信箱。</li>
+        <li><b class="key">請對方確認收到</b>：打勾後信末會多一顆「我已收到」按鈕，對方點了、按傳送，你就會收到一封確認信。</li>
+        <li><b class="key">＋加附件</b>：每個人都會收到同樣的附件。</li>
+      </ul>
+    </section>
+
+    <section class="card step">
+      <div class="num">4</div>
+      <h3>檢查每一封</h3>
+      <p>右邊的白色信紙，就是對方<b class="key">實際會收到的樣子</b>。</p>
+      <ul>
+        <li>在寄件列表<b class="key">點某個人</b>，右邊就換成他的信。也可以按 ‹ › 一個一個看。</li>
+        <li>不想寄給某人：把他前面的<b class="key">勾取消</b>。最上面那格可以一次全選或全不選。</li>
+        <li>名單裡不該有的人：滑鼠移到他那一列，按最右邊的 <b class="key">×</b> 刪掉（不會動到你的 Excel）。</li>
+      </ul>
+      <div class="tip">信紙下方若出現 ⚠ 紅字（例如「有 3 位的稱謂是空白的」），先回 Excel 補好再匯入一次比較保險。</div>
+    </section>
+
+    <section class="card step">
+      <div class="num">5</div>
+      <h3>寄出</h3>
+      <ul>
+        <li>先按 <span class="btnDemo glass">先寄一封給自己看看</span>，到自己的信箱確認樣子沒問題。</li>
+        <li>再按 <span class="btnDemo gold">寄出勾選的 N 封</span>，確認後就開始一封一封寄。</li>
+      </ul>
+      <p>寄完的人前面會變成 <span class="ok">✓</span>；沒寄成功的會出現 <span class="no">✗</span>，滑鼠移上去可以看原因。</p>
+      <div class="tip">每個人收到的都是單獨寄給他的信，看不到其他收件人。寄出去的信在 Gmail「寄件備份」找得到。</div>
+    </section>
+
+    <h2 class="sec">常見問題</h2>
+
+    <section class="card qa">
+      <h3>寄到一半關掉了，怎麼辦？</h3>
+      <p>沒關係。再打開，名單和信都還在，已經寄過的人有 ✓ 不會重複寄，直接按寄出就會接著寄剩下的。只有附件要重新加一次。</p>
+    </section>
+    <section class="card qa">
+      <h3>寄出後可以收回嗎？</h3>
+      <p>不行，寄出去就收不回來了。所以一定要先「寄一封給自己看看」。</p>
+    </section>
+    <section class="card qa">
+      <h3>有人的 Email 是紅色的，不能打勾？</h3>
+      <p>他的 Email 格式有問題（例如少了 @ 或有空格）。請回 Excel 改好，按「換一份名單」重新匯入。</p>
+    </section>
+    <section class="card qa">
+      <h3>一天可以寄幾封？</h3>
+      <p>一般 Gmail 一天大約 500 封，公司的 Google Workspace 大約 2000 封。超過會停下來，隔天再按寄出，會從沒寄的接著寄。</p>
+    </section>
+    <section class="card qa">
+      <h3>跳出 Google 視窗要我選帳號？</h3>
+      <p>正常的。選你要用來寄信的那個帳號就好，大約每小時會確認一次。想換寄件帳號，點畫面右上角的「寄件帳號」。</p>
+    </section>
+    <section class="card qa">
+      <h3>畫面上方出現「🎁 有新版本」？</h3>
+      <p>代表有更新。點「下載新版」，把下載的檔案解壓縮、蓋掉原本的資料夾，再到 chrome://extensions 按小伐郵件高手的重新整理（圓形箭頭）。不會弄的話請小伐幫忙。</p>
+    </section>
+    <section class="card qa">
+      <h3>想換一份新名單寄另一封信？</h3>
+      <p>按寄件列表右上的「換一份名單」，再把新的 Excel 拖進來。主旨和內容會留著，改一改就能用。</p>
+    </section>
+  </div>
+</body>
+</html>

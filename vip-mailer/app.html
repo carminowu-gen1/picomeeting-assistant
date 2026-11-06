@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <title>小伐郵件高手</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="icons/icon48.png">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header>
+    <img src="icons/icon48.png" alt="">
+    <h1>小伐郵件高手</h1>
+    <a class="link" id="help" href="guide.html" target="_blank">使用說明</a>
+    <button type="button" class="link" id="account" title="重新設定 Google 授權"></button>
+  </header>
+
+  <div id="update" class="banner" hidden>
+    <b>🎁 有新版本 <span id="updVer"></span></b>
+    <a class="link" id="updLink" href="#">下載新版</a>
+    <span>下載後解壓縮，蓋掉原本的資料夾，再到 chrome://extensions 按這個外掛的重新整理。</span>
+  </div>
+
+  <section id="setup" class="card" hidden>
+    <h2><i></i>第一次設定（只要做一次）</h2>
+    <p>在 Google 建立憑證時，「已授權的重新導向 URI」請貼上這一串：</p>
+    <div class="copyRow">
+      <code id="redirect"></code>
+      <button type="button" class="ghost" id="copyRedirect">複製</button>
+    </div>
+    <p>建立後，把拿到的「用戶端 ID」貼在這裡：</p>
+    <input type="text" id="clientId" spellcheck="false" placeholder="結尾是 .apps.googleusercontent.com 的那一串">
+    <div class="actions">
+      <button type="button" class="primary" id="connectBtn">連結 Google 帳號</button>
+    </div>
+    <p id="setupMsg" class="msg" hidden></p>
+  </section>
+
+  <main>
+    <div class="col">
+      <section class="card">
+        <h2><i>1</i>寄件列表</h2>
+
+        <div id="importBox">
+          <label id="drop">
+            <input type="file" id="file" accept=".xlsx,.csv,.tsv,.txt" hidden>
+            <span class="big">把 Excel 檔拖到這裡</span>
+            <span class="small">或點一下選擇檔案（.xlsx、.csv）</span>
+          </label>
+          <div class="or">或</div>
+          <input type="url" id="sheetUrl" placeholder="貼上 Google 試算表的網址，就會自動讀取">
+        </div>
+
+        <div id="listBox" hidden>
+          <div class="listHead">
+            <span id="listSummary"></span>
+            <span class="links">
+              <button type="button" class="link" id="fixCols">欄位不對？</button>
+              <button type="button" class="link" id="changeList">換一份名單</button>
+            </span>
+          </div>
+          <div class="mapping" id="mapping">
+            <label>稱謂<select id="mapTitle"></select></label>
+            <label>姓名<select id="mapName"></select></label>
+            <label>Email<select id="mapEmail"></select></label>
+          </div>
+          <div class="tableWrap"><table id="people"></table></div>
+        </div>
+        <p id="listMsg" class="msg" hidden></p>
+      </section>
+
+      <section class="card">
+        <h2><i>2</i>信件內容</h2>
+        <div class="two">
+          <input type="text" id="sender" placeholder="寄件人名稱（不填＝Google 帳號的名稱）">
+          <input type="text" id="replyTo" placeholder="回覆信箱（不填＝回到寄件信箱）">
+        </div>
+        <input type="text" id="subject" placeholder="主旨">
+        <div class="chips">
+          <span>點一下插入：</span>
+          <span id="chips"></span>
+        </div>
+        <div id="body" contenteditable="true" data-placeholder="在這裡寫信…"></div>
+        <label class="check"><input type="checkbox" id="receipt">請對方確認收到<span>信末加上「我已收到」按鈕</span></label>
+        <div class="attach">
+          <label class="link"><input type="file" id="attachInput" multiple hidden>＋ 加附件</label>
+          <span id="attachList"></span>
+        </div>
+      </section>
+    </div>
+
+    <div class="col side">
+      <section class="card">
+        <h2><i>3</i>預覽與寄出</h2>
+        <div id="previewEmpty" class="empty">匯入名單後，這裡會顯示每個人實際收到的信。</div>
+        <div id="previewBox" hidden>
+          <div class="nav">
+            <button type="button" id="prev" aria-label="上一位">‹</button>
+            <span id="navLabel"></span>
+            <button type="button" id="next" aria-label="下一位">›</button>
+          </div>
+          <div class="mail">
+            <div class="mailTo"><div id="pvFromRow">寄件人：<span id="pvFrom"></span></div>收件人：<span id="pvTo"></span><div id="pvReplyRow">對方回信會寄到：<span id="pvReply"></span></div></div>
+            <div class="mailSubject" id="pvSubject"></div>
+            <div class="mailBody" id="pvBody"></div>
+            <div class="mailAttach" id="pvAttach"></div>
+          </div>
+          <ul id="warnings"></ul>
+          <div class="actions">
+            <button type="button" id="testBtn" class="ghost">先寄一封給自己看看</button>
+            <button type="button" id="sendBtn" class="primary"></button>
+          </div>
+          <div id="progress" hidden><div id="bar"></div></div>
+          <p id="sendMsg" class="msg" hidden></p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <dialog id="confirm">
+    <h3 id="confirmTitle"></h3>
+    <div id="confirmText"></div>
+    <div class="actions">
+      <button type="button" class="ghost" id="confirmNo">再檢查一下</button>
+      <button type="button" class="primary" id="confirmYes">確定寄出</button>
+    </div>
+  </dialog>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

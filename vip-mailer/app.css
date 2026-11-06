@@ -1,0 +1,201 @@
+/* 風格：夜景＋毛玻璃卡片（比照台北天氣行事曆） */
+:root {
+  --ink: #f4f6f8;
+  --soft: rgba(255, 255, 255, .62);
+  --faint: rgba(255, 255, 255, .38);
+  --glass: rgba(255, 255, 255, .09);
+  --glass-2: rgba(255, 255, 255, .14);
+  --line: rgba(255, 255, 255, .16);
+  --gold: #e3a83b;
+  --blue: #9cc4f5;
+  --ok: #7fdcb0;
+  --bad: #ff9a8a;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  color: var(--ink);
+  font: 15px/1.6 "Microsoft JhengHei UI", "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", system-ui, sans-serif;
+  background: #12161b;
+}
+/* 夜景：遠處的燈光暈開在陰天的夜空裡 */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1;
+  background:
+    radial-gradient(38% 55% at 62% 62%, rgba(46, 196, 190, .32), transparent 70%),
+    radial-gradient(22% 30% at 86% 78%, rgba(176, 92, 214, .30), transparent 70%),
+    radial-gradient(26% 26% at 30% 88%, rgba(232, 120, 96, .22), transparent 70%),
+    radial-gradient(30% 22% at 12% 96%, rgba(236, 190, 110, .20), transparent 70%),
+    radial-gradient(90% 60% at 40% 0%, rgba(120, 124, 112, .55), transparent 75%),
+    linear-gradient(180deg, #3a3d38 0%, #23282b 45%, #14181d 100%);
+}
+[hidden] { display: none !important; }
+::selection { background: rgba(227, 168, 59, .45); }
+* { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .25) transparent; }
+
+header { display: flex; align-items: center; gap: 16px; padding: 20px 32px 18px; }
+header img { width: 34px; height: 34px; border-radius: 9px; }
+header h1 { margin: 0; font-size: 24px; font-weight: 300; letter-spacing: .06em; text-shadow: 0 1px 8px rgba(0, 0, 0, .5); }
+header #help { margin-left: auto; text-decoration: none; }
+header #account { color: var(--soft); text-shadow: 0 1px 4px rgba(0, 0, 0, .6); }
+
+.banner {
+  margin: 0 auto 18px; max-width: 720px; width: calc(100% - 64px); padding: 12px 18px; border-radius: 14px;
+  background: rgba(227, 168, 59, .16); border: 1px solid rgba(227, 168, 59, .5); backdrop-filter: blur(18px);
+  display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; font-size: 14px;
+}
+.banner span { color: var(--soft); }
+.banner .link { font-size: 15px; font-weight: 600; color: var(--gold); }
+#setup { margin: 0 auto 18px; max-width: 720px; width: calc(100% - 64px); border-color: rgba(227, 168, 59, .5); }
+#setup p { margin: 10px 0 6px; color: var(--soft); font-size: 14px; }
+.copyRow { display: flex; gap: 10px; align-items: stretch; }
+.copyRow code {
+  flex: 1; padding: 11px 14px; border-radius: 12px; background: rgba(0, 0, 0, .28); border: 1px solid var(--line);
+  font: 13px/1.5 Consolas, monospace; color: var(--blue); overflow-wrap: anywhere; user-select: all;
+}
+.copyRow button.ghost { flex: none; padding: 0 22px; }
+
+main {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px;
+  padding: 0 32px 40px; max-width: 1400px; margin: 0 auto; align-items: start;
+}
+.col { display: grid; gap: 18px; }
+.side { position: sticky; top: 16px; }
+@media (max-width: 900px) {
+  main { grid-template-columns: 1fr; padding: 0 16px 32px; }
+  .side { position: static; }
+  header { padding: 16px; }
+}
+
+.card {
+  background: var(--glass); border: 1px solid var(--line); border-radius: 18px;
+  padding: 20px 22px;
+  backdrop-filter: blur(22px) saturate(1.2); -webkit-backdrop-filter: blur(22px) saturate(1.2);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255, 255, 255, .10);
+}
+h2 { margin: 0 0 14px; font-size: 14px; font-weight: 600; color: var(--soft); letter-spacing: .08em; display: flex; align-items: center; gap: 10px; }
+h2 i { font-style: normal; width: 9px; height: 9px; border-radius: 50%; background: var(--gold); font-size: 0; box-shadow: 0 0 10px rgba(227, 168, 59, .7); }
+
+/* 匯入 */
+#drop {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 34px 16px; border: 1.5px dashed rgba(255, 255, 255, .32); border-radius: 14px;
+  cursor: pointer; transition: .15s; background: rgba(255, 255, 255, .04);
+}
+#drop:hover, #drop.over { border-color: var(--gold); background: rgba(227, 168, 59, .12); }
+.big { font-size: 20px; font-weight: 300; }
+.small { color: var(--soft); font-size: 13px; }
+.or { text-align: center; color: var(--faint); margin: 10px 0; font-size: 13px; }
+
+input[type=text], input[type=url], select, #body {
+  width: 100%; padding: 11px 14px; font: inherit; color: var(--ink);
+  border: 1px solid var(--line); border-radius: 12px; background: rgba(0, 0, 0, .22); outline: none;
+}
+input::placeholder { color: var(--faint); }
+select option { background: #262b30; color: var(--ink); }
+input:focus, select:focus, #body:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(227, 168, 59, .18); }
+#subject { font-size: 17px; font-weight: 600; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+@media (max-width: 600px) { .two { grid-template-columns: 1fr; } }
+
+.listHead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; gap: 12px; }
+#listSummary { font-size: 17px; font-weight: 600; }
+.links { display: flex; gap: 14px; white-space: nowrap; }
+.mapping { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+.mapping label { font-size: 13px; color: var(--soft); display: grid; gap: 4px; }
+.mapping select { padding: 8px 10px; }
+
+.tableWrap { max-height: 250px; overflow: auto; border-radius: 12px; background: rgba(0, 0, 0, .18); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+td { padding: 8px 12px; border-bottom: 1px solid rgba(255, 255, 255, .07); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+td:nth-child(2) { color: var(--soft); }
+td:nth-child(3) { font-weight: 600; }
+td:nth-child(4) { color: var(--blue); }
+tr:last-child td { border-bottom: 0; }
+tr { cursor: pointer; }
+tr:hover { background: rgba(255, 255, 255, .06); }
+tr.current { background: var(--glass-2); }
+tr.bad td { color: var(--bad); }
+td.st { width: 34px; text-align: center; }
+.st.ok { color: var(--ok); font-weight: 700; }
+.st.err { color: var(--bad); font-weight: 700; }
+
+/* 信件 */
+.chips { margin: 12px 0 8px; font-size: 13px; color: var(--soft); display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+#chips { display: contents; }
+.chip {
+  border: 1px solid rgba(227, 168, 59, .55); background: rgba(227, 168, 59, .16); color: #f6d590;
+  border-radius: 999px; padding: 3px 13px; font: inherit; font-size: 13px; cursor: pointer; transition: .15s;
+}
+.chip:hover { background: rgba(227, 168, 59, .32); color: #fff; }
+#body { min-height: 230px; overflow-wrap: anywhere; line-height: 1.75; }
+#body:empty::before { content: attr(data-placeholder); color: var(--faint); }
+.attach { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; }
+.file { background: var(--glass-2); border-radius: 8px; padding: 3px 6px 3px 10px; display: inline-flex; align-items: center; gap: 4px; }
+.file button { border: 0; background: none; cursor: pointer; color: var(--soft); font-size: 15px; line-height: 1; padding: 2px 4px; }
+
+/* 預覽 */
+.empty { color: var(--soft); padding: 48px 8px; text-align: center; }
+.nav { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 12px; }
+.nav button {
+  width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line);
+  background: var(--glass); font-size: 20px; line-height: 1; cursor: pointer; color: var(--ink); transition: .15s;
+}
+.nav button:hover { border-color: var(--gold); background: var(--glass-2); }
+#navLabel { min-width: 150px; text-align: center; font-size: 14px; color: var(--soft); }
+
+/* 預覽的信用白紙呈現：收件人看到的就是這樣 */
+.mail { border-radius: 14px; overflow: hidden; background: #fdfdfb; color: #222; box-shadow: 0 8px 30px rgba(0, 0, 0, .35); }
+.mailTo { padding: 10px 16px; background: #f1f1ec; font-size: 13px; color: #777; border-bottom: 1px solid #e4e4dc; }
+.mailTo span { color: #222; }
+.mailSubject { padding: 12px 16px 0; font-weight: 700; font-size: 16px; }
+.mailBody { padding: 12px 16px 16px; min-height: 160px; max-height: 46vh; overflow: auto; line-height: 1.75; overflow-wrap: anywhere; scrollbar-color: #ccc transparent; }
+.mailAttach { padding: 0 16px 12px; font-size: 13px; color: #777; }
+.mailAttach:empty { display: none; }
+mark { background: #ffe1dc; color: #c0392b; border-radius: 4px; padding: 0 3px; }
+
+#warnings { list-style: none; margin: 12px 0 0; padding: 0; font-size: 13px; color: var(--bad); }
+#warnings li::before { content: "⚠ "; }
+
+.actions { display: flex; gap: 10px; margin-top: 16px; }
+button.primary, button.ghost {
+  flex: 1; padding: 13px 16px; border-radius: 13px; font: inherit; font-weight: 600; cursor: pointer; transition: .15s;
+}
+button.primary { background: var(--gold); color: #1d1a12; border: 1px solid var(--gold); font-size: 16px; box-shadow: 0 4px 22px rgba(227, 168, 59, .35); }
+button.primary:hover { background: #f0b950; }
+button.primary.stop { background: #e0604e; border-color: #e0604e; color: #fff; box-shadow: none; }
+button.ghost { background: var(--glass); color: var(--ink); border: 1px solid var(--line); }
+button.ghost:hover { border-color: var(--gold); background: var(--glass-2); }
+button:disabled { opacity: .45; cursor: default; box-shadow: none; }
+button.link, label.link, a.link { border: 0; background: none; color: var(--blue); font: inherit; font-size: 13px; cursor: pointer; padding: 0; }
+button.link:hover, label.link:hover, a.link:hover { text-decoration: underline; }
+
+#progress { height: 6px; background: rgba(255, 255, 255, .14); border-radius: 99px; margin-top: 14px; overflow: hidden; }
+#bar { height: 100%; width: 0; background: var(--gold); transition: width .3s; box-shadow: 0 0 10px rgba(227, 168, 59, .8); }
+.msg { margin: 12px 0 0; font-size: 14px; color: var(--soft); }
+.msg.bad { color: var(--bad); }
+.msg.good { color: var(--ok); }
+
+dialog {
+  border: 1px solid var(--line); border-radius: 18px; padding: 26px 28px; max-width: 420px; width: calc(100% - 40px);
+  color: var(--ink); background: rgba(38, 43, 48, .92); backdrop-filter: blur(24px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .5);
+}
+dialog::backdrop { background: rgba(0, 0, 0, .55); backdrop-filter: blur(3px); }
+dialog h3 { margin: 0 0 10px; font-size: 22px; font-weight: 300; }
+#confirmText { color: var(--soft); font-size: 14px; }
+#confirmText p { margin: 4px 0; }
+#confirmText .warn { color: var(--bad); }
+
+/* 寄件列表：打勾、刪除 */
+th { position: sticky; top: 0; z-index: 1; text-align: left; padding: 7px 12px; font-size: 12px; font-weight: 600; color: var(--faint); background: rgba(34, 38, 43, .96); letter-spacing: .06em; }
+th.st { text-align: center; }
+input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--gold); cursor: pointer; vertical-align: middle; margin: 0; }
+input[type=checkbox]:disabled { opacity: .3; cursor: default; }
+td.act { width: 60px; text-align: right; padding-right: 8px; }
+td.act .err { color: var(--bad); font-weight: 700; margin-right: 6px; }
+.del { border: 0; background: none; color: var(--faint); font-size: 18px; line-height: 1; cursor: pointer; padding: 2px 7px; border-radius: 6px; opacity: 0; transition: .15s; }
+tr:hover .del, .del:focus-visible { opacity: 1; }
+.del:hover { color: #fff; background: rgba(255, 120, 100, .45); }
+.check { display: flex; align-items: center; gap: 9px; margin-top: 12px; cursor: pointer; font-size: 14px; }
+.check span { color: var(--faint); font-size: 13px; }
