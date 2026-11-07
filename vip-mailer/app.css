@@ -227,12 +227,23 @@ dialog#cases[open] { display: flex; flex-direction: column; }
 .casesHead .link { margin-left: auto; white-space: nowrap; }
 #caseList { overflow: auto; display: grid; gap: 8px; align-content: start; flex: 1; }
 .caseItem {
-  display: flex; justify-content: space-between; align-items: baseline; gap: 16px; text-align: left; width: 100%;
-  padding: 14px 18px; border-radius: 14px; border: 1px solid var(--line); background: var(--glass); color: var(--ink); font: inherit; cursor: pointer; transition: .15s;
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 6px 10px 6px 16px; border-radius: 14px; border: 1px solid var(--line); background: var(--glass); transition: .15s;
 }
 .caseItem:hover { border-color: var(--gold); background: var(--glass-2); }
-.caseItem b { font-size: 16px; font-weight: 600; }
-.caseItem span { color: var(--soft); font-size: 13px; white-space: nowrap; }
+.caseMain {
+  flex: 1; min-width: 0; display: flex; justify-content: space-between; align-items: baseline; gap: 16px; text-align: left;
+  padding: 8px 6px; border: 0; background: none; color: var(--ink); font: inherit; cursor: pointer;
+}
+.caseMain b { font-size: 16px; font-weight: 600; }
+.caseMain span { color: var(--soft); font-size: 13px; white-space: nowrap; }
+.caseAct { display: flex; align-items: center; gap: 4px; }
+.caseAct .link { font-size: 16px; padding: 4px 8px; }
+.caseAct .del { opacity: .6; }
+.caseAct .del:hover { opacity: 1; }
+.caseTools { display: flex; align-items: center; gap: 18px; margin: 0 0 10px; font-size: 13px; color: var(--soft); min-height: 20px; }
+.caseTools label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+button.primary.danger { background: var(--bad); color: #fff; box-shadow: none; }
 #caseDetail { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .caseTop { display: flex; justify-content: space-between; align-items: center; }
 #caseTitle { margin: 10px 0 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
@@ -265,3 +276,9 @@ td .raw { margin-left: 6px; font-size: 12px; color: var(--faint); text-decoratio
 dialog#closeDlg { max-width: 520px; }
 #closeDlg .actions button { flex: 1; padding-left: 10px; padding-right: 10px; white-space: nowrap; }
 #closeDlg .actions #closeNo { flex: 0 0 auto; }
+
+/* 會議日期 */
+.dateRow { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 14px; color: var(--soft); }
+.dateRow input { width: auto; padding: 8px 10px; color-scheme: dark; }
+.dateRow span { font-size: 12px; color: var(--faint); }
+.caseItem i.date { font-style: normal; font-size: 14px; color: var(--blue); margin-right: 10px; }

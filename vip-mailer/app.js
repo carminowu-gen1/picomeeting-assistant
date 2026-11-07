@@ -11,12 +11,14 @@ const DEFAULT_BODY = "<div>{{姓名}} {{稱謂}} 您好：</div><div><br></div><
 
 const state = {
   source: "", headers: [], rows: [], map: { title: -1, name: -1, email: -1 },
+  sheetUrl: "", // 名單來自 Google 試算表時記住網址，「更新名單」才能直接重讀
   sender: "", replyTo: "", subject: "", body: DEFAULT_BODY,
   receipt: false,
   status: {}, // 列號 → "ok" 或錯誤訊息
   off: {}, // 列號 → 1 表示沒打勾（不寄）
   custom: {}, // 列號 → { subject, html }：在預覽裡為這一位單獨改過的版本
   sentAt: {}, // 列號 → 寄出時間
+  caseDate: "", // 會議日期（yyyy-mm-dd，可空）
   caseId: null, caseName: "", // 目前這一案在案件紀錄裡的編號和名字（暫存過才有）
   rules: null, // 稱謂自動轉換 [{ from: "教授、副教授", to: "老師" }]；null 表示還沒設定過（第一次會放一條範例）
 };
@@ -214,17 +216,62 @@ function setTable(table, source) {
   render();
 }
 
-async function importFile(file) {
-  if (!file) return;
-  try { setTable(await readFile(file), file.name); }
-  catch (e) { showMsg("listMsg", e.message, "bad"); }
+// 名單有新人：重讀 Excel／試算表，用 Email 對照舊名單。
+// 舊名單裡的人保留寄過／沒寄、打勾、個別修改；個別修改過的人連稱謂姓名都不動；新人加在後面。
+// 已寄過但新名單裡不見的人，留在最後面當紀錄。
+function mergeTable(table) {
+  const emailOf = (row, c) => (col(row, "email", c) || "").trim().toLowerCase();
+  const sameHeaders = JSON.stringify(table.headers) === JSON.stringify(state.headers);
+  const map = sameHeaders ? state.map : table.map;
+  const next = { headers: table.headers, map };
+  const old = new Map();
+  state.rows.forEach((row, i) => { const k = emailOf(row, state); if (k && !old.has(k)) old.set(k, i); });
+  // 舊的一列換成新名單的欄位順序（欄位名稱一樣的照搬）
+  const relayout = (row) => sameHeaders ? row : table.headers.map((h) => { const i = state.headers.indexOf(h); return i >= 0 ? row[i] || "" : ""; });
+  const rows = [], status = {}, off = {}, custom = {}, sentAt = {};
+  const carry = (ni, oi) => {
+    for (const [k, o] of [["status", status], ["off", off], ["custom", custom], ["sentAt", sentAt]]) if (state[k][oi] !== undefined) o[ni] = state[k][oi];
+  };
+  const seen = new Set();
+  let added = 0, edited = 0;
+  for (const row of table.rows) {
+    const k = emailOf(row, next);
+    const oi = k ? old.get(k) : undefined;
+    if (oi === undefined) { rows.push(row); added++; continue; }
+    seen.add(k);
+    const keepOld = state.custom[oi] !== undefined; // 個別修改過的人：整列都不動
+    if (keepOld) edited++;
+    carry(rows.push(keepOld ? relayout(state.rows[oi]) : row) - 1, oi);
+  }
+  let kept = 0;
+  state.rows.forEach((row, oi) => {
+    const k = emailOf(row, state);
+    if (state.status[oi] === "ok" && !(k && seen.has(k))) { carry(rows.push(relayout(row)) - 1, oi); kept++; }
+  });
+  Object.assign(state, next, { rows, status, off, custom, sentAt });
+  current = Math.max(0, state.rows.findIndex(validRow));
+  store.save();
+  render();
+  showMsg("listMsg", "名單更新好了：新增 " + added + " 位" + (edited ? "，個別修改過的 " + edited + " 位沒動" : "") +
+    (kept ? "，已寄過但新名單裡沒有的 " + kept + " 位留在最後面" : "") + "。", "good");
 }
 
-async function importSheet(url) {
+async function importFile(file, merge) {
+  if (!file) return;
+  try {
+    const table = await readFile(file);
+    if (merge) mergeTable(table); else setTable(table, file.name);
+  } catch (e) { showMsg("listMsg", e.message, "bad"); }
+}
+
+async function importSheet(url, merge) {
   if (!parseSheetUrl(url)) return showMsg("listMsg", "這不像 Google 試算表的網址。請從試算表的網址列整段複製。", "bad");
   showMsg("listMsg", "讀取中…");
-  try { setTable(await readGoogleSheet(url, gfetch), "Google 試算表"); }
-  catch (e) { showMsg("listMsg", e.message, "bad"); }
+  try {
+    const table = await readGoogleSheet(url, gfetch);
+    if (merge) mergeTable(table); else setTable(table, "Google 試算表");
+    state.sheetUrl = url; store.save();
+  } catch (e) { showMsg("listMsg", e.message, "bad"); }
 }
 
 // ---------- 畫面 ----------
@@ -503,10 +550,17 @@ function bind() {
   url.addEventListener("keydown", (e) => { if (e.key === "Enter") importSheet(url.value.trim()); });
 
   $("fixCols").onclick = () => { showMap = true; render(); };
+  // 名單有新人：試算表直接重讀；Excel 檔請再選一次檔案
+  $("refreshList").onclick = () => {
+    if (sending) return;
+    if (state.sheetUrl) importSheet(state.sheetUrl, true);
+    else { showMsg("listMsg", "請再選一次更新過的 Excel 檔。寄過的、打勾的、個別修改過的都會保留，只會加進新人。"); $("fileMerge").click(); }
+  };
+  $("fileMerge").onchange = (e) => { importFile(e.target.files[0], true); e.target.value = ""; };
   $("changeList").onclick = () => {
     if (sending) return;
     showMap = false;
-    Object.assign(state, { source: "", headers: [], rows: [], map: { title: -1, name: -1, email: -1 }, status: {}, off: {}, custom: {}, sentAt: {} });
+    Object.assign(state, { source: "", headers: [], rows: [], map: { title: -1, name: -1, email: -1 }, sheetUrl: "", status: {}, off: {}, custom: {}, sentAt: {} });
     url.value = "";
     showMsg("sendMsg", ""); $("progress").hidden = true; $("bar").style.width = 0;
     store.save(); render();
@@ -632,6 +686,9 @@ function renderAttach() {
 let cases = []; // 收在案件紀錄裡的案件（暫存中或已結案），新的在前面；畫面上正在用的那一案不在裡面
 let openCase = null; // 案件紀錄裡正在看的那一案
 let casePerson = 0;
+let picked = new Set(); // 案件紀錄列表裡勾選的案件（批次刪除用）
+let editing = null; // 正在改名字／日期的案件
+let toDelete = []; // 等使用者確認刪除的案件
 
 const caseStore = {
   async load() {
@@ -644,16 +701,17 @@ const caseStore = {
   },
 };
 
+const meet = (c) => (c.date || "").replace(/-/g, "/"); // 會議日期 2026/11/20
 const sentCount = (c) => Object.values(c.status).filter((v) => v === "ok").length;
 const day = (t) => { const d = new Date(t); return d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate(); };
 const clock = (t) => { const d = new Date(t); return day(t) + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
 
-const CASE_KEYS = ["source", "headers", "rows", "map", "sender", "replyTo", "subject", "body", "receipt", "status", "off", "custom", "sentAt", "rules"];
+const CASE_KEYS = ["source", "sheetUrl", "headers", "rows", "map", "sender", "replyTo", "subject", "body", "receipt", "status", "off", "custom", "sentAt", "rules"];
 const autoName = () => (state.subject.replace(TOKEN, "").replace(/\s+/g, " ").trim() || state.source || "未命名案件").slice(0, 60);
 
 // 把畫面上這一案打包成案件紀錄的一筆（closed：結案；否則是暫存，之後可以打開繼續寄）
-function snapshot(closed, name) {
-  const c = { id: state.caseId || Date.now(), name: name || state.caseName || autoName(), closedAt: closed ? Date.now() : null, files: attachments.map((a) => a.name), attach: attachments };
+function snapshot(closed, name, date) {
+  const c = { id: state.caseId || Date.now(), name: name || state.caseName || autoName(), date: date ?? state.caseDate ?? "", closedAt: closed ? Date.now() : null, files: attachments.map((a) => a.name), attach: attachments };
   for (const k of CASE_KEYS) c[k] = JSON.parse(JSON.stringify(state[k]));
   return c;
 }
@@ -667,7 +725,7 @@ function loadForm() {
 
 // 新案件：名單和信清空，寄件人名稱、回覆信箱、稱謂轉換沿用
 function resetCase() {
-  Object.assign(state, { source: "", headers: [], rows: [], map: { title: -1, name: -1, email: -1 }, subject: "", body: DEFAULT_BODY, status: {}, off: {}, custom: {}, sentAt: {}, caseId: null, caseName: "" });
+  Object.assign(state, { source: "", headers: [], rows: [], map: { title: -1, name: -1, email: -1 }, sheetUrl: "", subject: "", body: DEFAULT_BODY, status: {}, off: {}, custom: {}, sentAt: {}, caseId: null, caseName: "", caseDate: "" });
   attachments = []; current = 0; showMap = false;
   loadForm();
 }
@@ -678,12 +736,13 @@ function askClose() {
   $("closeText").innerHTML = "<p>這個案件會收進「案件紀錄」，畫面清空，準備下一個案件。還要再寄的選「暫存」，之後從案件紀錄打開就能接著寄；寄完了選「結案」。</p>" +
     "<p>已寄出 " + sent + " 位" + (left ? '，<span class="warn">還有 ' + left + " 位打勾但沒寄</span>" : "") + "。</p>";
   $("caseName").value = state.caseName || autoName();
+  $("caseDate").value = state.caseDate || "";
   $("closeDlg").showModal();
   $("caseName").select();
 }
 
 function putAway(closed) {
-  const c = snapshot(closed, $("caseName").value.trim());
+  const c = snapshot(closed, $("caseName").value.trim(), $("caseDate").value);
   cases = cases.filter((x) => x.id !== c.id);
   cases.unshift(c);
   caseStore.save();
@@ -705,7 +764,7 @@ function openCaseNow(c) {
   cases = cases.filter((x) => x !== c);
   caseStore.save();
   for (const k of CASE_KEYS) if (k !== "rules" && k in c) state[k] = c[k];
-  state.caseId = c.id; state.caseName = c.name;
+  state.caseId = c.id; state.caseName = c.name; state.caseDate = c.date || "";
   attachments = c.attach || []; current = Math.max(0, state.rows.findIndex(validRow)); showMap = false;
   loadForm();
   openCase = null; $("cases").close();
@@ -727,20 +786,36 @@ function renderCases() {
   $("caseSearch").hidden = detail;
   if (detail) return renderCaseDetail();
   const q = $("caseSearch").value.trim().toLowerCase();
-  const hit = cases.filter((c) => !q || c.name.toLowerCase().includes(q) || c.rows.some((r) => r.some((cell) => cell.toLowerCase().includes(q))));
+  const hit = cases.filter((c) => !q || c.name.toLowerCase().includes(q) || meet(c).includes(q) || c.rows.some((r) => r.some((cell) => cell.toLowerCase().includes(q))));
   const now = state.rows.length ? '<p class="nowCase">目前畫面上：' + esc(state.caseName || autoName()) + "</p>" : "";
   hit.sort((a, b) => (b.closedAt ? 0 : 1) - (a.closedAt ? 0 : 1)); // 暫存中的排前面
+  for (const id of picked) if (!cases.some((c) => c.id === id)) picked.delete(id);
+  $("caseTools").hidden = !cases.length;
+  $("caseAll").checked = hit.length > 0 && hit.every((c) => picked.has(c.id));
+  $("caseAll").disabled = !hit.length;
+  $("caseDelSel").hidden = !picked.size;
+  $("caseDelSel").textContent = "刪除勾選的 " + picked.size + " 個";
   $("caseList").innerHTML = now + (!cases.length
     ? '<p class="empty">還沒有收起來的案件。<br>按寄出按鈕下面的「✓ 暫存／結案，開新案件」，這一案就會收到這裡。</p>'
     : !hit.length ? '<p class="empty">找不到符合的案件。</p>'
-    : hit.map((c) => '<button type="button" class="caseItem' + (c.closedAt ? "" : " live") + '" data-id="' + c.id + '"><b>' + esc(c.name) + "</b><span>" +
-        (c.closedAt ? day(c.closedAt) + " 結案" : '<i class="live">暫存中</i>') + "　寄出 " + sentCount(c) + "／" + c.rows.length + " 位</span></button>").join(""));
+    : hit.map((c) => '<div class="caseItem' + (c.closedAt ? "" : " live") + '" data-id="' + c.id + '">' +
+        '<input type="checkbox" class="cpick"' + (picked.has(c.id) ? " checked" : "") + '>' +
+        '<button type="button" class="caseMain"><b>' + (c.date ? '<i class="date">📅 ' + meet(c) + "</i>" : "") + esc(c.name) + "</b><span>" +
+        (c.closedAt ? day(c.closedAt) + " 結案" : '<i class="live">暫存中</i>') + "　寄出 " + sentCount(c) + "／" + c.rows.length + " 位</span></button>" +
+        '<span class="caseAct"><button type="button" class="link" data-act="edit" title="改名字或日期">✎</button><button type="button" class="del" data-act="del" title="刪除">×</button></span></div>').join(""));
+}
+
+function askDeleteCases(list) {
+  toDelete = list;
+  $("caseDelText").innerHTML = (list.length === 1 ? "<p>要刪除「" + esc(list[0].name) + "」嗎？</p>" : "<p>要刪除這 " + list.length + " 個案件嗎？</p>" +
+    "<p>" + list.map((c) => esc(c.name)).join("、") + "</p>") + '<p class="warn">刪了就救不回來，裡面寄過誰的紀錄也會一起消失。</p>';
+  $("caseDelDlg").showModal();
 }
 
 function renderCaseDetail() {
   const c = openCase;
   $("caseOpen").textContent = c.closedAt ? "重新打開，接著寄" : "打開這個案件";
-  $("caseTitle").innerHTML = "<b>" + esc(c.name) + "</b><span>" + (c.closedAt ? day(c.closedAt) + " 結案" : "暫存中") + "　寄出 " + sentCount(c) + "／" + c.rows.length + " 位" +
+  $("caseTitle").innerHTML = "<b>" + esc(c.name) + "</b><span>" + (c.date ? "📅 會議 " + meet(c) + "　" : "") + (c.closedAt ? day(c.closedAt) + " 結案" : "暫存中") + "　寄出 " + sentCount(c) + "／" + c.rows.length + " 位" +
     (c.sender ? "　寄件人：" + esc(c.sender) : "") + "</span>";
   $("casePeople").innerHTML = "<thead><tr><th class=\"st\"></th><th>稱謂</th><th>姓名</th><th>Email</th><th>寄出時間</th></tr></thead><tbody>" +
     c.rows.map((row, i) => {
@@ -770,13 +845,50 @@ function bindCases() {
   $("casesClose").onclick = () => $("cases").close();
   $("caseSearch").oninput = renderCases;
   $("caseList").onclick = (e) => {
-    const b = e.target.closest(".caseItem");
-    if (!b) return;
-    openCase = cases.find((c) => c.id === +b.dataset.id);
+    const item = e.target.closest(".caseItem");
+    if (!item) return;
+    const c = cases.find((x) => x.id === +item.dataset.id);
+    if (e.target.classList.contains("cpick")) { if (e.target.checked) picked.add(c.id); else picked.delete(c.id); return renderCases(); }
+    const act = e.target.closest("[data-act]")?.dataset.act;
+    if (act === "del") return askDeleteCases([c]);
+    if (act === "edit") {
+      editing = c;
+      $("caseEditName").value = c.name; $("caseEditDate").value = c.date || "";
+      $("caseEditDlg").showModal(); $("caseEditName").select();
+      return;
+    }
+    openCase = c;
     casePerson = Math.max(0, openCase.rows.findIndex((r, i) => openCase.status[i] === "ok"));
-    $("caseDelete").textContent = "刪除這個案件";
     renderCases();
   };
+  $("caseAll").onchange = (e) => {
+    const q = $("caseSearch").value.trim().toLowerCase();
+    const hit = cases.filter((c) => !q || c.name.toLowerCase().includes(q) || meet(c).includes(q) || c.rows.some((r) => r.some((cell) => cell.toLowerCase().includes(q))));
+    for (const c of hit) if (e.target.checked) picked.add(c.id); else picked.delete(c.id);
+    renderCases();
+  };
+  $("caseDelSel").onclick = () => askDeleteCases(cases.filter((c) => picked.has(c.id)));
+  $("caseDelNo").onclick = () => $("caseDelDlg").close();
+  $("caseDelYes").onclick = () => {
+    cases = cases.filter((c) => !toDelete.includes(c));
+    for (const c of toDelete) picked.delete(c.id);
+    if (toDelete.includes(openCase)) openCase = null;
+    toDelete = [];
+    caseStore.save();
+    $("caseDelDlg").close();
+    renderCases();
+  };
+  const saveEdit = () => {
+    editing.name = $("caseEditName").value.trim() || "未命名案件";
+    editing.date = $("caseEditDate").value;
+    if (editing.id === state.caseId) { state.caseName = editing.name; state.caseDate = editing.date; store.save(); }
+    caseStore.save();
+    $("caseEditDlg").close();
+    renderCases();
+  };
+  $("caseEditYes").onclick = saveEdit;
+  $("caseEditName").addEventListener("keydown", (e) => { if (e.key === "Enter") saveEdit(); });
+  $("caseEditNo").onclick = () => $("caseEditDlg").close();
   $("caseBack").onclick = () => { openCase = null; renderCases(); };
   $("casePeople").onclick = (e) => {
     const tr = e.target.closest("tr[data-i]");
@@ -792,14 +904,7 @@ function bindCases() {
     $("cases").close();
     showMsg("sendMsg", "已帶入「" + c.name + "」的主旨和內容，改一改就能寄。", "good");
   };
-  $("caseDelete").onclick = () => {
-    // 按第一次先問，按第二次才真的刪
-    if ($("caseDelete").textContent !== "確定刪除？刪了救不回來") { $("caseDelete").textContent = "確定刪除？刪了救不回來"; return; }
-    cases = cases.filter((c) => c !== openCase);
-    caseStore.save();
-    openCase = null;
-    renderCases();
-  };
+  $("caseDelete").onclick = () => askDeleteCases([openCase]);
 }
 
 // ---------- 新版本提醒（做法和小伐速記一樣：查 GitHub Release，有新版就在畫面上提醒） ----------

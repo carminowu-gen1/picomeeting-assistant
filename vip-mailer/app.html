@@ -56,6 +56,8 @@
           <div class="listHead">
             <span id="listSummary"></span>
             <span class="links">
+              <input type="file" id="fileMerge" accept=".xlsx,.csv,.tsv,.txt" hidden>
+              <button type="button" class="link" id="refreshList">🔄 名單有更新？重新讀取</button>
               <button type="button" class="link" id="fixCols">欄位不對？</button>
               <button type="button" class="link" id="changeList">換一份名單</button>
             </span>
@@ -134,6 +136,7 @@
     <h3>收起這個案件，開新案件</h3>
     <div id="closeText" class="dlgText"></div>
     <input type="text" id="caseName" placeholder="幫這個案件取個名字">
+    <label class="dateRow">會議日期<input type="date" id="caseDate"><span>（可以不填）</span></label>
     <div class="actions">
       <button type="button" class="ghost" id="closeNo">先不要</button>
       <button type="button" class="ghost" id="stashYes">暫存（還要再寄）</button>
@@ -146,6 +149,10 @@
       <h3>案件紀錄</h3>
       <input type="text" id="caseSearch" placeholder="搜尋案件名稱、姓名或 Email">
       <button type="button" class="link" id="casesClose">關閉</button>
+    </div>
+    <div class="caseTools" id="caseTools" hidden>
+      <label><input type="checkbox" id="caseAll">全選</label>
+      <button type="button" class="link danger" id="caseDelSel">刪除勾選的</button>
     </div>
     <div id="caseList"></div>
     <div id="caseDetail" hidden>
@@ -167,6 +174,25 @@
           <div class="mailAttach" id="caseAttach"></div>
         </div>
       </div>
+    </div>
+  </dialog>
+
+  <dialog id="caseEditDlg">
+    <h3>改名字、改日期</h3>
+    <input type="text" id="caseEditName" placeholder="案件名稱">
+    <label class="dateRow">會議日期<input type="date" id="caseEditDate"><span>（可以不填）</span></label>
+    <div class="actions">
+      <button type="button" class="ghost" id="caseEditNo">取消</button>
+      <button type="button" class="primary" id="caseEditYes">儲存</button>
+    </div>
+  </dialog>
+
+  <dialog id="caseDelDlg">
+    <h3>刪除案件</h3>
+    <div id="caseDelText" class="dlgText"></div>
+    <div class="actions">
+      <button type="button" class="ghost" id="caseDelNo">取消</button>
+      <button type="button" class="primary danger" id="caseDelYes">刪除</button>
     </div>
   </dialog>
 
