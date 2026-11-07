@@ -256,3 +256,12 @@ dialog#cases[open] { display: flex; flex-direction: column; }
 .rdel { border: 0; background: none; color: var(--faint); font-size: 18px; line-height: 1; cursor: pointer; padding: 2px 7px; border-radius: 6px; }
 .rdel:hover { color: #fff; background: rgba(255, 120, 100, .45); }
 td .raw { margin-left: 6px; font-size: 12px; color: var(--faint); text-decoration: line-through; }
+
+/* 暫存中的案件 */
+.nowCase { margin: 0 0 4px; font-size: 13px; color: var(--faint); }
+.caseItem.live { border-left: 3px solid var(--gold); }
+.caseItem i.live { font-style: normal; color: var(--gold); }
+.link.gold { color: var(--gold); font-weight: 600; }
+dialog#closeDlg { max-width: 520px; }
+#closeDlg .actions button { flex: 1; padding-left: 10px; padding-right: 10px; white-space: nowrap; }
+#closeDlg .actions #closeNo { flex: 0 0 auto; }

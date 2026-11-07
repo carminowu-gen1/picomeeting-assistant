@@ -17,6 +17,7 @@ const state = {
   off: {}, // 列號 → 1 表示沒打勾（不寄）
   custom: {}, // 列號 → { subject, html }：在預覽裡為這一位單獨改過的版本
   sentAt: {}, // 列號 → 寄出時間
+  caseId: null, caseName: "", // 目前這一案在案件紀錄裡的編號和名字（暫存過才有）
   rules: null, // 稱謂自動轉換 [{ from: "教授、副教授", to: "老師" }]；null 表示還沒設定過（第一次會放一條範例）
 };
 const DEFAULT_RULES = [{ from: "教授、副教授、助理教授", to: "老師" }];
@@ -628,7 +629,7 @@ function renderAttach() {
 
 // ---------- 案件：結案、開始新案件、回查過去寄過的信 ----------
 
-let cases = []; // 已結案的案件，新的在前面
+let cases = []; // 收在案件紀錄裡的案件（暫存中或已結案），新的在前面；畫面上正在用的那一案不在裡面
 let openCase = null; // 案件紀錄裡正在看的那一案
 let casePerson = 0;
 
@@ -647,30 +648,69 @@ const sentCount = (c) => Object.values(c.status).filter((v) => v === "ok").lengt
 const day = (t) => { const d = new Date(t); return d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate(); };
 const clock = (t) => { const d = new Date(t); return day(t) + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
 
+const CASE_KEYS = ["source", "headers", "rows", "map", "sender", "replyTo", "subject", "body", "receipt", "status", "off", "custom", "sentAt", "rules"];
+const autoName = () => (state.subject.replace(TOKEN, "").replace(/\s+/g, " ").trim() || state.source || "未命名案件").slice(0, 60);
+
+// 把畫面上這一案打包成案件紀錄的一筆（closed：結案；否則是暫存，之後可以打開繼續寄）
+function snapshot(closed, name) {
+  const c = { id: state.caseId || Date.now(), name: name || state.caseName || autoName(), closedAt: closed ? Date.now() : null, files: attachments.map((a) => a.name), attach: attachments };
+  for (const k of CASE_KEYS) c[k] = JSON.parse(JSON.stringify(state[k]));
+  return c;
+}
+
+function loadForm() {
+  $("subject").value = state.subject; $("body").innerHTML = state.body;
+  $("sender").value = state.sender || ""; $("replyTo").value = state.replyTo || ""; $("receipt").checked = !!state.receipt;
+  $("sheetUrl").value = "";
+  showMsg("sendMsg", ""); $("progress").hidden = true; $("bar").style.width = 0;
+}
+
+// 新案件：名單和信清空，寄件人名稱、回覆信箱、稱謂轉換沿用
+function resetCase() {
+  Object.assign(state, { source: "", headers: [], rows: [], map: { title: -1, name: -1, email: -1 }, subject: "", body: DEFAULT_BODY, status: {}, off: {}, custom: {}, sentAt: {}, caseId: null, caseName: "" });
+  attachments = []; current = 0; showMap = false;
+  loadForm();
+}
+
 function askClose() {
   if (sending || !state.rows.length) return;
   const sent = sentCount(state), left = pending().length;
-  $("closeText").innerHTML = "<p>這個案件會收進「案件紀錄」，之後隨時可以回來查寄給了誰、寄了什麼。畫面會清空，準備下一個案件。</p>" +
+  $("closeText").innerHTML = "<p>這個案件會收進「案件紀錄」，畫面清空，準備下一個案件。還要再寄的選「暫存」，之後從案件紀錄打開就能接著寄；寄完了選「結案」。</p>" +
     "<p>已寄出 " + sent + " 位" + (left ? '，<span class="warn">還有 ' + left + " 位打勾但沒寄</span>" : "") + "。</p>";
-  $("caseName").value = (state.subject.replace(TOKEN, "").replace(/\s+/g, " ").trim() || state.source || "未命名案件").slice(0, 60);
+  $("caseName").value = state.caseName || autoName();
   $("closeDlg").showModal();
   $("caseName").select();
 }
 
-function closeCase() {
-  const keep = ["source", "headers", "rows", "map", "sender", "replyTo", "subject", "body", "receipt", "status", "off", "custom", "sentAt", "rules"];
-  const c = { id: Date.now(), name: $("caseName").value.trim() || "未命名案件", closedAt: Date.now(), files: attachments.map((a) => a.name) };
-  for (const k of keep) c[k] = JSON.parse(JSON.stringify(state[k]));
+function putAway(closed) {
+  const c = snapshot(closed, $("caseName").value.trim());
+  cases = cases.filter((x) => x.id !== c.id);
   cases.unshift(c);
   caseStore.save();
-  // 新案件：名單和信清空，寄件人名稱、回覆信箱沿用
-  Object.assign(state, { source: "", headers: [], rows: [], map: { title: -1, name: -1, email: -1 }, subject: "", body: DEFAULT_BODY, status: {}, off: {}, custom: {}, sentAt: {} });
-  attachments = []; current = 0; showMap = false;
-  $("subject").value = ""; $("body").innerHTML = DEFAULT_BODY; $("sheetUrl").value = "";
-  showMsg("sendMsg", ""); $("progress").hidden = true; $("bar").style.width = 0;
+  resetCase();
   $("closeDlg").close();
   renderAttach(); store.save(); render();
-  showMsg("listMsg", "「" + c.name + "」已結案，收進案件紀錄了。可以開始新案件。", "good");
+  showMsg("listMsg", closed ? "「" + c.name + "」已結案，收進案件紀錄了。可以開始新案件。"
+    : "「" + c.name + "」先暫存在案件紀錄，隨時可以打開接著寄。可以開始新案件。", "good");
+}
+
+// 從案件紀錄打開一案（已結案的也行，打開後可以繼續寄給還沒寄的人）；畫面上原本那一案先自動暫存
+function openCaseNow(c) {
+  if (sending) return;
+  if (state.rows.length) {
+    const cur = snapshot(false, "");
+    cases = cases.filter((x) => x.id !== cur.id);
+    cases.unshift(cur);
+  }
+  cases = cases.filter((x) => x !== c);
+  caseStore.save();
+  for (const k of CASE_KEYS) if (k !== "rules" && k in c) state[k] = c[k];
+  state.caseId = c.id; state.caseName = c.name;
+  attachments = c.attach || []; current = Math.max(0, state.rows.findIndex(validRow)); showMap = false;
+  loadForm();
+  openCase = null; $("cases").close();
+  renderAttach(); store.save(); render();
+  showMsg("listMsg", "已打開「" + c.name + "」" + (c.closedAt ? "，原本已結案，現在可以接著寄給還沒寄的人" : "") + "。", "good");
 }
 
 function showCases() {
@@ -688,16 +728,19 @@ function renderCases() {
   if (detail) return renderCaseDetail();
   const q = $("caseSearch").value.trim().toLowerCase();
   const hit = cases.filter((c) => !q || c.name.toLowerCase().includes(q) || c.rows.some((r) => r.some((cell) => cell.toLowerCase().includes(q))));
-  $("caseList").innerHTML = !cases.length
-    ? '<p class="empty">還沒有結案的案件。<br>信寄完後按「✓ 結案，開始新案件」，就會收到這裡。</p>'
+  const now = state.rows.length ? '<p class="nowCase">目前畫面上：' + esc(state.caseName || autoName()) + "</p>" : "";
+  hit.sort((a, b) => (b.closedAt ? 0 : 1) - (a.closedAt ? 0 : 1)); // 暫存中的排前面
+  $("caseList").innerHTML = now + (!cases.length
+    ? '<p class="empty">還沒有收起來的案件。<br>按寄出按鈕下面的「✓ 暫存／結案，開新案件」，這一案就會收到這裡。</p>'
     : !hit.length ? '<p class="empty">找不到符合的案件。</p>'
-    : hit.map((c) => '<button type="button" class="caseItem" data-id="' + c.id + '"><b>' + esc(c.name) + "</b><span>" + day(c.closedAt) +
-        " 結案　寄出 " + sentCount(c) + "／" + c.rows.length + " 位</span></button>").join("");
+    : hit.map((c) => '<button type="button" class="caseItem' + (c.closedAt ? "" : " live") + '" data-id="' + c.id + '"><b>' + esc(c.name) + "</b><span>" +
+        (c.closedAt ? day(c.closedAt) + " 結案" : '<i class="live">暫存中</i>') + "　寄出 " + sentCount(c) + "／" + c.rows.length + " 位</span></button>").join(""));
 }
 
 function renderCaseDetail() {
   const c = openCase;
-  $("caseTitle").innerHTML = "<b>" + esc(c.name) + "</b><span>" + day(c.closedAt) + " 結案　寄出 " + sentCount(c) + "／" + c.rows.length + " 位" +
+  $("caseOpen").textContent = c.closedAt ? "重新打開，接著寄" : "打開這個案件";
+  $("caseTitle").innerHTML = "<b>" + esc(c.name) + "</b><span>" + (c.closedAt ? day(c.closedAt) + " 結案" : "暫存中") + "　寄出 " + sentCount(c) + "／" + c.rows.length + " 位" +
     (c.sender ? "　寄件人：" + esc(c.sender) : "") + "</span>";
   $("casePeople").innerHTML = "<thead><tr><th class=\"st\"></th><th>稱謂</th><th>姓名</th><th>Email</th><th>寄出時間</th></tr></thead><tbody>" +
     c.rows.map((row, i) => {
@@ -718,9 +761,11 @@ function renderCaseDetail() {
 
 function bindCases() {
   $("closeCase").onclick = askClose;
-  $("closeYes").onclick = closeCase;
+  $("closeYes").onclick = () => putAway(true);
+  $("stashYes").onclick = () => putAway(false);
   $("closeNo").onclick = () => $("closeDlg").close();
-  $("caseName").addEventListener("keydown", (e) => { if (e.key === "Enter") closeCase(); });
+  $("caseName").addEventListener("keydown", (e) => { if (e.key === "Enter") putAway(true); });
+  $("caseOpen").onclick = () => openCaseNow(openCase);
   $("openCases").onclick = showCases;
   $("casesClose").onclick = () => $("cases").close();
   $("caseSearch").oninput = renderCases;

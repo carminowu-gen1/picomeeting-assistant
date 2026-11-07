@@ -122,7 +122,7 @@
             <button type="button" id="testBtn" class="ghost">先寄一封給自己看看</button>
             <button type="button" id="sendBtn" class="primary"></button>
           </div>
-          <div class="closeRow"><button type="button" class="link" id="closeCase">✓ 結案，開始新案件</button></div>
+          <div class="closeRow"><button type="button" class="link" id="closeCase">✓ 暫存／結案，開新案件</button></div>
           <div id="progress" hidden><div id="bar"></div></div>
           <p id="sendMsg" class="msg" hidden></p>
         </div>
@@ -131,12 +131,13 @@
   </main>
 
   <dialog id="closeDlg">
-    <h3>結案，開始新案件</h3>
+    <h3>收起這個案件，開新案件</h3>
     <div id="closeText" class="dlgText"></div>
     <input type="text" id="caseName" placeholder="幫這個案件取個名字">
     <div class="actions">
       <button type="button" class="ghost" id="closeNo">先不要</button>
-      <button type="button" class="primary" id="closeYes">結案</button>
+      <button type="button" class="ghost" id="stashYes">暫存（還要再寄）</button>
+      <button type="button" class="primary" id="closeYes">結案（寄完了）</button>
     </div>
   </dialog>
 
@@ -151,6 +152,7 @@
       <div class="caseTop">
         <button type="button" class="link" id="caseBack">← 所有案件</button>
         <span class="links">
+          <button type="button" class="link gold" id="caseOpen">打開這個案件</button>
           <button type="button" class="link" id="caseReuse">沿用這封信的內容</button>
           <button type="button" class="link danger" id="caseDelete">刪除這個案件</button>
         </span>
