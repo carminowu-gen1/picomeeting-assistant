@@ -17,7 +17,9 @@ const state = {
   off: {}, // 列號 → 1 表示沒打勾（不寄）
   custom: {}, // 列號 → { subject, html }：在預覽裡為這一位單獨改過的版本
   sentAt: {}, // 列號 → 寄出時間
+  rules: null, // 稱謂自動轉換 [{ from: "教授、副教授", to: "老師" }]；null 表示還沒設定過（第一次會放一條範例）
 };
+const DEFAULT_RULES = [{ from: "教授、副教授、助理教授", to: "老師" }];
 let attachments = [];
 let current = 0;
 let sending = false;
@@ -145,13 +147,24 @@ function friendly(status, message) {
 
 // ---------- 名單 ----------
 
-const col = (row, key, c = state) => (c.map[key] >= 0 ? row[c.map[key]] || "" : "");
+const raw = (row, key, c = state) => (c.map[key] >= 0 ? row[c.map[key]] || "" : "");
+// 稱謂會先經過「稱謂自動轉換」（教授 → 老師）
+const col = (row, key, c = state) => (key === "title" ? convertTitle(raw(row, key, c), c) : raw(row, key, c));
+const splitFrom = (s) => String(s).split(/[、,，;；/／|｜\s]+/).map((x) => x.trim()).filter(Boolean);
+function convertTitle(v, c = state) {
+  const t = String(v).trim().toLowerCase();
+  if (!t) return v;
+  for (const r of c.rules || []) {
+    if (r.to.trim() && splitFrom(r.from).some((f) => f.toLowerCase() === t)) return r.to.trim();
+  }
+  return v;
+}
 const validRow = (row) => EMAIL_RE.test(col(row, "email"));
 
 // {{稱謂}} {{姓名}} {{Email}} 走對應欄位，其他用 Excel 的欄位名稱
 function lookup(row, key, c = state) {
   const fixed = { 稱謂: "title", 姓名: "name", Email: "email" }[key] || (key.toLowerCase() === "email" ? "email" : null);
-  if (fixed && c.map[fixed] >= 0) return row[c.map[fixed]] || "";
+  if (fixed && c.map[fixed] >= 0) return col(row, fixed, c);
   const i = c.headers.indexOf(key);
   return i >= 0 ? row[i] || "" : undefined;
 }
@@ -238,8 +251,22 @@ function render() {
   const unsure = Object.values(state.map).some((i) => i < 0);
   $("mapping").hidden = !(showMap || unsure);
   $("fixCols").hidden = showMap || unsure;
+  renderRules(false);
   renderPeople();
   renderPreview();
+}
+
+// 稱謂自動轉換：列表下方一行摘要，按「修改」展開規則
+function renderRules(rebuild) {
+  const rules = state.rules;
+  const n = state.rows.filter((row) => raw(row, "title") && col(row, "title") !== raw(row, "title")).length;
+  const text = rules.filter((r) => splitFrom(r.from).length && r.to.trim()).map((r) => splitFrom(r.from).join("、") + " → " + r.to.trim()).join("；");
+  $("rulesSummary").textContent = "稱謂自動轉換：" + (text || "（沒有）") + (n ? "　名單裡 " + n + " 位會轉換" : "");
+  if (!rebuild) return;
+  $("ruleRows").innerHTML = rules.map((r, i) =>
+    '<div class="rule" data-i="' + i + '"><input type="text" class="rFrom" placeholder="名單裡的稱謂，例如 教授、副教授" value="' + esc(r.from) + '">' +
+    '<span>改成</span><input type="text" class="rTo" placeholder="例如 老師" value="' + esc(r.to) + '">' +
+    '<button type="button" class="rdel" title="刪除這條">×</button></div>').join("");
 }
 
 function renderPeople() {
@@ -261,7 +288,7 @@ function renderPeople() {
       : '<td class="st"><input type="checkbox" class="pick"' + (ok && !state.off[i] ? " checked" : "") + (ok ? lock : " disabled") + "></td>";
     const err = st && st !== "ok" && st !== "sending" ? '<span class="err" title="' + esc(st) + '">✗</span>' : "";
     return '<tr data-i="' + i + '" class="' + (i === current ? "current " : "") + (ok ? "" : "bad") + '">' + mark +
-      "<td>" + esc(col(row, "title")) + "</td><td>" + esc(col(row, "name")) + "</td><td>" + esc(col(row, "email") || "（沒有 Email）") + "</td>" +
+      "<td>" + esc(col(row, "title")) + (col(row, "title") !== raw(row, "title") ? '<span class="raw" title="名單原本寫的">' + esc(raw(row, "title")) + "</span>" : "") + "</td><td>" + esc(col(row, "name")) + "</td><td>" + esc(col(row, "email") || "（沒有 Email）") + "</td>" +
       '<td class="act">' + (state.custom[i] ? '<span class="edited" title="這一位的信個別修改過">✎</span>' : "") + err + '<button type="button" class="del" title="從列表刪除"' + lock + ">×</button></td></tr>";
   }).join("") + "</tbody>";
 }
@@ -488,6 +515,33 @@ function bind() {
     $(id).onchange = (e) => { state.map[key] = +e.target.value; store.save(); render(); };
   }
 
+  // 稱謂自動轉換
+  const rulesChanged = (rebuild) => { store.save(); renderRules(rebuild); renderPeople(); renderPreview(); };
+  const addRule = () => {
+    state.rules.push({ from: "", to: "" });
+    rulesChanged(true);
+    $("ruleRows").querySelector(".rule:last-child .rFrom").focus();
+  };
+  $("editRules").onclick = () => {
+    const open = $("rules").hidden;
+    $("rules").hidden = !open;
+    $("editRules").textContent = open ? "收起" : "修改";
+    if (open) { renderRules(true); if (!state.rules.length) addRule(); }
+  };
+  $("addRule").onclick = addRule;
+  $("ruleRows").addEventListener("input", (e) => {
+    const d = e.target.closest(".rule");
+    if (!d || sending) return;
+    state.rules[+d.dataset.i][e.target.classList.contains("rFrom") ? "from" : "to"] = e.target.value;
+    rulesChanged(false);
+  });
+  $("ruleRows").addEventListener("click", (e) => {
+    const d = e.target.closest(".rule");
+    if (!d || !e.target.closest(".rdel") || sending) return;
+    state.rules.splice(+d.dataset.i, 1);
+    rulesChanged(true);
+  });
+
   $("people").onclick = (e) => {
     if (sending) return;
     if (e.target.id === "checkAll") {
@@ -604,7 +658,7 @@ function askClose() {
 }
 
 function closeCase() {
-  const keep = ["source", "headers", "rows", "map", "sender", "replyTo", "subject", "body", "receipt", "status", "off", "custom", "sentAt"];
+  const keep = ["source", "headers", "rows", "map", "sender", "replyTo", "subject", "body", "receipt", "status", "off", "custom", "sentAt", "rules"];
   const c = { id: Date.now(), name: $("caseName").value.trim() || "未命名案件", closedAt: Date.now(), files: attachments.map((a) => a.name) };
   for (const k of keep) c[k] = JSON.parse(JSON.stringify(state[k]));
   cases.unshift(c);
@@ -738,6 +792,7 @@ async function checkForUpdate() {
 (async function init() {
   const saved = await store.load();
   if (saved) Object.assign(state, saved);
+  if (!Array.isArray(state.rules)) state.rules = DEFAULT_RULES.map((r) => ({ ...r }));
   for (const k in state.status) if (state.status[k] === "sending") delete state.status[k];
   current = Math.max(0, state.rows.findIndex(validRow));
   $("sender").value = state.sender || "";

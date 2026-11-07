@@ -66,6 +66,15 @@
             <label>Email<select id="mapEmail"></select></label>
           </div>
           <div class="tableWrap"><table id="people"></table></div>
+          <div class="rulesLine">
+            <span id="rulesSummary"></span>
+            <button type="button" class="link" id="editRules">修改</button>
+          </div>
+          <div class="rules" id="rules" hidden>
+            <p class="hint">名單裡的稱謂是左邊這些字，寄信時會自動改成右邊的字。幾個稱謂用「、」隔開。</p>
+            <div id="ruleRows"></div>
+            <button type="button" class="link" id="addRule">＋ 再加一條</button>
+          </div>
         </div>
         <p id="listMsg" class="msg" hidden></p>
       </section>
