@@ -1089,7 +1089,9 @@ async function checkForUpdate() {
       await chrome.storage.local.set({ vipUpdateAt: Date.now() });
       const r = await fetch("https://api.github.com/repos/" + UPDATE_REPO + "/releases?per_page=30", { headers: { accept: "application/vnd.github+json" } });
       if (r.ok) {
-        const rel = (await r.json()).find((x) => !x.draft && String(x.tag_name).startsWith(UPDATE_TAG));
+        // GitHub 回傳的順序不一定是版號順序（1.9.0 可能排在 1.10.0 前面），所以自己挑版號最大的
+        const rel = (await r.json()).filter((x) => !x.draft && String(x.tag_name).startsWith(UPDATE_TAG))
+          .reduce((best, x) => (!best || newerThan(x.tag_name.slice(UPDATE_TAG.length), best.tag_name.slice(UPDATE_TAG.length)) ? x : best), null);
         const zip = rel?.assets?.find((a) => a.name.endsWith(".zip"));
         vipUpdate = rel ? { version: rel.tag_name.slice(UPDATE_TAG.length), url: zip?.browser_download_url || rel.html_url } : null;
         await chrome.storage.local.set({ vipUpdate });

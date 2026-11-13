@@ -118,7 +118,11 @@
     fetch("https://api.github.com/repos/carminowu-gen1/picomeeting-assistant/releases?per_page=30", { headers: { accept: "application/vnd.github+json" } })
       .then(function (r) { return r.ok ? r.json() : []; })
       .then(function (list) {
-        var rel = list.find(function (x) { return !x.draft && String(x.tag_name).indexOf("mail-v") === 0; });
+        // GitHub 回傳的順序不一定是版號順序（1.9.0 可能排在 1.10.0 前面），所以自己挑版號最大的
+        var num = function (x) { return x.tag_name.slice(6).split(".").map(Number); };
+        var newer = function (a, b) { for (var i = 0; i < 3; i++) if ((a[i] || 0) !== (b[i] || 0)) return (a[i] || 0) > (b[i] || 0); return false; };
+        var rel = list.filter(function (x) { return !x.draft && String(x.tag_name).indexOf("mail-v") === 0; })
+          .reduce(function (best, x) { return !best || newer(num(x), num(best)) ? x : best; }, null);
         var zip = rel && rel.assets.find(function (a) { return /\.zip$/.test(a.name); });
         if (!zip) return;
         document.getElementById("dl").href = zip.browser_download_url;
