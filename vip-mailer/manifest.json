@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "小伐郵件高手",
   "description": "從 Excel 或 Google 試算表匯入稱謂、姓名、Email，一人一封專屬郵件，用自己的 Gmail 寄出。",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlO2r7KBHa7V+Nsur1e9Kk9Igd+5inkpaUHcnT2FR2kvb1L5Vfwza8iRusVrrIcIMRSexyozVOfZvjQCXZJvW4lUwfcSPEozDNk2F/nN/XqMypI2GERAPJzcLxBi/zLhC3xfs/LQGERX6XwsIQKxVtrfYGtP9BaFaTS5c/nlGKJJmGYUD2zS7X6n8ehVHI+U9zUc1OVQNFQLkRYq1A8WJTY7tWAdiBi0O8WGEdRkwrdZggCG6wOFVMxy8nRlgDYkUvgdY9HqpN/7RP9unnta1LsZq3EVP0PVFmV6DfJYhq+itaa/IPSTjSH1/t5kbA55ndWc4pIXx38cDg7DcgUNDiQIDAQAB",
   "icons": {
     "16": "icons/icon16.png",

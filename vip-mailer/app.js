@@ -535,7 +535,58 @@ function insertKey(key) {
   document.execCommand("insertText", false, text);
 }
 
+// ---------- 排版工具列 ----------
+// 字型、大小、顏色：有選取就改選取的，沒選取就整封一起改（貼進來的內容才會和稱謂姓名一致）
+
+function bodySelection(whole) {
+  const body = $("body");
+  const sel = getSelection();
+  const inside = sel.rangeCount && body.contains(sel.getRangeAt(0).commonAncestorContainer);
+  if (inside && !(whole && sel.isCollapsed)) { body.focus(); return; }
+  body.focus();
+  const range = document.createRange();
+  range.selectNodeContents(body);
+  if (!whole) range.collapse(false);
+  sel.removeAllRanges(); sel.addRange(range);
+}
+
+// execCommand 會產生 <font>，換成 <span style>，Gmail／Outlook 都看得懂
+function tidyFonts(px) {
+  for (const f of $("body").querySelectorAll("font")) {
+    const s = document.createElement("span");
+    if (f.getAttribute("face")) s.style.fontFamily = f.getAttribute("face");
+    if (f.getAttribute("color")) s.style.color = f.getAttribute("color");
+    if (f.getAttribute("size") === "7" && px) s.style.fontSize = px + "px";
+    s.innerHTML = f.innerHTML;
+    f.replaceWith(s);
+  }
+}
+
+function format(cmd, value) {
+  const whole = cmd === "fontName" || cmd === "fontSize" || cmd === "foreColor" || cmd === "removeFormat";
+  bodySelection(whole);
+  if (!$("body").textContent.trim()) return;
+  if (cmd === "fontSize") { document.execCommand("fontSize", false, "7"); tidyFonts(value); }
+  else if (cmd === "removeFormat") {
+    document.execCommand("removeFormat");
+    // 清掉貼進來的整段樣式（Word、網頁常帶 style），只留段落
+    for (const el of $("body").querySelectorAll("[style], font")) { el.removeAttribute("style"); if (el.tagName === "FONT") { const s = document.createElement("span"); s.innerHTML = el.innerHTML; el.replaceWith(s); } }
+    for (const el of $("body").querySelectorAll("[class], [align], [bgcolor]")) { el.removeAttribute("class"); el.removeAttribute("align"); el.removeAttribute("bgcolor"); }
+  } else { document.execCommand(cmd, false, value); tidyFonts(); }
+  $("body").dispatchEvent(new Event("input"));
+}
+
+function bindFormat() {
+  $("fmt").addEventListener("mousedown", (e) => { if (e.target.closest("button")) e.preventDefault(); }); // 按按鈕不要讓編輯區失焦
+  $("fmt").addEventListener("click", (e) => { const b = e.target.closest("button[data-cmd]"); if (b) format(b.dataset.cmd); });
+  $("fmtClear").onclick = () => format("removeFormat");
+  $("fmtFont").onchange = (e) => { if (e.target.value) format("fontName", e.target.value); e.target.value = ""; };
+  $("fmtSize").onchange = (e) => { if (e.target.value) format("fontSize", e.target.value); e.target.value = ""; };
+  $("fmtColor").oninput = (e) => format("foreColor", e.target.value);
+}
+
 function bind() {
+  bindFormat();
   const drop = $("drop");
   $("file").onchange = (e) => { importFile(e.target.files[0]); e.target.value = ""; };
   for (const ev of ["dragenter", "dragover"]) drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); });

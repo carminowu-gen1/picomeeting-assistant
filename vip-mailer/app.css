@@ -129,8 +129,26 @@ td.st { width: 34px; text-align: center; }
   border-radius: 999px; padding: 3px 13px; font: inherit; font-size: 13px; cursor: pointer; transition: .15s;
 }
 .chip:hover { background: rgba(227, 168, 59, .32); color: #fff; }
-#body { min-height: 230px; overflow-wrap: anywhere; line-height: 1.75; }
-#body:empty::before { content: attr(data-placeholder); color: var(--faint); }
+/* 編輯區用白色信紙，所見即所得（貼進來的黑字才看得到） */
+#body { min-height: 230px; overflow-wrap: anywhere; line-height: 1.75; background: #fdfdfb; color: #222; border-color: transparent; border-radius: 0 0 12px 12px; }
+#body:focus { box-shadow: 0 0 0 2px rgba(227, 168, 59, .6); }
+#body:empty::before { content: attr(data-placeholder); color: #a9afbd; }
+.fmt {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px 8px;
+  background: #ecece6; border-radius: 12px 12px 0 0; border-bottom: 1px solid #d9d9d0;
+}
+.fmt select, .fmt button, .fmt .color {
+  height: 30px; padding: 0 9px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: #333;
+  font: inherit; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 2px; width: auto;
+}
+.fmt select { padding-right: 4px; max-width: 84px; }
+.fmt button { padding: 0 7px; min-width: 30px; justify-content: center; }
+.fmt select:hover, .fmt button:hover, .fmt .color:hover { background: #fff; border-color: #cfcfc6; }
+.fmt .sep { width: 1px; height: 20px; background: #cfcfc6; margin: 0 4px; }
+.fmt .color { position: relative; font-weight: 700; padding: 0 10px; border-bottom: 3px solid #222; }
+.fmt .color input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+.fmt #fmtClear { font-size: 12px; color: #666; }
+.hint.fmtHint { text-align: left; margin: 8px 0 0; }
 .attach { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; }
 .file { background: var(--glass-2); border-radius: 8px; padding: 3px 6px 3px 10px; display: inline-flex; align-items: center; gap: 4px; }
 .file button { border: 0; background: none; cursor: pointer; color: var(--soft); font-size: 15px; line-height: 1; padding: 2px 4px; }

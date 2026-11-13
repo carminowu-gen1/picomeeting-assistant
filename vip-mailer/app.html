@@ -92,7 +92,36 @@
           <span>點一下插入：</span>
           <span id="chips"></span>
         </div>
+        <div class="fmt" id="fmt">
+          <select id="fmtFont" title="字型">
+            <option value="">字型</option>
+            <option value="Microsoft JhengHei">微軟正黑體</option>
+            <option value="PMingLiU">新細明體</option>
+            <option value="DFKai-SB">標楷體</option>
+            <option value="Noto Sans TC">思源黑體</option>
+            <option value="Arial">Arial</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Calibri">Calibri</option>
+          </select>
+          <select id="fmtSize" title="文字大小">
+            <option value="">大小</option>
+            <option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option>
+            <option value="16">16</option><option value="18">18</option><option value="20">20</option><option value="24">24</option><option value="28">28</option>
+          </select>
+          <button type="button" data-cmd="bold" title="粗體（Ctrl+B）"><b>B</b></button>
+          <button type="button" data-cmd="italic" title="斜體（Ctrl+I）"><i>I</i></button>
+          <button type="button" data-cmd="underline" title="底線（Ctrl+U）"><u>U</u></button>
+          <label class="color" title="文字顏色">A<input type="color" id="fmtColor" value="#222222"></label>
+          <span class="sep"></span>
+          <button type="button" data-cmd="justifyLeft" title="靠左">☰</button>
+          <button type="button" data-cmd="justifyCenter" title="置中">☷</button>
+          <button type="button" data-cmd="insertUnorderedList" title="項目符號">•≡</button>
+          <button type="button" data-cmd="insertOrderedList" title="編號">1≡</button>
+          <span class="sep"></span>
+          <button type="button" id="fmtClear" title="把選取的文字（沒選就是整封）變回一樣的字型、大小、顏色">清除格式</button>
+        </div>
         <div id="body" contenteditable="true" data-placeholder="在這裡寫信…"></div>
+        <p class="hint fmtHint">字型、大小、顏色：先選取要改的文字再按；沒選取就是整封一起改，這樣貼進來的內容和稱謂姓名會一致。</p>
         <label class="check"><input type="checkbox" id="receipt">請對方確認收到<span>信末加上「我已收到」按鈕</span></label>
         <div class="attach">
           <label class="link"><input type="file" id="attachInput" multiple hidden>＋ 加附件</label>
