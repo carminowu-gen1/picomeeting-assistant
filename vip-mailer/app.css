@@ -237,6 +237,9 @@ tr:hover .del, .del:focus-visible { opacity: 1; }
 #pvBody { min-height: 120px; }
 #pvSubject[contenteditable]:not([contenteditable=false]):hover, #pvBody[contenteditable=true]:hover { box-shadow: 0 0 0 2px rgba(227, 168, 59, .25); }
 #pvSubject[contenteditable]:not([contenteditable=false]):focus, #pvBody[contenteditable=true]:focus { box-shadow: 0 0 0 2px rgba(227, 168, 59, .7); }
+th[data-sort] { cursor: pointer; user-select: none; }
+th[data-sort]:hover { color: var(--gold); }
+th .arrow { margin-left: 5px; font-size: 10px; color: var(--gold); }
 td.act .edited { color: var(--gold); margin-right: 6px; }
 
 /* 案件：結案與紀錄 */

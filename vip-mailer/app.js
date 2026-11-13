@@ -22,6 +22,7 @@ const state = {
   prev: {}, // 列號 → { email, at }：按「再寄一次」之前，上一次寄到哪個信箱、何時寄
   caseDate: "", // 會議日期（yyyy-mm-dd，可空）
   caseId: null, caseName: "", // 目前這一案在案件紀錄裡的編號和名字（暫存過才有）
+  sort: null, // 列表排序 { key: "title"|"name"|"email", dir: 1|-1 }；null 是名單原本的順序
   rules: null, // 稱謂自動轉換 [{ from: "教授、副教授", to: "老師" }]；null 表示還沒設定過（第一次會放一條範例）
 };
 const DEFAULT_RULES = [{ from: "教授、副教授、助理教授", to: "老師" }];
@@ -212,7 +213,7 @@ function usedKeys() {
 
 function setTable(table, source) {
   Object.assign(state, { headers: table.headers, rows: table.rows, map: table.map, source: table.source || source, status: {}, off: {}, custom: {}, sentAt: {}, alias: {}, prev: {} });
-  current = Math.max(0, state.rows.findIndex(validRow));
+  current = firstCurrent();
   showMsg("listMsg", "");
   store.save();
   render();
@@ -223,6 +224,7 @@ function setTable(table, source) {
 // 已寄過但新名單裡不見的人，留在最後面當紀錄。
 function mergeTable(table) {
   const emailOf = (row, c) => (col(row, "email", c) || "").trim().toLowerCase();
+  const nameOf = (row, c) => (raw(row, "name", c) || "").trim().toLowerCase();
   const sameHeaders = JSON.stringify(table.headers) === JSON.stringify(state.headers);
   const map = sameHeaders ? state.map : table.map;
   const next = { headers: table.headers, map };
@@ -230,31 +232,55 @@ function mergeTable(table) {
   state.rows.forEach((row, i) => { for (const k of [emailOf(row, state), (state.alias[i] || "").toLowerCase()]) if (k && !old.has(k)) old.set(k, i); });
   // 舊的一列換成新名單的欄位順序（欄位名稱一樣的照搬）
   const relayout = (row) => sameHeaders ? row : table.headers.map((h) => { const i = state.headers.indexOf(h); return i >= 0 ? row[i] || "" : ""; });
+  // 第一輪：用 Email 對
+  const match = table.rows.map((row) => { const k = emailOf(row, next); return k ? old.get(k) : undefined; });
+  const used = new Set(match.filter((x) => x !== undefined));
+  // 第二輪：Email 對不到的（多半是在 Excel 裡改了 Email）用姓名對；同名不只一位就不猜
+  const bump = (m, k) => m.set(k, (m.get(k) || 0) + 1);
+  const oldNames = new Map(), newNames = new Map(), oldByName = new Map(), byName = new Set();
+  state.rows.forEach((row, i) => { const n = nameOf(row, state); if (n && !used.has(i)) { bump(oldNames, n); oldByName.set(n, i); } });
+  table.rows.forEach((row, j) => { const n = nameOf(row, next); if (n && match[j] === undefined) bump(newNames, n); });
+  table.rows.forEach((row, j) => {
+    const n = nameOf(row, next);
+    if (match[j] !== undefined || !n || oldNames.get(n) !== 1 || newNames.get(n) !== 1 || !EMAIL_RE.test(col(row, "email", next))) return;
+    match[j] = oldByName.get(n); used.add(match[j]); byName.add(j);
+  });
+
   const rows = [], status = {}, off = {}, custom = {}, sentAt = {}, alias = {}, prev = {};
   const carry = (ni, oi) => {
     for (const [k, o] of [["status", status], ["off", off], ["custom", custom], ["sentAt", sentAt], ["alias", alias], ["prev", prev]]) if (state[k][oi] !== undefined) o[ni] = state[k][oi];
   };
-  const seen = new Set(), used = new Set();
-  let added = 0, edited = 0;
-  for (const row of table.rows) {
-    const k = emailOf(row, next);
-    const oi = k ? old.get(k) : undefined;
-    if (oi === undefined) { rows.push(row); added++; continue; }
-    seen.add(k); used.add(oi);
+  const seen = new Set();
+  let added = 0, edited = 0, changed = 0, again = 0;
+  table.rows.forEach((row, j) => {
+    const oi = match[j];
+    if (oi === undefined) { rows.push(row); added++; return; }
+    if (byName.has(j)) { // Excel 裡這一位換了 Email：照 Excel；寄過的自動變回打勾，準備再寄
+      const ni = rows.push(row) - 1;
+      carry(ni, oi); delete alias[ni]; changed++;
+      if (status[ni] === "ok") {
+        prev[ni] = { email: col(state.rows[oi], "email"), at: sentAt[ni] || 0 };
+        delete status[ni]; delete sentAt[ni]; delete off[ni]; again++;
+      }
+      return;
+    }
+    seen.add(emailOf(row, next));
     const keepOld = state.custom[oi] !== undefined || state.alias[oi] !== undefined; // 個別修改過（信或 Email）的人：整列都不動
     if (keepOld) edited++;
     carry(rows.push(keepOld ? relayout(state.rows[oi]) : row) - 1, oi);
-  }
+  });
   let kept = 0;
   state.rows.forEach((row, oi) => {
     const k = emailOf(row, state);
     if (state.status[oi] === "ok" && !used.has(oi) && !(k && seen.has(k))) { carry(rows.push(relayout(row)) - 1, oi); kept++; }
   });
   Object.assign(state, next, { rows, status, off, custom, sentAt, alias, prev });
-  current = Math.max(0, state.rows.findIndex(validRow));
+  current = firstCurrent();
   store.save();
   render();
-  showMsg("listMsg", "名單更新好了：新增 " + added + " 位" + (edited ? "，個別修改過的 " + edited + " 位沒動" : "") +
+  showMsg("listMsg", "名單更新好了：新增 " + added + " 位" +
+    (changed ? "，" + changed + " 位的 Email 照 Excel 改了" + (again ? "（其中 " + again + " 位寄過，已自動打勾準備再寄）" : "") : "") +
+    (edited ? "，個別修改過的 " + edited + " 位沒動" : "") +
     (kept ? "，已寄過但新名單裡沒有的 " + kept + " 位留在最後面" : "") + "。", "good");
 }
 
@@ -329,8 +355,11 @@ function renderPeople() {
     (sent ? "，已寄 " + sent + " 位" : "") + (bad ? "（" + bad + " 列 Email 有問題，不會寄）" : "");
 
   const head = '<thead><tr><th class="st"><input type="checkbox" id="checkAll" title="全選／全不選"' +
-    (allOn ? " checked" : "") + (can.length ? lock : " disabled") + "></th><th>稱謂</th><th>姓名</th><th>Email</th><th></th></tr></thead>";
-  $("people").innerHTML = head + "<tbody>" + state.rows.map((row, i) => {
+    (allOn ? " checked" : "") + (can.length ? lock : " disabled") + "></th>" +
+    [["title", "稱謂"], ["name", "姓名"], ["email", "Email"]].map(([k, t]) => '<th data-sort="' + k + '" title="點一下照「' + t + '」排序，再點一下反過來，第三下回到原本順序">' + t +
+      (state.sort?.key === k ? '<span class="arrow">' + (state.sort.dir > 0 ? "▲" : "▼") + "</span>" : "") + "</th>").join("") + "<th></th></tr></thead>";
+  $("people").innerHTML = head + "<tbody>" + order().map((i) => {
+    const row = state.rows[i];
     const st = state.status[i];
     const ok = validRow(row);
     const mark = st === "ok" ? '<td class="st ok" title="已寄出。想再寄一次，點這一位後看右邊">✓</td>'
@@ -377,14 +406,28 @@ function renderChips() {
   $("chips").innerHTML = keys.map((k) => '<button type="button" class="chip" data-key="' + esc(k) + '">' + esc(k) + "</button>").join("");
 }
 
+// 列表顯示的順序（列號）：點欄位標題排序；預覽翻頁、寄出都照這個順序
+const collator = new Intl.Collator("zh-Hant", { numeric: true, sensitivity: "base" });
+function order() {
+  const idx = state.rows.map((row, i) => i), s = state.sort;
+  if (!s) return idx;
+  return idx.sort((a, b) => collator.compare(col(state.rows[a], s.key), col(state.rows[b], s.key)) * s.dir || a - b);
+}
+
+// 要寄的信（打勾、還沒寄、Email 沒問題），照列表順序
 function pending() {
-  return state.rows.map((row, i) => i).filter((i) => validRow(state.rows[i]) && state.status[i] !== "ok" && !state.off[i]);
+  return order().filter((i) => validRow(state.rows[i]) && state.status[i] !== "ok" && !state.off[i]);
+}
+function firstCurrent() {
+  return pending()[0] ?? Math.max(0, state.rows.findIndex(validRow));
 }
 
 function renderPreview() {
   if (!state.rows.length) return;
   const row = state.rows[current] || state.rows[0];
-  $("navLabel").textContent = "第 " + (current + 1) + " 位，共 " + state.rows.length + " 位";
+  const todo = pending(), at = todo.indexOf(current);
+  $("navLabel").textContent = at >= 0 ? "第 " + (at + 1) + " 封，共 " + todo.length + " 封"
+    : (state.status[current] === "ok" ? "已寄出" : "沒有勾選") + (todo.length ? "　要寄的共 " + todo.length + " 封" : "");
   const name = col(row, "name"), email = col(row, "email");
   const sender = (state.sender || "").trim();
   $("pvFromRow").hidden = !sender;
@@ -685,6 +728,13 @@ function bind() {
       store.save(); renderPeople(); renderPreview();
       return;
     }
+    const th = e.target.closest("th[data-sort]");
+    if (th) {
+      const k = th.dataset.sort, s = state.sort;
+      state.sort = !s || s.key !== k ? { key: k, dir: 1 } : s.dir > 0 ? { key: k, dir: -1 } : null;
+      store.save(); renderPeople(); renderPreview();
+      return;
+    }
     const tr = e.target.closest("tr[data-i]");
     if (!tr) return;
     const i = +tr.dataset.i;
@@ -697,7 +747,14 @@ function bind() {
   };
   const step = (d) => {
     if (sending) return;
-    current = (current + d + state.rows.length) % state.rows.length;
+    // 只翻打勾要寄的信，照列表順序；都沒打勾時才翻全部
+    const todo = pending(), list = todo.length ? todo : order(), at = list.indexOf(current);
+    if (at >= 0) current = list[(at + d + list.length) % list.length];
+    else { // 現在看的不是要寄的（已寄或沒勾）：跳到列表上離它最近的下一封／上一封
+      const ord = order(), pos = ord.indexOf(current);
+      const after = list.filter((i) => ord.indexOf(i) > pos), before = list.filter((i) => ord.indexOf(i) < pos);
+      current = d > 0 ? after[0] ?? list[0] : before[before.length - 1] ?? list[list.length - 1];
+    }
     renderPeople(); renderPreview();
     document.querySelector("tr.current")?.scrollIntoView({ block: "nearest" });
   };
@@ -871,7 +928,7 @@ function openCaseNow(c) {
   for (const k of CASE_KEYS) if (k !== "rules" && k in c) state[k] = c[k];
   state.alias = c.alias || {}; state.prev = c.prev || {}; // 舊版存的案件沒有這兩項
   state.caseId = c.id; state.caseName = c.name; state.caseDate = c.date || "";
-  attachments = c.attach || []; current = Math.max(0, state.rows.findIndex(validRow)); showMap = false;
+  attachments = c.attach || []; current = firstCurrent(); showMap = false;
   loadForm();
   openCase = null; $("cases").close();
   renderAttach(); store.save(); render();
@@ -1052,7 +1109,7 @@ async function checkForUpdate() {
   if (!Array.isArray(state.rules)) state.rules = DEFAULT_RULES.map((r) => ({ ...r }));
   state.alias ||= {}; state.prev ||= {};
   for (const k in state.status) if (state.status[k] === "sending") delete state.status[k];
-  current = Math.max(0, state.rows.findIndex(validRow));
+  current = firstCurrent();
   $("sender").value = state.sender || "";
   $("replyTo").value = state.replyTo || "";
   $("receipt").checked = !!state.receipt;
