@@ -18,6 +18,8 @@ const state = {
   off: {}, // 列號 → 1 表示沒打勾（不寄）
   custom: {}, // 列號 → { subject, html }：在預覽裡為這一位單獨改過的版本
   sentAt: {}, // 列號 → 寄出時間
+  alias: {}, // 列號 → 名單上原本的 Email（在預覽改過收件 Email 的人；更新名單時靠它認回同一位）
+  prev: {}, // 列號 → { email, at }：按「再寄一次」之前，上一次寄到哪個信箱、何時寄
   caseDate: "", // 會議日期（yyyy-mm-dd，可空）
   caseId: null, caseName: "", // 目前這一案在案件紀錄裡的編號和名字（暫存過才有）
   rules: null, // 稱謂自動轉換 [{ from: "教授、副教授", to: "老師" }]；null 表示還沒設定過（第一次會放一條範例）
@@ -209,7 +211,7 @@ function usedKeys() {
 }
 
 function setTable(table, source) {
-  Object.assign(state, { headers: table.headers, rows: table.rows, map: table.map, source: table.source || source, status: {}, off: {}, custom: {}, sentAt: {} });
+  Object.assign(state, { headers: table.headers, rows: table.rows, map: table.map, source: table.source || source, status: {}, off: {}, custom: {}, sentAt: {}, alias: {}, prev: {} });
   current = Math.max(0, state.rows.findIndex(validRow));
   showMsg("listMsg", "");
   store.save();
@@ -225,30 +227,30 @@ function mergeTable(table) {
   const map = sameHeaders ? state.map : table.map;
   const next = { headers: table.headers, map };
   const old = new Map();
-  state.rows.forEach((row, i) => { const k = emailOf(row, state); if (k && !old.has(k)) old.set(k, i); });
+  state.rows.forEach((row, i) => { for (const k of [emailOf(row, state), (state.alias[i] || "").toLowerCase()]) if (k && !old.has(k)) old.set(k, i); });
   // 舊的一列換成新名單的欄位順序（欄位名稱一樣的照搬）
   const relayout = (row) => sameHeaders ? row : table.headers.map((h) => { const i = state.headers.indexOf(h); return i >= 0 ? row[i] || "" : ""; });
-  const rows = [], status = {}, off = {}, custom = {}, sentAt = {};
+  const rows = [], status = {}, off = {}, custom = {}, sentAt = {}, alias = {}, prev = {};
   const carry = (ni, oi) => {
-    for (const [k, o] of [["status", status], ["off", off], ["custom", custom], ["sentAt", sentAt]]) if (state[k][oi] !== undefined) o[ni] = state[k][oi];
+    for (const [k, o] of [["status", status], ["off", off], ["custom", custom], ["sentAt", sentAt], ["alias", alias], ["prev", prev]]) if (state[k][oi] !== undefined) o[ni] = state[k][oi];
   };
-  const seen = new Set();
+  const seen = new Set(), used = new Set();
   let added = 0, edited = 0;
   for (const row of table.rows) {
     const k = emailOf(row, next);
     const oi = k ? old.get(k) : undefined;
     if (oi === undefined) { rows.push(row); added++; continue; }
-    seen.add(k);
-    const keepOld = state.custom[oi] !== undefined; // 個別修改過的人：整列都不動
+    seen.add(k); used.add(oi);
+    const keepOld = state.custom[oi] !== undefined || state.alias[oi] !== undefined; // 個別修改過（信或 Email）的人：整列都不動
     if (keepOld) edited++;
     carry(rows.push(keepOld ? relayout(state.rows[oi]) : row) - 1, oi);
   }
   let kept = 0;
   state.rows.forEach((row, oi) => {
     const k = emailOf(row, state);
-    if (state.status[oi] === "ok" && !(k && seen.has(k))) { carry(rows.push(relayout(row)) - 1, oi); kept++; }
+    if (state.status[oi] === "ok" && !used.has(oi) && !(k && seen.has(k))) { carry(rows.push(relayout(row)) - 1, oi); kept++; }
   });
-  Object.assign(state, next, { rows, status, off, custom, sentAt });
+  Object.assign(state, next, { rows, status, off, custom, sentAt, alias, prev });
   current = Math.max(0, state.rows.findIndex(validRow));
   store.save();
   render();
@@ -331,20 +333,31 @@ function renderPeople() {
   $("people").innerHTML = head + "<tbody>" + state.rows.map((row, i) => {
     const st = state.status[i];
     const ok = validRow(row);
-    const mark = st === "ok" ? '<td class="st ok" title="已寄出">✓</td>'
+    const mark = st === "ok" ? '<td class="st ok" title="已寄出。想再寄一次，點這一位後看右邊">✓</td>'
       : st === "sending" ? '<td class="st">…</td>'
       : '<td class="st"><input type="checkbox" class="pick"' + (ok && !state.off[i] ? " checked" : "") + (ok ? lock : " disabled") + "></td>";
     const err = st && st !== "ok" && st !== "sending" ? '<span class="err" title="' + esc(st) + '">✗</span>' : "";
     return '<tr data-i="' + i + '" class="' + (i === current ? "current " : "") + (ok ? "" : "bad") + '">' + mark +
       "<td>" + esc(col(row, "title")) + (col(row, "title") !== raw(row, "title") ? '<span class="raw" title="名單原本寫的">' + esc(raw(row, "title")) + "</span>" : "") + "</td><td>" + esc(col(row, "name")) + "</td><td>" + esc(col(row, "email") || "（沒有 Email）") + "</td>" +
-      '<td class="act">' + (state.custom[i] ? '<span class="edited" title="這一位的信個別修改過">✎</span>' : "") + err + '<button type="button" class="del" title="從列表刪除"' + lock + ">×</button></td></tr>";
+      '<td class="act">' + (state.custom[i] ? '<span class="edited" title="這一位的信個別修改過">✎</span>' : "") +
+      (state.prev[i] && st !== "ok" ? '<span class="edited" title="之前寄過，這次會再寄一次">↻</span>' : "") + err + '<button type="button" class="del" title="從列表刪除"' + lock + ">×</button></td></tr>";
   }).join("") + "</tbody>";
+}
+
+// 改某一位的收件 Email（不會動到原本的 Excel）。記住名單上原本寫的，更新名單時才認得出是同一位
+function setEmail(i, v) {
+  const row = state.rows[i], at = state.map.email;
+  if (!row || at < 0) return;
+  const was = String(row[at] || "").trim();
+  if (state.alias[i] === undefined && was && was.toLowerCase() !== v.toLowerCase()) state.alias[i] = was;
+  row[at] = v;
+  if (state.alias[i] !== undefined && state.alias[i].toLowerCase() === v.toLowerCase()) delete state.alias[i];
 }
 
 // 從列表刪掉一位（不會動到原本的 Excel）
 function removeRow(i) {
   state.rows.splice(i, 1);
-  for (const key of ["status", "off", "custom", "sentAt"]) {
+  for (const key of ["status", "off", "custom", "sentAt", "alias", "prev"]) {
     const next = {};
     for (const k in state[key]) {
       if (+k < i) next[k] = state[key][k];
@@ -379,16 +392,28 @@ function renderPreview() {
   const reply = (state.replyTo || "").trim();
   $("pvReplyRow").hidden = !reply;
   $("pvReply").textContent = reply;
-  $("pvTo").textContent = (name ? name + " " : "") + "<" + (email || "沒有 Email") + ">";
+  const editable = !sending && state.status[current] !== "ok";
+  const pe = $("pvEmail");
+  $("pvName").textContent = name ? name + " " : "";
+  if (document.activeElement !== pe) pe.textContent = email; // 正在打字時不要蓋掉
+  pe.contentEditable = editable && state.map.email >= 0 ? "plaintext-only" : "false";
+  pe.classList.toggle("wrong", !validRow(row));
   const mine = state.custom[current];
   if (mine) { $("pvSubject").textContent = mine.subject; $("pvBody").innerHTML = mine.html; }
   else { $("pvSubject").innerHTML = fill(esc(state.subject), row, true); $("pvBody").innerHTML = fill(state.body, row, true); }
   $("pvReceipt").innerHTML = state.receipt ? receiptHtml(current) : "";
-  const editable = !sending && state.status[current] !== "ok";
   $("pvSubject").contentEditable = editable ? "plaintext-only" : "false";
   $("pvBody").contentEditable = editable ? "true" : "false";
   $("customNote").hidden = !mine;
-  $("editHint").hidden = !!mine || !editable;
+  // 已寄的人：可以再寄一次（順便改 Email）；按了之後可以反悔
+  const done1 = state.status[current] === "ok", before = state.prev[current];
+  $("sentNote").hidden = !(done1 || before);
+  $("sentNote").classList.toggle("again", !done1);
+  $("sentText").textContent = done1 ? "✓ 已" + (state.sentAt[current] ? "在 " + clock(state.sentAt[current]) + " " : "") + "寄出。信被退回或想再寄？"
+    : before ? "↻ 這一位" + (before.at ? " " + clock(before.at) + " " : "") + "寄過（" + before.email + "），這次會再寄一次。" : "";
+  $("resend").textContent = done1 ? "再寄一次（可改 Email）" : "不重寄了";
+  $("resend").hidden = sending;
+  $("editHint").hidden = !!mine || !editable || !!before;
   $("pvAttach").textContent = attachments.length ? "📎 " + attachments.map((a) => a.name).join("、") : "";
 
   $("warnings").innerHTML = problems().map((p) => "<li>" + esc(p) + "</li>").join("");
@@ -410,6 +435,8 @@ function problems() {
   const keys = usedKeys();
   const rows = pending().map((i) => state.rows[i]);
   if (state.map.email < 0) list.push("還不知道哪一欄是 Email，請在名單上方選一下。");
+  const again = pending().filter((i) => state.prev[i]).length;
+  if (again) list.push("有 " + again + " 位之前寄過，這次會再寄一次。");
   for (const k of keys) {
     if (lookup(state.rows[0], k) === undefined) list.push("名單裡沒有「" + k + "」這個欄位，信裡會原樣顯示 {{" + k + "}}。");
     else {
@@ -611,7 +638,7 @@ function bind() {
   $("changeList").onclick = () => {
     if (sending) return;
     showMap = false;
-    Object.assign(state, { source: "", headers: [], rows: [], map: { title: -1, name: -1, email: -1 }, sheetUrl: "", status: {}, off: {}, custom: {}, sentAt: {} });
+    Object.assign(state, { source: "", headers: [], rows: [], map: { title: -1, name: -1, email: -1 }, sheetUrl: "", status: {}, off: {}, custom: {}, sentAt: {}, alias: {}, prev: {} });
     url.value = "";
     showMsg("sendMsg", ""); $("progress").hidden = true; $("bar").style.width = 0;
     store.save(); render();
@@ -692,6 +719,33 @@ function bind() {
   $("pvBody").addEventListener("input", saveCustom);
   $("pvSubject").addEventListener("keydown", (e) => { if (e.key === "Enter") e.preventDefault(); });
   $("restore").onclick = () => { delete state.custom[current]; store.save(); renderPeople(); renderPreview(); };
+  // 直接在預覽上改這一位的收件 Email（例如信被退回，換一個信箱）
+  const pe = $("pvEmail");
+  pe.addEventListener("input", () => {
+    if (sending || state.status[current] === "ok") return;
+    const t = pe.textContent;
+    setEmail(current, (t.match(/<([^<>]+)>/)?.[1] || t).replace(/^mailto:/i, "").replace(/\s+/g, "")); // 貼「姓名 <信箱>」也認得
+    if (!pe.textContent.trim()) pe.textContent = "";
+    store.save(); renderPeople(); renderPreview();
+  });
+  pe.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); pe.blur(); } });
+  pe.addEventListener("blur", renderPreview);
+  // 已寄的人再寄一次：變回沒寄、打勾，Email 可以改；反悔就按「不重寄了」，回到上次寄出的樣子
+  $("resend").onclick = () => {
+    if (sending) return;
+    const i = current, before = state.prev[i];
+    if (state.status[i] === "ok") {
+      state.prev[i] = { email: col(state.rows[i], "email"), at: state.sentAt[i] || 0 };
+      delete state.status[i]; delete state.sentAt[i]; delete state.off[i];
+    } else if (before) {
+      setEmail(i, before.email);
+      state.status[i] = "ok";
+      if (before.at) state.sentAt[i] = before.at;
+      delete state.prev[i];
+    } else return;
+    store.save(); renderPeople(); renderPreview();
+    if (state.status[i] !== "ok" && pe.isContentEditable) { pe.focus(); getSelection().selectAllChildren(pe); }
+  };
   $("subject").oninput = (e) => { state.subject = e.target.value; store.save(); renderPreview(); };
   $("body").oninput = () => { state.body = $("body").innerHTML; store.save(); renderPreview(); };
   $("chips").addEventListener("mousedown", (e) => e.preventDefault()); // 點按鈕時游標留在原處
@@ -757,7 +811,7 @@ const sentCount = (c) => Object.values(c.status).filter((v) => v === "ok").lengt
 const day = (t) => { const d = new Date(t); return d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate(); };
 const clock = (t) => { const d = new Date(t); return day(t) + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
 
-const CASE_KEYS = ["source", "sheetUrl", "headers", "rows", "map", "sender", "replyTo", "subject", "body", "receipt", "status", "off", "custom", "sentAt", "rules"];
+const CASE_KEYS = ["source", "sheetUrl", "headers", "rows", "map", "sender", "replyTo", "subject", "body", "receipt", "status", "off", "custom", "sentAt", "alias", "prev", "rules"];
 const autoName = () => (state.subject.replace(TOKEN, "").replace(/\s+/g, " ").trim() || state.source || "未命名案件").slice(0, 60);
 
 // 把畫面上這一案打包成案件紀錄的一筆（closed：結案；否則是暫存，之後可以打開繼續寄）
@@ -776,7 +830,7 @@ function loadForm() {
 
 // 新案件：名單和信清空，寄件人名稱、回覆信箱、稱謂轉換沿用
 function resetCase() {
-  Object.assign(state, { source: "", headers: [], rows: [], map: { title: -1, name: -1, email: -1 }, sheetUrl: "", subject: "", body: DEFAULT_BODY, status: {}, off: {}, custom: {}, sentAt: {}, caseId: null, caseName: "", caseDate: "" });
+  Object.assign(state, { source: "", headers: [], rows: [], map: { title: -1, name: -1, email: -1 }, sheetUrl: "", subject: "", body: DEFAULT_BODY, status: {}, off: {}, custom: {}, sentAt: {}, alias: {}, prev: {}, caseId: null, caseName: "", caseDate: "" });
   attachments = []; current = 0; showMap = false;
   loadForm();
 }
@@ -815,6 +869,7 @@ function openCaseNow(c) {
   cases = cases.filter((x) => x !== c);
   caseStore.save();
   for (const k of CASE_KEYS) if (k !== "rules" && k in c) state[k] = c[k];
+  state.alias = c.alias || {}; state.prev = c.prev || {}; // 舊版存的案件沒有這兩項
   state.caseId = c.id; state.caseName = c.name; state.caseDate = c.date || "";
   attachments = c.attach || []; current = Math.max(0, state.rows.findIndex(validRow)); showMap = false;
   loadForm();
@@ -879,7 +934,8 @@ function renderCaseDetail() {
   if (!row) return;
   const mine = c.custom?.[casePerson];
   const st = c.status[casePerson];
-  $("caseTo").textContent = (st === "ok" ? "已寄給：" : "沒有寄出：") + col(row, "name", c) + " <" + col(row, "email", c) + ">" + (mine ? "　✎ 個別修改過" : "");
+  $("caseTo").textContent = (st === "ok" ? "已寄給：" : "沒有寄出：") + col(row, "name", c) + " <" + col(row, "email", c) + ">" + (mine ? "　✎ 個別修改過" : "") +
+    (c.prev?.[casePerson] ? "　↻ 之前" + (c.prev[casePerson].at ? " " + clock(c.prev[casePerson].at) + " " : "") + "寄過 " + c.prev[casePerson].email : "");
   $("caseSubject").textContent = mine ? mine.subject : fill(c.subject, row, false, c);
   $("caseBody").innerHTML = mine ? mine.html : fill(c.body, row, true, c).replace(/<\/?mark>/g, "");
   $("caseAttach").textContent = (c.files?.length ? "📎 " + c.files.join("、") : "") + (c.receipt ? "　含「我已收到」按鈕" : "");
@@ -994,6 +1050,7 @@ async function checkForUpdate() {
   const saved = await store.load();
   if (saved) Object.assign(state, saved);
   if (!Array.isArray(state.rules)) state.rules = DEFAULT_RULES.map((r) => ({ ...r }));
+  state.alias ||= {}; state.prev ||= {};
   for (const k in state.status) if (state.status[k] === "sending") delete state.status[k];
   current = Math.max(0, state.rows.findIndex(validRow));
   $("sender").value = state.sender || "";
