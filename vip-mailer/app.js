@@ -354,6 +354,9 @@ function renderPeople() {
   $("listSummary").textContent = state.source + "　已勾選 " + pending().length + " 位" +
     (sent ? "，已寄 " + sent + " 位" : "") + (bad ? "（" + bad + " 列 Email 有問題，不會寄）" : "");
 
+  const sortName = { st: "寄送狀態", title: "稱謂", name: "姓名", email: "Email" }[state.sort?.key];
+  $("sortNote").hidden = !sortName;
+  $("sortText").textContent = sortName ? "目前照「" + sortName + "」排序 " + (state.sort.dir > 0 ? "▲" : "▼") : "";
   const head = '<thead><tr><th class="st" data-sort="st" title="點箭頭照寄送狀態排序：要寄的在前、已寄的在後；再點一下反過來，第三下回到原本順序"><input type="checkbox" id="checkAll" title="全選／全不選"' +
     (allOn ? " checked" : "") + (can.length ? lock : " disabled") + '><span class="arrow' + (state.sort?.key === "st" ? "" : " idle") + '">' +
     (state.sort?.key === "st" ? (state.sort.dir > 0 ? "▲" : "▼") : "⇅") + "</span></th>" +
@@ -755,6 +758,12 @@ function bind() {
       store.save();
     } else current = i;
     renderPeople(); renderPreview();
+  };
+  $("sortReset").onclick = () => {
+    if (sending) return;
+    state.sort = null;
+    store.save(); renderPeople(); renderPreview();
+    document.querySelector("tr.current")?.scrollIntoView({ block: "nearest" });
   };
   const step = (d) => {
     if (sending) return;
