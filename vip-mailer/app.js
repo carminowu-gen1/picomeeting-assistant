@@ -354,8 +354,9 @@ function renderPeople() {
   $("listSummary").textContent = state.source + "　已勾選 " + pending().length + " 位" +
     (sent ? "，已寄 " + sent + " 位" : "") + (bad ? "（" + bad + " 列 Email 有問題，不會寄）" : "");
 
-  const head = '<thead><tr><th class="st"><input type="checkbox" id="checkAll" title="全選／全不選"' +
-    (allOn ? " checked" : "") + (can.length ? lock : " disabled") + "></th>" +
+  const head = '<thead><tr><th class="st" data-sort="st" title="點箭頭照寄送狀態排序：要寄的在前、已寄的在後；再點一下反過來，第三下回到原本順序"><input type="checkbox" id="checkAll" title="全選／全不選"' +
+    (allOn ? " checked" : "") + (can.length ? lock : " disabled") + '><span class="arrow' + (state.sort?.key === "st" ? "" : " idle") + '">' +
+    (state.sort?.key === "st" ? (state.sort.dir > 0 ? "▲" : "▼") : "⇅") + "</span></th>" +
     [["title", "稱謂"], ["name", "姓名"], ["email", "Email"]].map(([k, t]) => '<th data-sort="' + k + '" title="點一下照「' + t + '」排序，再點一下反過來，第三下回到原本順序">' + t +
       (state.sort?.key === k ? '<span class="arrow">' + (state.sort.dir > 0 ? "▲" : "▼") + "</span>" : "") + "</th>").join("") + "<th></th></tr></thead>";
   $("people").innerHTML = head + "<tbody>" + order().map((i) => {
@@ -411,7 +412,17 @@ const collator = new Intl.Collator("zh-Hant", { numeric: true, sensitivity: "bas
 function order() {
   const idx = state.rows.map((row, i) => i), s = state.sort;
   if (!s) return idx;
+  if (s.key === "st") return idx.sort((a, b) => (stRank(a) - stRank(b)) * s.dir || a - b);
   return idx.sort((a, b) => collator.compare(col(state.rows[a], s.key), col(state.rows[b], s.key)) * s.dir || a - b);
+}
+
+// 寄送狀態排序用：沒寄成功 → 打勾要寄 → 沒打勾 → 已寄出 → Email 有問題
+function stRank(i) {
+  const st = state.status[i];
+  if (!validRow(state.rows[i])) return 4;
+  if (st === "ok") return 3;
+  if (st && st !== "sending") return 0;
+  return state.off[i] ? 2 : 1;
 }
 
 // 要寄的信（打勾、還沒寄、Email 沒問題），照列表順序

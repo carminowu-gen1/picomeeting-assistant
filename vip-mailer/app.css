@@ -117,7 +117,10 @@ tr { cursor: pointer; }
 tr:hover { background: rgba(255, 255, 255, .06); }
 tr.current { background: var(--glass-2); }
 tr.bad td { color: var(--bad); }
-td.st { width: 34px; text-align: center; }
+td.st { width: 52px; text-align: center; }
+th.st { white-space: nowrap; }
+th .arrow.idle { color: var(--faint); font-size: 12px; }
+th[data-sort]:hover .arrow.idle { color: var(--gold); }
 .st.ok { color: var(--ok); font-weight: 700; }
 .st.err { color: var(--bad); font-weight: 700; }
 
