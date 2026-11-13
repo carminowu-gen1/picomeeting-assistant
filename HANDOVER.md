@@ -20,20 +20,22 @@
 
 ### 2. 抓程式
 
-建議放在**一樣的路徑 `D:\MA`**（Claude 的記憶是照資料夾路徑記的，一樣的路徑就能沿用）。
+> **有安裝包的話直接跳過第 2、5 步**：把 `MA-N97-安裝包.zip` 解壓縮，雙擊 `安裝.bat`，會自動把程式放到 `C:\claude\MA`、設定 git、把 Claude 的記憶和內部筆記一起搬過去。
+
+新電腦放在 `C:\claude\MA`：
 
 ```bash
-git clone https://github.com/carminowu-gen1/picomeeting-assistant.git D:\MA
+git clone https://github.com/carminowu-gen1/picomeeting-assistant.git C:\claude\MA
 ```
 
 然後設定提交者（和現在一樣，用 GitHub 的 noreply 地址，不會露出真實 Email）：
 
 ```bash
-git -C D:\MA config user.name "Carmino"
+git -C C:\claude\MA config user.name "Carmino"
 ```
 
 ```bash
-git -C D:\MA config user.email "266629319+carminowu-gen1@users.noreply.github.com"
+git -C C:\claude\MA config user.email "266629319+carminowu-gen1@users.noreply.github.com"
 ```
 
 ### 3. 第一次 push 時登入 GitHub
@@ -44,8 +46,8 @@ git -C D:\MA config user.email "266629319+carminowu-gen1@users.noreply.github.co
 
 `chrome://extensions` → 右上角「開發人員模式」→「載入未封裝項目」：
 
-- 小伐速記 → 選 `D:\MA`（整個資料夾就是外掛）
-- 小伐郵件高手 → 選 `D:\MA\vip-mailer`
+- 小伐速記 → 選 `C:\claude\MA`（整個資料夾就是外掛）
+- 小伐郵件高手 → 選 `C:\claude\MA\vip-mailer`
 
 之後改完程式，按卡片上的重新整理（圓形箭頭）就生效。
 
@@ -53,7 +55,7 @@ git -C D:\MA config user.email "266629319+carminowu-gen1@users.noreply.github.co
 
 | 東西 | 在舊電腦的位置 | 說明 |
 |---|---|---|
-| Claude 的記憶（回覆用繁中、介面風格等） | `C:\Users\wcm\.claude\projects\D--MA\memory\` | 整個資料夾複製到新電腦同路徑（`C:\Users\<帳號>\.claude\projects\D--MA\memory\`）。不搬也行，只是要重新交代一次偏好。 |
+| Claude 的記憶（回覆用繁中、介面風格等） | `C:\Users\wcm\.claude\projects\D--MA\memory\` | 複製到新電腦的 `C:\Users\<帳號>\.claude\projects\C--claude-MA\memory\`（資料夾名稱照專案路徑來：`C:\claude\MA` → `C--claude-MA`）。安裝包會自動做。 |
 | `docs-internal\` | `D:\MA\docs-internal\` | 未提交的內部筆記（會客室聽寫回覆）。要留就直接複製，或提交進 repo。 |
 | 小伐郵件高手的 Google 用戶端 ID | 存在 Chrome 外掛裡（`chrome.storage`） | 新電腦載入外掛後會再出現設定畫面，把同一組用戶端 ID 貼進去即可（在 Google Cloud Console →「憑證」可以查）。外掛 ID 固定是 `hgldmebiafknndoekhfaiggbcfecpfic`（manifest 有 `key`），所以重新導向 URI 不用改。 |
 | 小伐速記的 Groq 金鑰 | 存在 Chrome 外掛裡 | 新電腦的歡迎頁再貼一次。 |
@@ -63,7 +65,7 @@ git -C D:\MA config user.email "266629319+carminowu-gen1@users.noreply.github.co
 ## 二、repo 長什麼樣
 
 ```
-D:\MA\
+C:\claude\MA\
 ├── manifest.json, background.js, popup/, live/, options/, offscreen/,
 │   content/, lib/, dsp/, ui/, welcome/, perm/, icons/      ← 小伐速記（Chrome 外掛，v1.9.5）
 ├── docs/                 ← GitHub Pages（公開網站 https://carminowu-gen1.github.io/picomeeting-assistant/）
@@ -152,7 +154,7 @@ git push origin main mail-v1.8.1
 ## 六、給 Claude 的開場白（在新電腦第一次開 Claude 時貼）
 
 ```
-這個資料夾 D:\MA 有兩個工具：小伐速記（根目錄，Chrome 外掛＋docs/app 手機版）和小伐郵件高手（vip-mailer/）。
+這個資料夾 C:\claude\MA 有兩個工具：小伐速記（根目錄，Chrome 外掛＋docs/app 手機版）和小伐郵件高手（vip-mailer/）。
 先讀 HANDOVER.md 了解結構和發布流程。回覆一律用繁體中文；介面給我太太用，要漂亮、簡單、按鈕越少越好，
 風格比照夜景＋毛玻璃卡片（白字、金色小圓點、淡藍副標）。要發版時我會說「發布 x.y.z」，再提交並推標籤。
 ```
