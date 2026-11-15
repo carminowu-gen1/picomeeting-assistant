@@ -188,13 +188,17 @@ function subjectFor(i) {
   return state.custom[i] ? state.custom[i].subject : fill(state.subject, state.rows[i], false);
 }
 
+// 回信連結裡的文字：中文、空白保持原樣，只把會弄壞連結的符號轉碼。
+// 全部轉成 %E5%B7%B2… 的話，有些人的信箱程式不會解回來，對方回信會變成一串亂碼
+const mailtoText = (s) => String(s).replace(/[%&#?=+"<>\r\n]/g, (c) => encodeURIComponent(c));
+
 function receiptHtml(i) {
   const row = state.rows[i];
   const to = (state.replyTo || "").trim() || myEmail;
   const who = (col(row, "name") + " " + col(row, "title")).trim();
   const href = to
-    ? "mailto:" + to + "?subject=" + encodeURIComponent("已收到：" + subjectFor(i)) +
-      "&body=" + encodeURIComponent((who ? who + " " : "") + "已收到這封信。")
+    ? "mailto:" + to + "?subject=" + mailtoText("已收到：" + subjectFor(i)) +
+      "&body=" + mailtoText((who ? who + " " : "") + "已收到這封信。")
     : "#";
   return '<div style="margin-top:28px"><a href="' + esc(href) + '" style="display:inline-block;padding:10px 24px;background:#1f2a44;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:bold">✓ 我已收到</a>' +
     '<div style="margin-top:8px;font-size:12px;color:#888888">點一下按鈕會開啟一封已寫好的回覆信，按傳送即可。</div></div>';
